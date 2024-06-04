@@ -20,7 +20,7 @@ contract UserProxyFactory {
         return Clones.predictDeterministicAddress(userProxyImplementation, bytes32(uint256(uint160(user))));
     }
 
-    function _deployUserProxy() internal returns (address) {
+    function deployUserProxy() public returns (address) {
         // reverts if the user already has a proxy
         return Clones.cloneDeterministic(userProxyImplementation, bytes32(uint256(uint160(msg.sender))));
     }
