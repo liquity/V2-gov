@@ -21,10 +21,17 @@ contract StakingV2Test is Test {
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1);
     }
 
-    function test_depositLQTY() public {
+    function test_deployUserProxy_depositLQTY_withdrawLQTY() public {
+        vm.startPrank(user);
+        address userProxy = stakingV2.deployUserProxy();
+        vm.stopPrank();
+
+        vm.startPrank(address(this));
+        stakingV2.deployUserProxy();
+        vm.stopPrank();
+
         vm.startPrank(user);
 
-        address userProxy = stakingV2.deployUserProxy();
         lqty.approve(address(userProxy), 1);
         stakingV2.depositLQTY(1);
 
