@@ -34,7 +34,7 @@ contract StakingV2Test is Test {
 
     function test_depositLQTY_withdrawShares() public {
         vm.startPrank(user);
-        
+
         // deploy
         address userProxy = stakingV2.deployUserProxy();
 
@@ -47,7 +47,7 @@ contract StakingV2Test is Test {
         vm.warp(block.timestamp + 86400 * 30);
         lqty.approve(address(userProxy), 2e18);
         assertEq(stakingV2.depositLQTY(2e18), 2e18 * WAD / stakingV2.currentShareRate());
-        assertEq(stakingV2.sharesByUser(user), 1e18 + 2e18 * WAD / stakingV2.currentShareRate()); 
+        assertEq(stakingV2.sharesByUser(user), 1e18 + 2e18 * WAD / stakingV2.currentShareRate());
 
         // withdraw 0.5 half of shares
         vm.warp(block.timestamp + 86400 * 30);

@@ -13,7 +13,6 @@ contract StakingV2 is UserProxyFactory {
 
     uint256 public totalShares;
     mapping(address => uint256) public sharesByUser;
-    mapping(address => uint256) public lqtyByUser;
 
     constructor(address lqty_, address lusd_, address stakingV1_) UserProxyFactory(lqty_, lusd_, stakingV1_) {
         deploymentTimestamp = block.timestamp;
