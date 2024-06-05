@@ -24,13 +24,13 @@ contract StakingV2 is UserProxyFactory {
     }
 
     // Voting power statically increases over time starting from 0 at time of share issuance
-    function votingPower(address user) public view returns (uint256) {
+    function votingPower(address user) external view returns (uint256) {
         uint256 shares = sharesByUser[user];
-        uint256 weightedShares = shares * currentShareRate();
-        return (weightedShares - (shares * WAD)) / WAD;
+        uint256 weightedShares = shares * currentShareRate() / WAD;
+        return weightedShares - shares;
     }
 
-    function depositLQTY(uint256 lqtyAmount) public returns (uint256) {
+    function depositLQTY(uint256 lqtyAmount) external returns (uint256) {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         userProxy.stake(msg.sender, lqtyAmount);
 
@@ -40,7 +40,7 @@ contract StakingV2 is UserProxyFactory {
         return shareAmount;
     }
 
-    function withdrawShares(uint256 shareAmount) public returns (uint256) {
+    function withdrawShares(uint256 shareAmount) external returns (uint256) {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         uint256 totalLqty = ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy));
 
@@ -54,7 +54,7 @@ contract StakingV2 is UserProxyFactory {
     }
 
     // Claim staking rewards from StakingV1 without unstaking
-    function claimFromStakingV1() public {
+    function claimFromStakingV1() external {
         UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(msg.sender, 0);
     }
 }

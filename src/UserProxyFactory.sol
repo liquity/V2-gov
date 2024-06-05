@@ -12,15 +12,11 @@ contract UserProxyFactory {
         userProxyImplementation = address(new UserProxy(lqty, lusd, stakingV1));
     }
 
-    function userProxyCreationCode() public pure returns (bytes memory) {
-        return type(UserProxy).creationCode;
-    }
-
     function deriveUserProxyAddress(address user) public view returns (address) {
         return Clones.predictDeterministicAddress(userProxyImplementation, bytes32(uint256(uint160(user))));
     }
 
-    function deployUserProxy() public returns (address) {
+    function deployUserProxy() external returns (address) {
         // reverts if the user already has a proxy
         return Clones.cloneDeterministic(userProxyImplementation, bytes32(uint256(uint160(msg.sender))));
     }

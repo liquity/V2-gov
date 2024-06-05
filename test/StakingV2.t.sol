@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "./../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
-import {StakingV2, WAD} from "../src/StakingV2.sol";
+import {StakingV2} from "../src/StakingV2.sol";
 
 contract StakingV2Test is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
@@ -55,6 +55,48 @@ contract StakingV2Test is Test {
 
         // withdraw remaining shares
         assertEq(stakingV2.withdrawShares(stakingV2.sharesByUser(user)), 1.5e18);
+
+        vm.stopPrank();
+    }
+
+    function test_currentShareRate() public payable {
+        vm.warp(0);
+        stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1);
+        assertEq(stakingV2.currentShareRate(), 1e18);
+
+        vm.warp(1);
+        assertGt(stakingV2.currentShareRate(), 1e18);
+
+        vm.warp(365 days);
+        assertEq(stakingV2.currentShareRate(), 2 * WAD);
+
+        vm.warp(730 days);
+        assertEq(stakingV2.currentShareRate(), 3 * WAD);
+
+        vm.warp(1095 days);
+        assertEq(stakingV2.currentShareRate(), 4 * WAD);
+    }
+
+    function test_votingPower() public {
+        vm.startPrank(user);
+
+        // deploy
+        address userProxy = stakingV2.deployUserProxy();
+
+        lqty.approve(address(userProxy), 1e18);
+        assertEq(stakingV2.depositLQTY(1e18), 1e18);
+        assertEq(stakingV2.sharesByUser(user), 1e18);
+
+        assertEq(stakingV2.votingPower(user), 0);
+
+        vm.warp(block.timestamp + 365 days);
+        assertEq(stakingV2.votingPower(user), 1e18);
+
+        vm.warp(block.timestamp + 730 days);
+        assertEq(stakingV2.votingPower(user), 3e18);
+
+        vm.warp(block.timestamp + 1095 days);
+        assertEq(stakingV2.votingPower(user), 6e18);
 
         vm.stopPrank();
     }
