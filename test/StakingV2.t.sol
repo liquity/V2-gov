@@ -2,9 +2,10 @@
 pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
-import {IERC20} from "./../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
-import {StakingV2} from "../src/StakingV2.sol";
+import {StakingV2, WAD} from "../src/StakingV2.sol";
+import {Voting} from "../src/Voting.sol";
 
 contract StakingV2Test is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
@@ -13,10 +14,13 @@ contract StakingV2Test is Test {
     address private constant user = address(0x64690353808dBcC843F95e30E071a0Ae6339EE1b);
 
     StakingV2 private stakingV2;
+    Voting private voting;
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1);
+        voting = new Voting(address(stakingV2));
+        stakingV2.setVoting(address(voting));
     }
 
     function test_deployUserProxy() public {
@@ -75,29 +79,5 @@ contract StakingV2Test is Test {
 
         vm.warp(1095 days);
         assertEq(stakingV2.currentShareRate(), 4 * WAD);
-    }
-
-    function test_votingPower() public {
-        vm.startPrank(user);
-
-        // deploy
-        address userProxy = stakingV2.deployUserProxy();
-
-        lqty.approve(address(userProxy), 1e18);
-        assertEq(stakingV2.depositLQTY(1e18), 1e18);
-        assertEq(stakingV2.sharesByUser(user), 1e18);
-
-        assertEq(stakingV2.votingPower(user), 0);
-
-        vm.warp(block.timestamp + 365 days);
-        assertEq(stakingV2.votingPower(user), 1e18);
-
-        vm.warp(block.timestamp + 730 days);
-        assertEq(stakingV2.votingPower(user), 3e18);
-
-        vm.warp(block.timestamp + 1095 days);
-        assertEq(stakingV2.votingPower(user), 6e18);
-
-        vm.stopPrank();
     }
 }

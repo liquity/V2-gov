@@ -4,12 +4,14 @@ pragma solidity ^0.8.13;
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 import {ILQTYStaking} from "./ILQTYStaking.sol";
+import {Voting} from "./Voting.sol";
 
 uint256 constant WAD = 1e18;
 uint256 constant ONE_YEAR = 31_536_000;
 
 contract StakingV2 is UserProxyFactory {
     uint256 public immutable deploymentTimestamp;
+    Voting public voting;
 
     uint256 public totalShares;
     mapping(address => uint256) public sharesByUser;
@@ -18,16 +20,13 @@ contract StakingV2 is UserProxyFactory {
         deploymentTimestamp = block.timestamp;
     }
 
-    function currentShareRate() public view returns (uint256) {
-        // share exchange rate increases at a simple rate of 1000% per year since deployment, it is quoted on a 10^12 basis
-        return ((block.timestamp - deploymentTimestamp) * WAD / ONE_YEAR) + WAD;
+    function setVoting(address voting_) external {
+        require(address(voting) == address(0), "StakingV2: voting-already-set");
+        voting = Voting(voting_);
     }
 
-    // Voting power statically increases over time starting from 0 at time of share issuance
-    function votingPower(address user) external view returns (uint256) {
-        uint256 shares = sharesByUser[user];
-        uint256 weightedShares = shares * currentShareRate() / WAD;
-        return weightedShares - shares;
+    function currentShareRate() public view returns (uint256) {
+        return ((block.timestamp - deploymentTimestamp) * WAD / ONE_YEAR) + WAD;
     }
 
     function depositLQTY(uint256 lqtyAmount) external returns (uint256) {
@@ -42,10 +41,15 @@ contract StakingV2 is UserProxyFactory {
 
     function withdrawShares(uint256 shareAmount) external returns (uint256) {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
-        uint256 totalLqty = ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy));
-
         uint256 shares = sharesByUser[msg.sender];
-        uint256 lqtyAmount = (totalLqty * shareAmount) / shares;
+
+        // check if user has enough unallocated shares
+        require(
+            shareAmount <= shares - (voting.votesAllocatedByUser(msg.sender) * WAD / currentShareRate()),
+            "StakingV2: insufficient-unallocated-shares"
+        );
+
+        uint256 lqtyAmount = (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * shareAmount) / shares;
         userProxy.unstake(msg.sender, lqtyAmount);
 
         sharesByUser[msg.sender] = shares - shareAmount;
