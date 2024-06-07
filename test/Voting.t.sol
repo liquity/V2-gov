@@ -20,34 +20,22 @@ contract StakingV2Test is Test {
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
-
-        stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1);
+        address _voting = vm.computeCreateAddress(address(this), 2);
+        stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
         voting = new Voting(address(stakingV2));
-        stakingV2.setVoting(address(voting));
     }
 
-    function test_votingPower() public {
-        vm.startPrank(user);
-
-        // deploy
-        address userProxy = stakingV2.deployUserProxy();
-
-        lqty.approve(address(userProxy), 1e18);
-        assertEq(stakingV2.depositLQTY(1e18), 1e18);
-        assertEq(stakingV2.sharesByUser(user), 1e18);
-
-        assertEq(voting.votingPower(user), 0);
+    function test_sharesToVotes() public {
+        assertEq(voting.sharesToVotes(stakingV2.currentShareRate(), 1e18), 0);
 
         vm.warp(block.timestamp + 365 days);
-        assertEq(voting.votingPower(user), 1e18);
+        assertEq(voting.sharesToVotes(stakingV2.currentShareRate(), 1e18), 1e18);
 
         vm.warp(block.timestamp + 730 days);
-        assertEq(voting.votingPower(user), 3e18);
+        assertEq(voting.sharesToVotes(stakingV2.currentShareRate(), 1e18), 3e18);
 
         vm.warp(block.timestamp + 1095 days);
-        assertEq(voting.votingPower(user), 6e18);
-
-        vm.stopPrank();
+        assertEq(voting.sharesToVotes(stakingV2.currentShareRate(), 1e18), 6e18);
     }
 
     function test_registerInitiative() public {
@@ -55,7 +43,7 @@ contract StakingV2Test is Test {
         assertEq(voting.initiatives(initiative), address(this));
     }
 
-    function test_vote() public {
+    function test_allocateShares() public {
         voting.registerInitiative(initiative);
 
         vm.startPrank(user);
@@ -68,12 +56,12 @@ contract StakingV2Test is Test {
 
         vm.warp(block.timestamp + 365 days);
 
-        assertEq(voting.votesAllocated(), 0);
-        assertEq(voting.votesAllocatedByUser(user), 0);
+        assertEq(voting.qualifiedSharesAllocated(), 0);
+        assertEq(voting.sharesAllocatedByUser(user), 0);
 
-        voting.vote(initiative, 1e18);
-        assertEq(voting.votesAllocated(), 1e18);
-        assertEq(voting.votesAllocatedByUser(user), 1e18);
+        voting.allocateShares(initiative, 1e18);
+        assertEq(voting.qualifiedSharesAllocated(), 1e18);
+        assertEq(voting.sharesAllocatedByUser(user), 1e18);
 
         vm.stopPrank();
     }

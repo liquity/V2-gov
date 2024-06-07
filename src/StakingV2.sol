@@ -11,17 +11,15 @@ uint256 constant ONE_YEAR = 31_536_000;
 
 contract StakingV2 is UserProxyFactory {
     uint256 public immutable deploymentTimestamp;
-    Voting public voting;
+    Voting public immutable voting;
 
     uint256 public totalShares;
     mapping(address => uint256) public sharesByUser;
 
-    constructor(address lqty_, address lusd_, address stakingV1_) UserProxyFactory(lqty_, lusd_, stakingV1_) {
+    constructor(address lqty, address lusd, address stakingV1, address voting_)
+        UserProxyFactory(lqty, lusd, stakingV1)
+    {
         deploymentTimestamp = block.timestamp;
-    }
-
-    function setVoting(address voting_) external {
-        require(address(voting) == address(0), "StakingV2: voting-already-set");
         voting = Voting(voting_);
     }
 
@@ -45,7 +43,7 @@ contract StakingV2 is UserProxyFactory {
 
         // check if user has enough unallocated shares
         require(
-            shareAmount <= shares - (voting.votesAllocatedByUser(msg.sender) * WAD / currentShareRate()),
+            shareAmount <= shares - voting.sharesAllocatedByUser(msg.sender),
             "StakingV2: insufficient-unallocated-shares"
         );
 

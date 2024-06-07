@@ -18,9 +18,9 @@ contract StakingV2Test is Test {
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
-        stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1);
+        address _voting = vm.computeCreateAddress(address(this), 2);
+        stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
         voting = new Voting(address(stakingV2));
-        stakingV2.setVoting(address(voting));
     }
 
     function test_deployUserProxy() public {
@@ -65,7 +65,7 @@ contract StakingV2Test is Test {
 
     function test_currentShareRate() public payable {
         vm.warp(0);
-        stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1);
+        stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, address(0));
         assertEq(stakingV2.currentShareRate(), 1e18);
 
         vm.warp(1);
