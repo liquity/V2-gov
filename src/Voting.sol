@@ -58,10 +58,7 @@ contract Voting {
     function snapshotQualifiedSharesAllocated(uint256 shareRate) internal returns (uint256) {
         Snapshot memory snapshot = qualifiedVotesSnapshots[epoch() - 1];
         if (!snapshot.finalized) {
-            uint256 votes = sharesToVotes(shareRate, qualifiedSharesAllocated);
-            if (votes >= calculateVotingThreshold()) {
-                snapshot.votes = sharesToVotes(shareRate, qualifiedSharesAllocated);
-            }
+            snapshot.votes = sharesToVotes(shareRate, qualifiedSharesAllocated);
             snapshot.finalized = true;
             qualifiedVotesSnapshots[epoch() - 1] = snapshot;
         }
@@ -72,8 +69,9 @@ contract Voting {
         Snapshot memory snapshot = qualifiedVotesForInitiativeSnapshots[epoch() - 1][initiative];
         if (!snapshot.finalized) {
             uint256 votes = sharesToVotes(shareRate, sharesAllocatedForInitiative[initiative]);
+            // if the votes didn't meet the voting threshold then no votes qualify
             if (votes >= calculateVotingThreshold()) {
-                snapshot.votes = sharesToVotes(shareRate, qualifiedSharesAllocated);
+                snapshot.votes = votes;
             }
             snapshot.finalized = true;
             qualifiedVotesForInitiativeSnapshots[epoch() - 1][initiative] = snapshot;
@@ -123,7 +121,6 @@ contract Voting {
         sharesAllocatedByUser[msg.sender] -= shares;
         sharesAllocatedByUserForInitiative[msg.sender][initiative] = _sharesAllocatedByUserForInitiative - shares;
         sharesAllocatedForInitiative[initiative] -= shares;
-        // sharesAllocated -= shares;
 
         uint256 votingThreshold = calculateVotingThreshold();
         uint256 votesAllocatedForInitiative = sharesToVotes(shareRate, _sharesAllocatedByUserForInitiative);
