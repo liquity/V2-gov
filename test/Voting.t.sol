@@ -59,14 +59,23 @@ contract StakingV2Test is Test {
         assertEq(voting.qualifiedSharesAllocated(), 0);
         assertEq(voting.sharesAllocatedByUser(user), 0);
 
-        voting.allocateShares(initiative, 1e18);
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = initiative;
+        int256[] memory diffAllocations = new int256[](1);
+        diffAllocations[0] = 1e18;
+        int256[] memory diffVetos = new int256[](1);
+
+        voting.allocateShares(initiatives, diffAllocations, diffVetos);
         assertEq(voting.qualifiedSharesAllocated(), 1e18);
         assertEq(voting.sharesAllocatedByUser(user), 1e18);
 
         vm.expectRevert("StakingV2: insufficient-unallocated-shares");
-        stakingV2.withdrawShares(1e18);
 
-        voting.deallocateShares(initiative, 1e18);
+        stakingV2.withdrawShares(1e18);
+        initiatives[0] = initiative;
+        diffAllocations[0] = -1e18;
+
+        voting.allocateShares(initiatives, diffAllocations, diffVetos);
         assertEq(voting.qualifiedSharesAllocated(), 0);
         assertEq(voting.sharesAllocatedByUser(user), 0);
 

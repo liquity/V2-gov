@@ -5,7 +5,14 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {StakingV2, WAD} from "./StakingV2.sol";
 
-uint256 constant ONE_WEEK = 604800;
+uint256 constant EPOCH_DURATION = 604800;
+
+function add(uint256 a, int256 b) pure returns (uint256) {
+    if (b < 0) {
+        return a - uint256(-b);
+    }
+    return a + uint256(b);
+}
 
 contract Voting {
     uint256 public immutable deploymentTimestamp = block.timestamp;
@@ -21,6 +28,7 @@ contract Voting {
         bool finalized;
     }
 
+    uint256 public lastSnapshotEpoch;
     mapping(uint256 => Snapshot) public qualifiedVotesSnapshots;
     mapping(uint256 => mapping(address => Snapshot)) qualifiedVotesForInitiativeSnapshots;
 
@@ -40,7 +48,7 @@ contract Voting {
 
     // store last epoch
     function epoch() public view returns (uint256) {
-        return ((block.timestamp - deploymentTimestamp) / ONE_WEEK) + 1;
+        return ((block.timestamp - deploymentTimestamp) / EPOCH_DURATION) + 1;
     }
 
     // Voting power statically increases over time starting from 0 at time of share issuance
@@ -51,7 +59,7 @@ contract Voting {
 
     // Voting threshold is 4% of total shares allocated in the previous epoch
     function calculateVotingThreshold() public view returns (uint256) {
-        return qualifiedVotesSnapshots[epoch() - 1].votes * 0.04e18 / WAD;
+        return qualifiedVotesSnapshots[lastSnapshotEpoch].votes * 0.04e18 / WAD;
     }
 
     function _snapshotQualifiedSharesAllocated(uint256 shareRate) internal returns (uint256) {
@@ -60,6 +68,7 @@ contract Voting {
             snapshot.votes = sharesToVotes(shareRate, qualifiedSharesAllocated);
             snapshot.finalized = true;
             qualifiedVotesSnapshots[epoch() - 1] = snapshot;
+            lastSnapshotEpoch = epoch() - 1;
         }
         return snapshot.votes;
     }
@@ -106,87 +115,64 @@ contract Voting {
         delete initiativesRegistered[initiative];
     }
 
-    // force user to with 100% of shares, pass array of initiatives
-    function allocateShares(address initiative, uint256 shares) external {
-        require(initiativesRegistered[initiative] <= block.timestamp + ONE_WEEK, "Voting: initiative-not-active");
-
+    function allocateShares(
+        address[] calldata initiatives,
+        int256[] calldata diffAllocations,
+        int256[] calldata diffVetos
+    ) external {
         uint256 shareRate = stakingV2.currentShareRate();
         _snapshotQualifiedSharesAllocated(shareRate);
-        _snapshotSharesAllocatedForInitiative(initiative, shareRate);
-
-        uint256 sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
-        require(stakingV2.sharesByUser(msg.sender) >= sharesAllocatedByUser_ + shares, "Voting: insufficient-shares");
-
-        sharesAllocatedByUser[msg.sender] = sharesAllocatedByUser_ + shares;
-        uint256 sharesAllocatedByUserForInitiative_ = sharesAllocatedByUserForInitiative[msg.sender][initiative];
-        sharesAllocatedByUserForInitiative[msg.sender][initiative] = sharesAllocatedByUserForInitiative_ + shares;
-        sharesAllocatedForInitiative[initiative] += shares;
 
         uint256 votingThreshold = calculateVotingThreshold();
-        uint256 votesAllocatedForInitiative = sharesToVotes(shareRate, sharesAllocatedByUserForInitiative_);
-        if (votesAllocatedForInitiative + sharesToVotes(shareRate, shares) >= votingThreshold) {
-            if (votesAllocatedForInitiative < votingThreshold) {
-                qualifiedSharesAllocated += sharesAllocatedByUserForInitiative_ + shares;
-            } else {
-                qualifiedSharesAllocated += shares;
-            }
-        }
-    }
-
-    function deallocateShares(address initiative, uint256 shares) external {
-        uint256 shareRate = stakingV2.currentShareRate();
-
-        _snapshotQualifiedSharesAllocated(shareRate);
-        _snapshotSharesAllocatedForInitiative(initiative, shareRate);
-
-        uint256 sharesAllocatedByUserForInitiative_ = sharesAllocatedByUserForInitiative[msg.sender][initiative];
-        require(shares <= sharesAllocatedByUserForInitiative_, "Voting: gt-shares-allocated");
-
-        sharesAllocatedByUser[msg.sender] -= shares;
-        sharesAllocatedByUserForInitiative[msg.sender][initiative] = sharesAllocatedByUserForInitiative_ - shares;
-        sharesAllocatedForInitiative[initiative] -= shares;
-
-        uint256 votingThreshold = calculateVotingThreshold();
-        uint256 votesAllocatedForInitiative = sharesToVotes(shareRate, sharesAllocatedByUserForInitiative_);
-        if (votesAllocatedForInitiative >= votingThreshold) {
-            if (votesAllocatedForInitiative - sharesToVotes(shareRate, shares) >= votingThreshold) {
-                qualifiedSharesAllocated -= shares;
-            } else {
-                qualifiedSharesAllocated -= sharesAllocatedByUserForInitiative_ + shares;
-            }
-        }
-    }
-
-    function veto(address initiative, uint256 shares) external {
-        require(initiativesRegistered[initiative] <= block.timestamp + ONE_WEEK, "Voting: initiative-not-active");
-
-        uint256 shareRate = stakingV2.currentShareRate();
-        _snapshotQualifiedSharesAllocated(shareRate);
-        _snapshotSharesAllocatedForInitiative(initiative, shareRate);
-
         uint256 sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
-        require(stakingV2.sharesByUser(msg.sender) >= sharesAllocatedByUser_ + shares, "Voting: insufficient-shares");
 
-        sharesAllocatedByUser[msg.sender] = sharesAllocatedByUser_ + shares;
-        vetoedSharesAllocatedForInitiative[initiative] += shares;
-        vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative] += shares;
-    }
+        for (uint256 i = 0; i < initiatives.length; i++) {
+            address initiative = initiatives[i];
+            require(
+                initiativesRegistered[initiative] <= block.timestamp + EPOCH_DURATION, "Voting: initiative-not-active"
+            );
+            _snapshotSharesAllocatedForInitiative(initiative, shareRate);
 
-    function unveto(address initiative, uint256 shares) external {
-        require(initiativesRegistered[initiative] <= block.timestamp + ONE_WEEK, "Voting: initiative-not-active");
+            int256 diffAllocation = diffAllocations[i];
+            uint256 sharesAllocatedByUserForInitiative_ = sharesAllocatedByUserForInitiative[msg.sender][initiative];
+            sharesAllocatedByUserForInitiative[msg.sender][initiative] =
+                add(sharesAllocatedByUserForInitiative_, diffAllocation);
+            sharesAllocatedForInitiative[initiative] = add(sharesAllocatedForInitiative[initiative], diffAllocation);
+            sharesAllocatedByUser_ = add(sharesAllocatedByUser_, diffAllocation);
 
-        uint256 shareRate = stakingV2.currentShareRate();
-        _snapshotQualifiedSharesAllocated(shareRate);
-        _snapshotSharesAllocatedForInitiative(initiative, shareRate);
+            uint256 votesAllocatedForInitiative = sharesToVotes(shareRate, sharesAllocatedByUserForInitiative_);
+            if (diffAllocation > 0) {
+                if (votesAllocatedForInitiative + sharesToVotes(shareRate, uint256(diffAllocation)) >= votingThreshold)
+                {
+                    if (votesAllocatedForInitiative < votingThreshold) {
+                        qualifiedSharesAllocated += add(sharesAllocatedByUserForInitiative_, diffAllocation);
+                    } else {
+                        qualifiedSharesAllocated = add(qualifiedSharesAllocated, diffAllocation);
+                    }
+                }
+            } else {
+                if (votesAllocatedForInitiative >= votingThreshold) {
+                    if (
+                        votesAllocatedForInitiative - sharesToVotes(shareRate, uint256(-diffAllocation))
+                            >= votingThreshold
+                    ) {
+                        qualifiedSharesAllocated = add(qualifiedSharesAllocated, diffAllocation);
+                    } else {
+                        qualifiedSharesAllocated -= add(sharesAllocatedByUserForInitiative_, diffAllocation);
+                    }
+                }
+            }
 
-        uint256 vetoedSharesAllocatedByUserForInitiative_ =
-            vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative];
-        require(shares <= vetoedSharesAllocatedByUserForInitiative_, "Voting: gt-vetoed-shares-allocated");
+            int256 diffVeto = diffVetos[i];
+            vetoedSharesAllocatedForInitiative[initiative] =
+                add(vetoedSharesAllocatedForInitiative[initiative], diffVeto);
+            vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative] =
+                add(vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative], diffVeto);
+            sharesAllocatedByUser_ = add(sharesAllocatedByUser_, diffVeto);
+        }
 
-        sharesAllocatedByUser[msg.sender] -= shares;
-        vetoedSharesAllocatedForInitiative[initiative] -= shares;
-        vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative] =
-            vetoedSharesAllocatedByUserForInitiative_ - shares;
+        sharesAllocatedByUser[msg.sender] = sharesAllocatedByUser_;
+        require(stakingV2.sharesByUser(msg.sender) >= sharesAllocatedByUser_, "Voting: insufficient-shares");
     }
 
     // split accrued funds according to votes received between all initiatives
