@@ -191,6 +191,7 @@ contract Voting {
 
     // split accrued funds according to votes received between all initiatives
     function distributeToInitiative(address initiative, address token) external {
+        require(distributeToInitiativeInEpoch[epoch() - 1][initiative] == false, "Voting: already-distributed");
         uint256 shareRate = stakingV2.currentShareRate();
         uint256 qualifiedVotes = _snapshotQualifiedSharesAllocated(shareRate);
         uint256 qualifiedVotesForInitiative = _snapshotSharesAllocatedForInitiative(initiative, shareRate);
