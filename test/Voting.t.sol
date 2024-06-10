@@ -40,7 +40,7 @@ contract StakingV2Test is Test {
 
     function test_registerInitiative() public {
         voting.registerInitiative(initiative);
-        assertEq(voting.initiatives(initiative), address(this));
+        assertEq(voting.initiativesRegistered(initiative), block.timestamp);
     }
 
     function test_allocateShares_deallocateShares() public {

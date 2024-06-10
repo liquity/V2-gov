@@ -12,8 +12,9 @@ contract Voting {
 
     StakingV2 public stakingV2;
 
-    mapping(uint256 => mapping(address => uint256)) public accruedInEpoch;
-    mapping(uint256 => mapping(address => bool)) public distributeToInitiativeInEpoch;
+    mapping(address => uint256) public initiativesRegistered;
+
+    uint256 public qualifiedSharesAllocated;
 
     struct Snapshot {
         uint256 votes;
@@ -23,16 +24,15 @@ contract Voting {
     mapping(uint256 => Snapshot) public qualifiedVotesSnapshots;
     mapping(uint256 => mapping(address => Snapshot)) qualifiedVotesForInitiativeSnapshots;
 
-    uint256 public qualifiedSharesAllocated;
     mapping(address => uint256) public sharesAllocatedByUser;
     mapping(address => uint256) public sharesAllocatedForInitiative;
     mapping(address => mapping(address => uint256)) public sharesAllocatedByUserForInitiative;
 
-    struct Initiative {
-        address proposer;
-    }
+    mapping(address => uint256) public vetoedSharesAllocatedForInitiative;
+    mapping(address => mapping(address => uint256)) public vetoedSharesAllocatedByUserForInitiative;
 
-    mapping(address => Initiative) public initiatives;
+    mapping(uint256 => mapping(address => uint256)) public accruedInEpoch;
+    mapping(uint256 => mapping(address => bool)) public distributeToInitiativeInEpoch;
 
     constructor(address stakingV2_) {
         stakingV2 = StakingV2(stakingV2_);
@@ -67,9 +67,11 @@ contract Voting {
     function _snapshotSharesAllocatedForInitiative(address initiative, uint256 shareRate) internal returns (uint256) {
         Snapshot memory snapshot = qualifiedVotesForInitiativeSnapshots[epoch() - 1][initiative];
         if (!snapshot.finalized) {
+            uint256 votingThreshold = calculateVotingThreshold();
             uint256 votes = sharesToVotes(shareRate, sharesAllocatedForInitiative[initiative]);
+            uint256 vetos = sharesToVotes(shareRate, vetoedSharesAllocatedForInitiative[initiative]);
             // if the votes didn't meet the voting threshold then no votes qualify
-            if (votes >= calculateVotingThreshold()) {
+            if (votes >= votingThreshold && votes >= vetos) {
                 snapshot.votes = votes;
             }
             snapshot.finalized = true;
@@ -80,12 +82,34 @@ contract Voting {
 
     function registerInitiative(address initiative) external {
         require(initiative != address(0), "Voting: zero-address");
-        require(initiatives[initiative].proposer == address(0), "Voting: initiative-already-registered");
-        initiatives[initiative] = Initiative(msg.sender);
+        require(initiativesRegistered[initiative] == 0, "Voting: initiative-already-registered");
+        initiativesRegistered[initiative] = block.timestamp;
+    }
+
+    function unregisterInitiative(address initiative) external {
+        uint256 shareRate = stakingV2.currentShareRate();
+        _snapshotQualifiedSharesAllocated(shareRate);
+        uint256 qualifiedVotesForInitiative = _snapshotSharesAllocatedForInitiative(initiative, shareRate);
+        uint256 vetosForInitiative = sharesToVotes(shareRate, vetoedSharesAllocatedForInitiative[initiative]);
+
+        // unregister initiative if it didn't receive enough votes in 4 subsequent epochs
+        require(
+            (
+                qualifiedVotesForInitiative == 0
+                    && qualifiedVotesForInitiativeSnapshots[epoch() - 2][initiative].votes == 0
+                    && qualifiedVotesForInitiativeSnapshots[epoch() - 3][initiative].votes == 0
+                    && qualifiedVotesForInitiativeSnapshots[epoch() - 4][initiative].votes == 0
+            ) || vetosForInitiative > qualifiedVotesForInitiative && vetosForInitiative > calculateVotingThreshold() * 3,
+            "Voting: cannot-unregister-initiative"
+        );
+
+        delete initiativesRegistered[initiative];
     }
 
     // force user to with 100% of shares, pass array of initiatives
     function allocateShares(address initiative, uint256 shares) external {
+        require(initiativesRegistered[initiative] <= block.timestamp + ONE_WEEK, "Voting: initiative-not-active");
+
         uint256 shareRate = stakingV2.currentShareRate();
         _snapshotQualifiedSharesAllocated(shareRate);
         _snapshotSharesAllocatedForInitiative(initiative, shareRate);
@@ -133,6 +157,38 @@ contract Voting {
         }
     }
 
+    function veto(address initiative, uint256 shares) external {
+        require(initiativesRegistered[initiative] <= block.timestamp + ONE_WEEK, "Voting: initiative-not-active");
+
+        uint256 shareRate = stakingV2.currentShareRate();
+        _snapshotQualifiedSharesAllocated(shareRate);
+        _snapshotSharesAllocatedForInitiative(initiative, shareRate);
+
+        uint256 sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
+        require(stakingV2.sharesByUser(msg.sender) >= sharesAllocatedByUser_ + shares, "Voting: insufficient-shares");
+
+        sharesAllocatedByUser[msg.sender] = sharesAllocatedByUser_ + shares;
+        vetoedSharesAllocatedForInitiative[initiative] += shares;
+        vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative] += shares;
+    }
+
+    function unveto(address initiative, uint256 shares) external {
+        require(initiativesRegistered[initiative] <= block.timestamp + ONE_WEEK, "Voting: initiative-not-active");
+
+        uint256 shareRate = stakingV2.currentShareRate();
+        _snapshotQualifiedSharesAllocated(shareRate);
+        _snapshotSharesAllocatedForInitiative(initiative, shareRate);
+
+        uint256 vetoedSharesAllocatedByUserForInitiative_ =
+            vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative];
+        require(shares <= vetoedSharesAllocatedByUserForInitiative_, "Voting: gt-vetoed-shares-allocated");
+
+        sharesAllocatedByUser[msg.sender] -= shares;
+        vetoedSharesAllocatedForInitiative[initiative] -= shares;
+        vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative] =
+            vetoedSharesAllocatedByUserForInitiative_ - shares;
+    }
+
     // split accrued funds according to votes received between all initiatives
     function distributeToInitiative(address initiative, address token) external {
         uint256 shareRate = stakingV2.currentShareRate();
@@ -143,5 +199,8 @@ contract Voting {
         IERC20(token).transfer(initiative, claim);
     }
 
-    function accrue(address token) external {}
+    function deposit(address token, uint256 amount) external {
+        IERC20(token).transferFrom(msg.sender, address(this), amount);
+        accruedInEpoch[epoch()][token] += amount;
+    }
 }
