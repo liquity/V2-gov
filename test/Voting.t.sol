@@ -43,7 +43,7 @@ contract StakingV2Test is Test {
         assertEq(voting.initiatives(initiative), address(this));
     }
 
-    function test_allocateShares() public {
+    function test_allocateShares_deallocateShares() public {
         voting.registerInitiative(initiative);
 
         vm.startPrank(user);
@@ -62,6 +62,13 @@ contract StakingV2Test is Test {
         voting.allocateShares(initiative, 1e18);
         assertEq(voting.qualifiedSharesAllocated(), 1e18);
         assertEq(voting.sharesAllocatedByUser(user), 1e18);
+
+        vm.expectRevert("StakingV2: insufficient-unallocated-shares");
+        stakingV2.withdrawShares(1e18);
+
+        voting.deallocateShares(initiative, 1e18);
+        assertEq(voting.qualifiedSharesAllocated(), 0);
+        assertEq(voting.sharesAllocatedByUser(user), 0);
 
         vm.stopPrank();
     }
