@@ -2,6 +2,9 @@
 pragma solidity ^0.8.13;
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+
+import {console} from "forge-std/console.sol";
 
 import {StakingV2, WAD} from "./StakingV2.sol";
 
@@ -15,6 +18,8 @@ function add(uint256 a, int256 b) pure returns (uint256) {
 }
 
 contract Voting {
+    using SafeERC20 for IERC20;
+
     uint256 public immutable deploymentTimestamp = block.timestamp;
 
     StakingV2 public stakingV2;
@@ -150,7 +155,7 @@ contract Voting {
                         qualifiedSharesAllocated = add(qualifiedSharesAllocated, diffAllocation);
                     }
                 }
-            } else {
+            } else if (diffAllocation < 0) {
                 if (votesAllocatedForInitiative >= votingThreshold) {
                     if (
                         votesAllocatedForInitiative - sharesToVotes(shareRate, uint256(-diffAllocation))
@@ -164,15 +169,21 @@ contract Voting {
             }
 
             int256 diffVeto = diffVetos[i];
-            vetoedSharesAllocatedForInitiative[initiative] =
-                add(vetoedSharesAllocatedForInitiative[initiative], diffVeto);
-            vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative] =
-                add(vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative], diffVeto);
-            sharesAllocatedByUser_ = add(sharesAllocatedByUser_, diffVeto);
+            if (diffVeto != 0) {
+                vetoedSharesAllocatedForInitiative[initiative] =
+                    add(vetoedSharesAllocatedForInitiative[initiative], diffVeto);
+                vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative] =
+                    add(vetoedSharesAllocatedByUserForInitiative[msg.sender][initiative], diffVeto);
+                sharesAllocatedByUser_ = add(sharesAllocatedByUser_, diffVeto);
+            }
         }
 
+        require(
+            sharesAllocatedByUser_ == 0 || sharesAllocatedByUser_ == stakingV2.sharesByUser(msg.sender),
+            "Voting: insufficient-or-unallocated-shares"
+        );
+
         sharesAllocatedByUser[msg.sender] = sharesAllocatedByUser_;
-        require(stakingV2.sharesByUser(msg.sender) >= sharesAllocatedByUser_, "Voting: insufficient-shares");
     }
 
     // split accrued funds according to votes received between all initiatives
@@ -183,11 +194,11 @@ contract Voting {
         uint256 qualifiedVotesForInitiative = _snapshotSharesAllocatedForInitiative(initiative, shareRate);
         uint256 claim = qualifiedVotesForInitiative * accruedInEpoch[epoch() - 1][token] / qualifiedVotes;
         distributeToInitiativeInEpoch[epoch() - 1][initiative] = true;
-        IERC20(token).transfer(initiative, claim);
+        IERC20(token).safeTransfer(initiative, claim);
     }
 
     function deposit(address token, uint256 amount) external {
-        IERC20(token).transferFrom(msg.sender, address(this), amount);
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         accruedInEpoch[epoch()][token] += amount;
     }
 }
