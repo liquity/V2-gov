@@ -6,6 +6,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {StakingV2, WAD} from "../src/StakingV2.sol";
 import {Voting} from "../src/Voting.sol";
+import {Collector} from "../src/Collector.sol";
 
 contract StakingV2Test is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
@@ -13,14 +14,18 @@ contract StakingV2Test is Test {
     address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
     address private constant user = address(0x64690353808dBcC843F95e30E071a0Ae6339EE1b);
 
+    uint256 private constant MIN_PAYOUT = 500e18;
+
     StakingV2 private stakingV2;
     Voting private voting;
+    Collector private collector;
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
-        address _voting = vm.computeCreateAddress(address(this), 2);
+        address _voting = vm.computeCreateAddress(address(this), 3);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
-        voting = new Voting(address(stakingV2), address(lusd), address(0));
+        collector = new Collector(address(lusd), address(_voting));
+        voting = new Voting(address(stakingV2), address(lusd), address(collector), MIN_PAYOUT);
     }
 
     function test_deployUserProxy() public {

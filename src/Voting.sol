@@ -7,15 +7,18 @@ import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/Safe
 import {console} from "forge-std/console.sol";
 
 import {StakingV2, WAD} from "./StakingV2.sol";
+import {Collector} from "./Collector.sol";
 import {DoubleLinkedList} from "./DoubleLinkedList.sol";
-
-uint256 constant EPOCH_DURATION = 604800;
 
 function add(uint256 a, int256 b) pure returns (uint128) {
     if (b < 0) {
         return uint128(a - uint256(-b));
     }
     return uint128(a + uint256(b));
+}
+
+function max(uint256 a, uint256 b) pure returns (uint256) {
+    return a > b ? a : b;
 }
 
 // Glossary:
@@ -26,12 +29,15 @@ function add(uint256 a, int256 b) pure returns (uint128) {
 contract Voting {
     using SafeERC20 for IERC20;
     using DoubleLinkedList for DoubleLinkedList.List;
+    
+    uint256 public constant EPOCH_DURATION = 604800;
 
-    uint256 public immutable deploymentTimestamp = block.timestamp;
+    uint256 public immutable DEPLOYMENT_TIMESTAMP = block.timestamp;
+    uint256 public immutable MIN_PAYOUT = 0.05e18;
 
-    StakingV2 public stakingV2;
-    IERC20 public bold;
-    address public collector;
+    StakingV2 public immutable stakingV2;
+    IERC20 public immutable bold;
+    address public immutable collector;
 
     // Initiatives registered by address
     mapping(address => uint256) public initiativesRegistered;
@@ -68,15 +74,16 @@ contract Voting {
     // Funds distributed to initiatives in an epoch
     mapping(uint256 => mapping(address => bool)) public distributeToInitiativeInEpoch;
 
-    constructor(address _stakingV2, address _bold, address _collector) {
+    constructor(address _stakingV2, address _bold, address _collector, uint256 _minPayout) {
         stakingV2 = StakingV2(_stakingV2);
         bold = IERC20(_bold);
         collector = _collector;
+        MIN_PAYOUT = _minPayout;
     }
 
     // store last epoch
     function epoch() public view returns (uint256) {
-        return ((block.timestamp - deploymentTimestamp) / EPOCH_DURATION) + 1;
+        return ((block.timestamp - DEPLOYMENT_TIMESTAMP) / EPOCH_DURATION) + 1;
     }
 
     // Voting power statically increases over time starting from 0 at time of share issuance
@@ -87,15 +94,21 @@ contract Voting {
 
     // Voting threshold is 4% of total shares allocated in the previous epoch
     function calculateVotingThreshold() public view returns (uint256) {
-        // uint256 payoutPerShare = (boldAccruedInEpoch[lastSnapshotEpoch] * WAD) / votesSnapshots[lastSnapshotEpoch].votes;
-        // uint256 minVotes = (MIN_PAYOUT * WAD) / payoutPerShare;
-        return votesSnapshots[lastSnapshotEpoch].votes * 0.04e18 / WAD;
+        uint256 minVotes;
+        uint256 votesInLastEpoch = votesSnapshots[lastSnapshotEpoch].votes;
+        if (votesInLastEpoch != 0) {
+            uint256 payoutPerShare = (boldAccruedInEpoch[lastSnapshotEpoch] * WAD) / votesSnapshots[lastSnapshotEpoch].votes;
+            if (payoutPerShare != 0) {
+                minVotes = (MIN_PAYOUT * WAD) / payoutPerShare;
+            }
+        }
+        return max(votesSnapshots[lastSnapshotEpoch].votes * 0.04e18 / WAD, minVotes);
     }
 
     function _accrueFunds() internal {
         uint256 amount = bold.balanceOf(collector);
         if (amount == 0) return;
-        bold.safeTransferFrom(msg.sender, address(this), amount);
+        bold.safeTransferFrom(collector, address(this), amount);
         boldAccruedInEpoch[epoch()] += amount;
     }
 
@@ -226,8 +239,9 @@ contract Voting {
         require(distributeToInitiativeInEpoch[epoch() - 1][_initiative] == false, "Voting: already-distributed");
 
         uint256 shareRate = stakingV2.currentShareRate();
-        uint256 votesForInitiative = _snapshotVotesForInitiative(shareRate, _initiative);
         uint256 votes = _snapshotVotes(shareRate);
+        uint256 votesForInitiative = _snapshotVotesForInitiative(shareRate, _initiative);
+        if (votes == 0) return;
         uint256 claim = votesForInitiative * boldAccruedInEpoch[epoch() - 1] / votes;
 
         distributeToInitiativeInEpoch[epoch() - 1][_initiative] = true;
