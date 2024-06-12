@@ -20,7 +20,7 @@ contract StakingV2Test is Test {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
         address _voting = vm.computeCreateAddress(address(this), 2);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
-        voting = new Voting(address(stakingV2), address(lusd));
+        voting = new Voting(address(stakingV2), address(lusd), address(0));
     }
 
     function test_deployUserProxy() public {

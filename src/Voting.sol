@@ -31,6 +31,7 @@ contract Voting {
 
     StakingV2 public stakingV2;
     IERC20 public bold;
+    address public collector;
 
     // Initiatives registered by address
     mapping(address => uint256) public initiativesRegistered;
@@ -67,9 +68,10 @@ contract Voting {
     // Funds distributed to initiatives in an epoch
     mapping(uint256 => mapping(address => bool)) public distributeToInitiativeInEpoch;
 
-    constructor(address _stakingV2, address _bold) {
+    constructor(address _stakingV2, address _bold, address _collector) {
         stakingV2 = StakingV2(_stakingV2);
         bold = IERC20(_bold);
+        collector = _collector;
     }
 
     // store last epoch
@@ -85,7 +87,16 @@ contract Voting {
 
     // Voting threshold is 4% of total shares allocated in the previous epoch
     function calculateVotingThreshold() public view returns (uint256) {
+        // uint256 payoutPerShare = (boldAccruedInEpoch[lastSnapshotEpoch] * WAD) / votesSnapshots[lastSnapshotEpoch].votes;
+        // uint256 minVotes = (MIN_PAYOUT * WAD) / payoutPerShare;
         return votesSnapshots[lastSnapshotEpoch].votes * 0.04e18 / WAD;
+    }
+
+    function _accrueFunds() internal {
+        uint256 amount = bold.balanceOf(collector);
+        if (amount == 0) return;
+        bold.safeTransferFrom(msg.sender, address(this), amount);
+        boldAccruedInEpoch[epoch()] += amount;
     }
 
     function _snapshotVotes(uint256 _shareRate) internal returns (uint256) {
@@ -95,6 +106,7 @@ contract Voting {
             snapshot.finalized = 1;
             votesSnapshots[epoch() - 1] = snapshot;
             lastSnapshotEpoch = epoch() - 1;
+            _accrueFunds();
         }
         return snapshot.votes;
     }
@@ -220,10 +232,5 @@ contract Voting {
 
         distributeToInitiativeInEpoch[epoch() - 1][_initiative] = true;
         bold.safeTransfer(_initiative, claim);
-    }
-
-    function deposit(uint256 _amount) external {
-        bold.safeTransferFrom(msg.sender, address(this), _amount);
-        boldAccruedInEpoch[epoch()] += _amount;
     }
 }
