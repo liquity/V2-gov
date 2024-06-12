@@ -29,7 +29,7 @@ function max(uint256 a, uint256 b) pure returns (uint256) {
 contract Voting {
     using SafeERC20 for IERC20;
     using DoubleLinkedList for DoubleLinkedList.List;
-    
+
     uint256 public constant EPOCH_DURATION = 604800;
 
     uint256 public immutable DEPLOYMENT_TIMESTAMP = block.timestamp;
@@ -97,7 +97,7 @@ contract Voting {
         uint256 minVotes;
         uint256 votesInLastEpoch = votesSnapshots[lastSnapshotEpoch].votes;
         if (votesInLastEpoch != 0) {
-            uint256 payoutPerShare = (boldAccruedInEpoch[lastSnapshotEpoch] * WAD) / votesSnapshots[lastSnapshotEpoch].votes;
+            uint256 payoutPerShare = (boldAccruedInEpoch[lastSnapshotEpoch] * WAD) / votesInLastEpoch;
             if (payoutPerShare != 0) {
                 minVotes = (MIN_PAYOUT * WAD) / payoutPerShare;
             }
