@@ -7,7 +7,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {StakingV2} from "../src/StakingV2.sol";
 import {Voting} from "../src/Voting.sol";
 
-contract StakingV2Test is Test {
+contract VotingTest is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
     address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
@@ -56,7 +56,7 @@ contract StakingV2Test is Test {
 
         vm.warp(block.timestamp + 365 days);
 
-        assertEq(voting.qualifiedSharesAllocated(), 0);
+        assertEq(voting.qualifyingShares(), 0);
         assertEq(voting.sharesAllocatedByUser(user), 0);
 
         address[] memory initiatives = new address[](1);
@@ -66,7 +66,7 @@ contract StakingV2Test is Test {
         int256[] memory diffVetos = new int256[](1);
 
         voting.allocateShares(initiatives, diffAllocations, diffVetos);
-        assertEq(voting.qualifiedSharesAllocated(), 1e18);
+        assertEq(voting.qualifyingShares(), 1e18);
         assertEq(voting.sharesAllocatedByUser(user), 1e18);
 
         vm.expectRevert("StakingV2: insufficient-unallocated-shares");
@@ -76,7 +76,7 @@ contract StakingV2Test is Test {
         diffAllocations[0] = -1e18;
 
         voting.allocateShares(initiatives, diffAllocations, diffVetos);
-        assertEq(voting.qualifiedSharesAllocated(), 0);
+        assertEq(voting.qualifyingShares(), 0);
         assertEq(voting.sharesAllocatedByUser(user), 0);
 
         vm.stopPrank();

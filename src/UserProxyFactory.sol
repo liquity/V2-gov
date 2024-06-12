@@ -8,12 +8,12 @@ import {UserProxy} from "./UserProxy.sol";
 contract UserProxyFactory {
     address public immutable userProxyImplementation;
 
-    constructor(address lqty, address lusd, address stakingV1) {
-        userProxyImplementation = address(new UserProxy(lqty, lusd, stakingV1));
+    constructor(address _lqty, address _lusd, address _stakingV1) {
+        userProxyImplementation = address(new UserProxy(_lqty, _lusd, _stakingV1));
     }
 
-    function deriveUserProxyAddress(address user) public view returns (address) {
-        return Clones.predictDeterministicAddress(userProxyImplementation, bytes32(uint256(uint160(user))));
+    function deriveUserProxyAddress(address _user) public view returns (address) {
+        return Clones.predictDeterministicAddress(userProxyImplementation, bytes32(uint256(uint160(_user))));
     }
 
     function deployUserProxy() external returns (address) {
