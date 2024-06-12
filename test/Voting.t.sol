@@ -22,7 +22,7 @@ contract VotingTest is Test {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
         address _voting = vm.computeCreateAddress(address(this), 2);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
-        voting = new Voting(address(stakingV2));
+        voting = new Voting(address(stakingV2), address(lusd));
     }
 
     function test_sharesToVotes() public {

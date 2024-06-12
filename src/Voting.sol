@@ -30,6 +30,7 @@ contract Voting {
     uint256 public immutable deploymentTimestamp = block.timestamp;
 
     StakingV2 public stakingV2;
+    IERC20 public bold;
 
     // Initiatives registered by address
     mapping(address => uint256) public initiativesRegistered;
@@ -61,13 +62,14 @@ contract Voting {
     // Shares (shares + vetoShares) allocated by user to initiatives
     mapping(address => mapping(address => ShareAllocation)) public sharesAllocatedByUserToInitiative;
 
-    // Accrued funds by epoch for each token
-    mapping(uint256 => mapping(address => uint256)) public accruedInEpoch;
+    // Accrued BOLD by epoch
+    mapping(uint256 => uint256) public boldAccruedInEpoch;
     // Funds distributed to initiatives in an epoch
     mapping(uint256 => mapping(address => bool)) public distributeToInitiativeInEpoch;
 
-    constructor(address _stakingV2) {
+    constructor(address _stakingV2, address _bold) {
         stakingV2 = StakingV2(_stakingV2);
+        bold = IERC20(_bold);
     }
 
     // store last epoch
@@ -208,20 +210,20 @@ contract Voting {
     }
 
     // split accrued funds according to votes received between all initiatives
-    function distributeToInitiative(address _initiative, address _token) external {
+    function distributeToInitiative(address _initiative) external {
         require(distributeToInitiativeInEpoch[epoch() - 1][_initiative] == false, "Voting: already-distributed");
 
         uint256 shareRate = stakingV2.currentShareRate();
         uint256 votesForInitiative = _snapshotVotesForInitiative(shareRate, _initiative);
         uint256 votes = _snapshotVotes(shareRate);
-        uint256 claim = votesForInitiative * accruedInEpoch[epoch() - 1][_token] / votes;
+        uint256 claim = votesForInitiative * boldAccruedInEpoch[epoch() - 1] / votes;
 
         distributeToInitiativeInEpoch[epoch() - 1][_initiative] = true;
-        IERC20(_token).safeTransfer(_initiative, claim);
+        bold.safeTransfer(_initiative, claim);
     }
 
-    function deposit(address _token, uint256 _amount) external {
-        IERC20(_token).safeTransferFrom(msg.sender, address(this), _amount);
-        accruedInEpoch[epoch()][_token] += _amount;
+    function deposit(uint256 _amount) external {
+        bold.safeTransferFrom(msg.sender, address(this), _amount);
+        boldAccruedInEpoch[epoch()] += _amount;
     }
 }
