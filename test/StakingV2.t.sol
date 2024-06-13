@@ -14,7 +14,8 @@ contract StakingV2Test is Test {
     address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
     address private constant user = address(0x64690353808dBcC843F95e30E071a0Ae6339EE1b);
 
-    uint256 private constant MIN_PAYOUT = 500e18;
+    uint256 private constant MIN_CLAIM = 500e18;
+    uint256 private constant MIN_ACCRUAL = 1000e18;
 
     StakingV2 private stakingV2;
     Voting private voting;
@@ -25,7 +26,7 @@ contract StakingV2Test is Test {
         address _voting = vm.computeCreateAddress(address(this), 3);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
         collector = new Collector(address(lusd), address(_voting));
-        voting = new Voting(address(stakingV2), address(lusd), address(collector), MIN_PAYOUT);
+        voting = new Voting(address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL);
     }
 
     function test_deployUserProxy() public {
