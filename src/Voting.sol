@@ -88,18 +88,20 @@ contract Voting {
         MIN_ACCRUAL = _minAccrual;
     }
 
-    // store last epoch
+    // Returns the current epoch number
     function epoch() public view returns (uint256) {
         return ((block.timestamp - DEPLOYMENT_TIMESTAMP) / EPOCH_DURATION) + 1;
     }
 
-    // Voting power statically increases over time starting from 0 at time of share issuance
+    // Voting power of a share linearly increases over time starting from 0 at time of share issuance
     function sharesToVotes(uint256 _shareRate, uint256 _shares) public pure returns (uint256) {
         uint256 weightedShares = _shares * _shareRate / WAD;
         return weightedShares - _shares;
     }
 
-    // Voting threshold is 4% of total shares allocated in the previous epoch
+    // Voting threshold is the max. of either:
+    //   - 4% of total shares allocated in the previous epoch
+    //   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
     function calculateVotingThreshold() public view returns (uint256) {
         uint256 minVotes;
         uint256 votesInLastEpoch = votesSnapshots[lastSnapshotEpoch].votes;
@@ -150,6 +152,16 @@ contract Voting {
             votesForInitiativeSnapshots[epoch() - 1][_initiative] = snapshot;
         }
         return snapshot.votes;
+    }
+
+    // Snapshots votes for the previous epoch and accrues funds for the current epoch
+    function snapshotVotesForInitiative(address _initiative)
+        external
+        returns (uint256 votes, uint256 votesForInitiative)
+    {
+        uint256 shareRate = stakingV2.currentShareRate();
+        votes = _snapshotVotes(shareRate);
+        votesForInitiative = _snapshotVotesForInitiative(shareRate, _initiative);
     }
 
     // Registers a new initiative
@@ -251,16 +263,20 @@ contract Voting {
     }
 
     // split accrued funds according to votes received between all initiatives
-    function claimForInitiative(address _initiative) external {
+    function claimForInitiative(address _initiative) external returns (uint256) {
         require(claimedByInitiativeInEpoch[epoch() - 1][_initiative] == false, "Voting: already-distributed");
 
         uint256 shareRate = stakingV2.currentShareRate();
         uint256 votes = _snapshotVotes(shareRate);
         uint256 votesForInitiative = _snapshotVotesForInitiative(shareRate, _initiative);
-        if (votes == 0) return;
-        uint256 claim = votesForInitiative * boldAccruedInEpoch[epoch() - 1] / votes;
 
+        if (votes == 0) return 0;
+
+        uint256 claim = votesForInitiative * boldAccruedInEpoch[epoch() - 1] / votes;
         claimedByInitiativeInEpoch[epoch() - 1][_initiative] = true;
+
         bold.safeTransfer(_initiative, claim);
+
+        return claim;
     }
 }
