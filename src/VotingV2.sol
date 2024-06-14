@@ -23,7 +23,7 @@ function max(uint256 a, uint256 b) pure returns (uint256) {
 //   VetoShares: Allocated by users (stakers to initiatives they reject
 //   QualifingShares: Shares that are included in the vote count (incl. initiatives that meet the voting threshold)
 //   Votes: Derived from the shares allocated to initiatives
-contract Voting {
+contract VotingV2 {
     using SafeERC20 for IERC20;
 
     // Duration of an epoch in seconds (1 week)
@@ -47,16 +47,14 @@ contract Voting {
     uint256 public qualifyingShares;
 
     struct Snapshot {
-        uint248 votes;
-        uint8 finalized;
+        uint240 votes;
+        uint16 forEpoch;
     }
 
-    // Epoch id of the last stored snapshot
-    uint256 public lastSnapshotEpoch;
-    // Vote snapshots by epoch
-    mapping(uint256 => Snapshot) public votesSnapshots;
-    // Vote snapshots by epoch and for an initiative
-    mapping(uint256 => mapping(address => Snapshot)) votesForInitiativeSnapshots;
+    // Number of votes at the last epoch
+    Snapshot public votesSnapshot;
+    // Number of votes received by an initiative at the last epoch
+    mapping(address => Snapshot) public votesForInitiativeSnapshot;
 
     struct ShareAllocation {
         uint128 shares; // Shares allocated vouching for the initiative
@@ -69,11 +67,9 @@ contract Voting {
     mapping(address => ShareAllocation) public sharesAllocatedToInitiative;
     // Shares (shares + vetoShares) allocated by user to initiatives
     mapping(address => mapping(address => ShareAllocation)) public sharesAllocatedByUserToInitiative;
-
-    // Accrued BOLD by epoch
-    mapping(uint256 => uint256) public boldAccruedInEpoch;
-    // Funds distributed to initiatives in an epoch
-    mapping(uint256 => mapping(address => bool)) public claimedByInitiativeInEpoch;
+    
+    
+    uint256 public boldClaimedSinceLastEpoch;
 
     constructor(address _stakingV2, address _bold, address _collector, uint256 _minClaim, uint256 _minAccrual) {
         stakingV2 = StakingV2(_stakingV2);
@@ -85,8 +81,8 @@ contract Voting {
     }
 
     // Returns the current epoch number
-    function epoch() public view returns (uint256) {
-        return ((block.timestamp - DEPLOYMENT_TIMESTAMP) / EPOCH_DURATION) + 1;
+    function epoch() public view returns (uint16) {
+        return uint16(((block.timestamp - DEPLOYMENT_TIMESTAMP) / EPOCH_DURATION) + 1);
     }
 
     // Voting power of a share linearly increases over time starting from 0 at time of share issuance
@@ -100,60 +96,58 @@ contract Voting {
     //   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
     function calculateVotingThreshold() public view returns (uint256) {
         uint256 minVotes;
-        uint256 votesInLastEpoch = votesSnapshots[lastSnapshotEpoch].votes;
-        if (votesInLastEpoch != 0) {
-            uint256 payoutPerVote = (boldAccruedInEpoch[lastSnapshotEpoch] * WAD) / votesInLastEpoch;
+        Snapshot memory snapshot = votesSnapshot;
+        if (snapshot.votes != 0) {
+            uint256 payoutPerVote = (_boldAccrued() * WAD) / snapshot.votes;
             if (payoutPerVote != 0) {
                 minVotes = (MIN_CLAIM * WAD) / payoutPerVote;
             }
         }
-        return max(votesSnapshots[lastSnapshotEpoch].votes * 0.04e18 / WAD, minVotes);
+        return max(snapshot.votes * 0.04e18 / WAD, minVotes);
     }
 
-    // Accrue funds from the collector contract but only if the amount is above the minimum accrual threshold
-    function _accrueFunds() internal {
-        uint256 amount = bold.balanceOf(collector);
-        if (amount <= MIN_ACCRUAL) return;
-        bold.safeTransferFrom(collector, address(this), amount);
-        boldAccruedInEpoch[epoch()] += amount;
+    function _boldAccrued() internal view returns (uint256 boldAccrued) {
+        boldAccrued = bold.balanceOf(address(this)) + boldClaimedSinceLastEpoch;
+        if (boldAccrued < MIN_ACCRUAL) boldAccrued = 0;
     }
 
     // Snapshots votes for the previous epoch and accrues funds for the current epoch
-    function _snapshotVotes(uint256 _shareRate) internal returns (uint256) {
-        Snapshot memory snapshot = votesSnapshots[epoch() - 1];
-        if (snapshot.finalized == 0) {
-            snapshot.votes = uint248(sharesToVotes(_shareRate, qualifyingShares));
-            snapshot.finalized = 1;
-            votesSnapshots[epoch() - 1] = snapshot;
-            lastSnapshotEpoch = epoch() - 1;
-            _accrueFunds();
+    function _snapshotVotes(uint256 _shareRate) internal returns (Snapshot memory) {
+        uint16 currentEpoch = epoch();
+        Snapshot memory snapshot = votesSnapshot;
+        if (snapshot.forEpoch < currentEpoch - 1) {
+            snapshot.votes = uint240(sharesToVotes(_shareRate, qualifyingShares));
+            snapshot.forEpoch = currentEpoch - 1;
+            votesSnapshot = snapshot;
+            boldClaimedSinceLastEpoch = 0;
         }
-        return snapshot.votes;
+        return snapshot;
     }
 
     // Snapshots votes for an initiative for the previous epoch but only count the votes
     // if the received votes meet the voting threshold
-    function _snapshotVotesForInitiative(uint256 _shareRate, address _initiative) internal returns (uint256) {
-        Snapshot memory snapshot = votesForInitiativeSnapshots[epoch() - 1][_initiative];
-        if (snapshot.finalized == 0) {
+    function _snapshotVotesForInitiative(uint256 _shareRate, address _initiative) internal returns (Snapshot memory) {
+        uint16 currentEpoch = epoch();
+        Snapshot memory snapshot = votesForInitiativeSnapshot[_initiative];
+        if (snapshot.forEpoch < currentEpoch - 1) {
             uint256 votingThreshold = calculateVotingThreshold();
             ShareAllocation memory shareAllocation = sharesAllocatedToInitiative[_initiative];
             uint256 votes = sharesToVotes(_shareRate, shareAllocation.shares);
             uint256 vetos = sharesToVotes(_shareRate, shareAllocation.vetoShares);
             // if the votes didn't meet the voting threshold then no votes qualify
             if (votes >= votingThreshold && votes >= vetos) {
-                snapshot.votes = uint248(votes);
+                snapshot.votes = uint240(votes);
             }
-            snapshot.finalized = 1;
-            votesForInitiativeSnapshots[epoch() - 1][_initiative] = snapshot;
+            snapshot.forEpoch = currentEpoch - 1;
+            votesForInitiativeSnapshot[_initiative] = snapshot;
         }
-        return snapshot.votes;
+        return snapshot;
     }
 
     // Snapshots votes for the previous epoch and accrues funds for the current epoch
     function snapshotVotesForInitiative(address _initiative)
         external
-        returns (uint256 votes, uint256 votesForInitiative)
+        returns (Snapshot memory votes, Snapshot memory votesForInitiative)
     {
         uint256 shareRate = stakingV2.currentShareRate();
         votes = _snapshotVotes(shareRate);
@@ -172,16 +166,14 @@ contract Voting {
     function unregisterInitiative(address _initiative) external {
         uint256 shareRate = stakingV2.currentShareRate();
         _snapshotVotes(shareRate);
-        uint256 votesForInitiative = _snapshotVotesForInitiative(shareRate, _initiative);
+        Snapshot memory votesForInitiativeSnapshot_ = _snapshotVotesForInitiative(shareRate, _initiative);
         ShareAllocation memory shareAllocation = sharesAllocatedToInitiative[_initiative];
         uint256 vetosForInitiative = sharesToVotes(shareRate, shareAllocation.vetoShares);
 
         require(
             (
-                votesForInitiative == 0 && votesForInitiativeSnapshots[epoch() - 2][_initiative].votes == 0
-                    && votesForInitiativeSnapshots[epoch() - 3][_initiative].votes == 0
-                    && votesForInitiativeSnapshots[epoch() - 4][_initiative].votes == 0
-            ) || vetosForInitiative > votesForInitiative && vetosForInitiative > calculateVotingThreshold() * 3,
+                votesForInitiativeSnapshot_.votes == 0 && votesForInitiativeSnapshot_.forEpoch + 4 < epoch()
+            ) || vetosForInitiative > votesForInitiativeSnapshot_.votes && votesForInitiativeSnapshot_.votes > calculateVotingThreshold() * 3,
             "Voting: cannot-unregister-initiative"
         );
 
@@ -260,16 +252,16 @@ contract Voting {
 
     // split accrued funds according to votes received between all initiatives
     function claimForInitiative(address _initiative) external returns (uint256) {
-        require(claimedByInitiativeInEpoch[epoch() - 1][_initiative] == false, "Voting: already-distributed");
-
         uint256 shareRate = stakingV2.currentShareRate();
-        uint256 votes = _snapshotVotes(shareRate);
-        uint256 votesForInitiative = _snapshotVotesForInitiative(shareRate, _initiative);
+        Snapshot memory votesSnapshot_ = _snapshotVotes(shareRate);
+        Snapshot memory votesForInitiativeSnapshot_ = _snapshotVotesForInitiative(shareRate, _initiative);
+        if (votesForInitiativeSnapshot_.votes == 0) return 0;
 
-        if (votes == 0) return 0;
-
-        uint256 claim = votesForInitiative * boldAccruedInEpoch[epoch() - 1] / votes;
-        claimedByInitiativeInEpoch[epoch() - 1][_initiative] = true;
+        uint256 claim = votesForInitiativeSnapshot_.votes * _boldAccrued() / votesSnapshot_.votes;
+        
+        votesForInitiativeSnapshot_.votes = 0;
+        votesForInitiativeSnapshot[_initiative] = votesForInitiativeSnapshot_; // implicitly prevents double claiming
+        boldClaimedSinceLastEpoch += claim;
 
         bold.safeTransfer(_initiative, claim);
 

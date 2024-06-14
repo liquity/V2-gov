@@ -9,11 +9,17 @@ import {Voting} from "./Voting.sol";
 uint256 constant WAD = 1e18;
 uint256 constant ONE_YEAR = 31_536_000;
 
+// @title StakingV2
+// @notice This contract allows users to stake their LQTY in return for receiving shares which can be used to vote
+// on initiatives proposed in the Voting contract. The deposited LQTY is staked in LQRTYStaking (v1 staking) to earn
+// additional LUSD and ETH rewards via the UserProxy contract which is deployed for each user.
 contract StakingV2 is UserProxyFactory {
     uint256 public immutable deploymentTimestamp;
     Voting public immutable voting;
 
+    // Total shares in circulation
     uint256 public totalShares;
+    // Mapping of each user's share balance
     mapping(address => uint256) public sharesByUser;
 
     constructor(address _lqty, address _lusd, address _stakingV1, address _voting)
@@ -23,10 +29,12 @@ contract StakingV2 is UserProxyFactory {
         voting = Voting(_voting);
     }
 
+    // Returns the current share rate based on the time since deployment
     function currentShareRate() public view returns (uint256) {
         return ((block.timestamp - deploymentTimestamp) * WAD / ONE_YEAR) + WAD;
     }
 
+    // Deposits LQTY and mints shares based on the current share rate
     function depositLQTY(uint256 _lqtyAmount) external returns (uint256) {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         userProxy.stake(msg.sender, _lqtyAmount);
@@ -37,6 +45,7 @@ contract StakingV2 is UserProxyFactory {
         return shareAmount;
     }
 
+    // Withdraws LQRT by burning the shares and claim any accrued LUSD and ETH rewards from StakingV1
     function withdrawShares(uint256 _shareAmount) external returns (uint256) {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         uint256 shares = sharesByUser[msg.sender];
@@ -55,7 +64,7 @@ contract StakingV2 is UserProxyFactory {
         return lqtyAmount;
     }
 
-    // Claim staking rewards from StakingV1 without unstaking
+    // Claims staking rewards from StakingV1 without unstaking
     function claimFromStakingV1() external {
         UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(msg.sender, 0);
     }

@@ -7,10 +7,10 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {console} from "forge-std/console.sol";
 
 import {StakingV2} from "../src/StakingV2.sol";
-import {Voting} from "../src/Voting.sol";
+import {VotingV2} from "../src/VotingV2.sol";
 import {Collector} from "../src/Collector.sol";
 
-contract VotingTest is Test {
+contract VotingV2Test is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
     address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
@@ -21,7 +21,7 @@ contract VotingTest is Test {
     uint256 private constant MIN_CLAIM = 500e18;
     uint256 private constant MIN_ACCRUAL = 1000e18;
 
-    Voting private voting;
+    VotingV2 private voting;
     StakingV2 private stakingV2;
     Collector private collector;
 
@@ -30,7 +30,7 @@ contract VotingTest is Test {
         address _voting = vm.computeCreateAddress(address(this), 3);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
         collector = new Collector(address(lusd), address(_voting));
-        voting = new Voting(address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL);
+        voting = new VotingV2(address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL);
     }
 
     function test_epoch() public {
@@ -60,31 +60,31 @@ contract VotingTest is Test {
     }
 
     function test_calculateVotingThreshold() public {
-        voting = new Voting(address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL);
+        voting = new VotingV2(address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL);
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
-        Voting.Snapshot memory snapshot = Voting.Snapshot(1e18, 0);
-        vm.store(address(voting), keccak256(abi.encode(0, 3)), bytes32(abi.encode(snapshot)));
-        (uint248 votes,) = voting.votesSnapshots(0);
+        VotingV2.Snapshot memory snapshot = VotingV2.Snapshot(1e18, 1);
+        vm.store(address(voting), bytes32(uint256(2)), bytes32(abi.encode(snapshot)));
+        (uint240 votes,) = voting.votesSnapshot();
         assertEq(votes, 1e18);
 
-        uint256 boldAccrued = 1e18;
-        vm.store(address(voting), keccak256(abi.encode(0, 8)), bytes32(abi.encode(boldAccrued)));
-        assertEq(voting.boldAccruedInEpoch(0), 1e18);
+        uint256 boldAccrued = 1000e18;
+        vm.store(address(lusd), keccak256(abi.encode(address(voting), 2)), bytes32(abi.encode(boldAccrued)));
+        assertEq(lusd.balanceOf(address(voting)), 1000e18);
 
-        assertEq(voting.calculateVotingThreshold(), MIN_CLAIM);
+        assertEq(voting.calculateVotingThreshold(), MIN_CLAIM / 1000);
 
         // check that votingThreshold is 4% of votes of previous epoch
-        voting = new Voting(address(stakingV2), address(lusd), address(collector), 10e18, 10e18);
+        voting = new VotingV2(address(stakingV2), address(lusd), address(collector), 10e18, 10e18);
 
-        snapshot = Voting.Snapshot(10000e18, 0);
-        vm.store(address(voting), keccak256(abi.encode(0, 3)), bytes32(abi.encode(snapshot)));
-        (votes,) = voting.votesSnapshots(0);
+        snapshot = VotingV2.Snapshot(10000e18, 1);
+        vm.store(address(voting), bytes32(uint256(2)), bytes32(abi.encode(snapshot)));
+        (votes,) = voting.votesSnapshot();
         assertEq(votes, 10000e18);
 
         boldAccrued = 1000e18;
-        vm.store(address(voting), keccak256(abi.encode(0, 8)), bytes32(abi.encode(boldAccrued)));
-        assertEq(voting.boldAccruedInEpoch(0), 1000e18);
+        vm.store(address(lusd), keccak256(abi.encode(address(voting), 2)), bytes32(abi.encode(boldAccrued)));
+        assertEq(lusd.balanceOf(address(voting)), 1000e18);
 
         assertEq(voting.calculateVotingThreshold(), 10000e18 * 0.04);
     }
@@ -152,7 +152,7 @@ contract VotingTest is Test {
         vm.stopPrank();
 
         vm.startPrank(lusdHolder);
-        lusd.transfer(address(collector), 750e18);
+        lusd.transfer(address(voting), 1000e18);
         vm.stopPrank();
 
         vm.startPrank(user);
@@ -169,7 +169,8 @@ contract VotingTest is Test {
 
         vm.warp(block.timestamp + voting.EPOCH_DURATION() + 1);
 
-        voting.claimForInitiative(initiative);
+        assertGt(voting.claimForInitiative(initiative), 0);
+        assertEq(voting.claimForInitiative(initiative), 0);
 
         vm.stopPrank();
     }
