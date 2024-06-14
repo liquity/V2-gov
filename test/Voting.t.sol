@@ -112,11 +112,11 @@ contract VotingTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
-        int256[] memory diffAllocations = new int256[](1);
-        diffAllocations[0] = 1e18;
-        int256[] memory diffVetos = new int256[](1);
+        int256[] memory deltaShares = new int256[](1);
+        deltaShares[0] = 1e18;
+        int256[] memory deltaVetoShares = new int256[](1);
 
-        voting.allocateShares(initiatives, diffAllocations, diffVetos);
+        voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
         assertEq(voting.qualifyingShares(), 1e18);
         assertEq(voting.sharesAllocatedByUser(user), 1e18);
 
@@ -124,9 +124,9 @@ contract VotingTest is Test {
 
         stakingV2.withdrawShares(1e18);
         initiatives[0] = initiative;
-        diffAllocations[0] = -1e18;
+        deltaShares[0] = -1e18;
 
-        voting.allocateShares(initiatives, diffAllocations, diffVetos);
+        voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
         assertEq(voting.qualifyingShares(), 0);
         assertEq(voting.sharesAllocatedByUser(user), 0);
 
@@ -159,11 +159,11 @@ contract VotingTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
-        int256[] memory diffAllocations = new int256[](1);
-        diffAllocations[0] = 1000e18;
-        int256[] memory diffVetos = new int256[](1);
+        int256[] memory deltaShares = new int256[](1);
+        deltaShares[0] = 1000e18;
+        int256[] memory deltaVetoShares = new int256[](1);
 
-        voting.allocateShares(initiatives, diffAllocations, diffVetos);
+        voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
         assertEq(voting.qualifyingShares(), 1000e18);
         assertEq(voting.sharesAllocatedByUser(user), 1000e18);
 

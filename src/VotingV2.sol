@@ -7,6 +7,8 @@ import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/Safe
 import {StakingV2, WAD} from "./StakingV2.sol";
 import {Collector} from "./Collector.sol";
 
+import {console} from "forge-std/console.sol";
+
 function add(uint256 a, int256 b) pure returns (uint128) {
     if (b < 0) {
         return uint128(a - uint256(-b));
@@ -67,8 +69,8 @@ contract VotingV2 {
     mapping(address => ShareAllocation) public sharesAllocatedToInitiative;
     // Shares (shares + vetoShares) allocated by user to initiatives
     mapping(address => mapping(address => ShareAllocation)) public sharesAllocatedByUserToInitiative;
-    
-    
+
+    // BOLD claimed since last epoch
     uint256 public boldClaimedSinceLastEpoch;
 
     constructor(address _stakingV2, address _bold, address _collector, uint256 _minClaim, uint256 _minAccrual) {
@@ -171,9 +173,9 @@ contract VotingV2 {
         uint256 vetosForInitiative = sharesToVotes(shareRate, shareAllocation.vetoShares);
 
         require(
-            (
-                votesForInitiativeSnapshot_.votes == 0 && votesForInitiativeSnapshot_.forEpoch + 4 < epoch()
-            ) || vetosForInitiative > votesForInitiativeSnapshot_.votes && votesForInitiativeSnapshot_.votes > calculateVotingThreshold() * 3,
+            (votesForInitiativeSnapshot_.votes == 0 && votesForInitiativeSnapshot_.forEpoch + 4 < epoch())
+                || vetosForInitiative > votesForInitiativeSnapshot_.votes
+                    && votesForInitiativeSnapshot_.votes > calculateVotingThreshold() * 3,
             "Voting: cannot-unregister-initiative"
         );
 
@@ -218,7 +220,7 @@ contract VotingV2 {
                     if (votesForInitiative - sharesToVotes(shareRate, uint256(-deltaShares)) >= votingThreshold) {
                         qualifyingShares -= uint256(-deltaShares);
                     } else {
-                        qualifyingShares -= sharesAllocatedToInitiative_.shares - uint256(-deltaShares);
+                        qualifyingShares -= sharesAllocatedToInitiative_.shares;
                     }
                 }
             }
@@ -247,6 +249,8 @@ contract VotingV2 {
             "Voting: insufficient-or-unallocated-shares"
         );
 
+        console.log("qualifyingShares: %d", qualifyingShares);
+
         sharesAllocatedByUser[msg.sender] = sharesAllocatedByUser_;
     }
 
@@ -258,7 +262,7 @@ contract VotingV2 {
         if (votesForInitiativeSnapshot_.votes == 0) return 0;
 
         uint256 claim = votesForInitiativeSnapshot_.votes * _boldAccrued() / votesSnapshot_.votes;
-        
+
         votesForInitiativeSnapshot_.votes = 0;
         votesForInitiativeSnapshot[_initiative] = votesForInitiativeSnapshot_; // implicitly prevents double claiming
         boldClaimedSinceLastEpoch += claim;

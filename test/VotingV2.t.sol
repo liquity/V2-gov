@@ -17,6 +17,7 @@ contract VotingV2Test is Test {
     address private constant user = address(0x64690353808dBcC843F95e30E071a0Ae6339EE1b);
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
     address private constant initiative = address(0x1);
+    address private constant initiative2 = address(0x2);
 
     uint256 private constant MIN_CLAIM = 500e18;
     uint256 private constant MIN_ACCRUAL = 1000e18;
@@ -112,11 +113,11 @@ contract VotingV2Test is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
-        int256[] memory diffAllocations = new int256[](1);
-        diffAllocations[0] = 1e18;
-        int256[] memory diffVetos = new int256[](1);
+        int256[] memory deltaShares = new int256[](1);
+        deltaShares[0] = 1e18;
+        int256[] memory deltaVetoShares = new int256[](1);
 
-        voting.allocateShares(initiatives, diffAllocations, diffVetos);
+        voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
         assertEq(voting.qualifyingShares(), 1e18);
         assertEq(voting.sharesAllocatedByUser(user), 1e18);
 
@@ -124,17 +125,18 @@ contract VotingV2Test is Test {
 
         stakingV2.withdrawShares(1e18);
         initiatives[0] = initiative;
-        diffAllocations[0] = -1e18;
+        deltaShares[0] = -1e18;
 
-        voting.allocateShares(initiatives, diffAllocations, diffVetos);
+        voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
         assertEq(voting.qualifyingShares(), 0);
         assertEq(voting.sharesAllocatedByUser(user), 0);
 
         vm.stopPrank();
     }
 
-    function test_claimForInitiative() public {
+    function test_claimForInitiative_2() public {
         voting.registerInitiative(initiative);
+        voting.registerInitiative(initiative2);
 
         vm.startPrank(user);
 
@@ -152,25 +154,51 @@ contract VotingV2Test is Test {
         vm.stopPrank();
 
         vm.startPrank(lusdHolder);
-        lusd.transfer(address(voting), 1000e18);
+        lusd.transfer(address(voting), 10000e18);
         vm.stopPrank();
 
         vm.startPrank(user);
 
-        address[] memory initiatives = new address[](1);
+        address[] memory initiatives = new address[](2);
         initiatives[0] = initiative;
-        int256[] memory diffAllocations = new int256[](1);
-        diffAllocations[0] = 1000e18;
-        int256[] memory diffVetos = new int256[](1);
-
-        voting.allocateShares(initiatives, diffAllocations, diffVetos);
+        initiatives[1] = initiative2;
+        int256[] memory deltaShares = new int256[](2);
+        deltaShares[0] = 500e18;
+        deltaShares[1] = 500e18;
+        int256[] memory deltaVetoShares = new int256[](2);
+        voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
         assertEq(voting.qualifyingShares(), 1000e18);
         assertEq(voting.sharesAllocatedByUser(user), 1000e18);
 
         vm.warp(block.timestamp + voting.EPOCH_DURATION() + 1);
 
-        assertGt(voting.claimForInitiative(initiative), 0);
+        assertEq(voting.claimForInitiative(initiative), 5000e18);
         assertEq(voting.claimForInitiative(initiative), 0);
+
+        assertEq(voting.claimForInitiative(initiative2), 5000e18);
+        assertEq(voting.claimForInitiative(initiative2), 0);
+
+        vm.stopPrank();
+
+        vm.startPrank(lusdHolder);
+        lusd.transfer(address(voting), 10000e18);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+
+        initiatives[0] = initiative;
+        initiatives[1] = initiative2;
+        deltaShares[0] = 495e18;
+        deltaShares[1] = -495e18;
+        voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
+
+        vm.warp(block.timestamp + voting.EPOCH_DURATION() + 1);
+
+        assertEq(voting.claimForInitiative(initiative), 10000e18);
+        assertEq(voting.claimForInitiative(initiative), 0);
+
+        assertEq(voting.claimForInitiative(initiative2), 0);
+        assertEq(voting.claimForInitiative(initiative2), 0);
 
         vm.stopPrank();
     }
