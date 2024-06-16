@@ -70,8 +70,8 @@ contract VotingV2Test is Test {
         assertEq(votes, 1e18);
 
         uint256 boldAccrued = 1000e18;
-        vm.store(address(lusd), keccak256(abi.encode(address(voting), 2)), bytes32(abi.encode(boldAccrued)));
-        assertEq(lusd.balanceOf(address(voting)), 1000e18);
+        vm.store(address(voting), bytes32(uint256(7)), bytes32(abi.encode(boldAccrued)));
+        assertEq(voting.boldAccrued(), 1000e18);
 
         assertEq(voting.calculateVotingThreshold(), MIN_CLAIM / 1000);
 
@@ -84,8 +84,8 @@ contract VotingV2Test is Test {
         assertEq(votes, 10000e18);
 
         boldAccrued = 1000e18;
-        vm.store(address(lusd), keccak256(abi.encode(address(voting), 2)), bytes32(abi.encode(boldAccrued)));
-        assertEq(lusd.balanceOf(address(voting)), 1000e18);
+        vm.store(address(voting), bytes32(uint256(7)), bytes32(abi.encode(boldAccrued)));
+        assertEq(voting.boldAccrued(), 1000e18);
 
         assertEq(voting.calculateVotingThreshold(), 10000e18 * 0.04);
     }

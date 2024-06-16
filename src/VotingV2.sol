@@ -7,8 +7,6 @@ import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/Safe
 import {StakingV2, WAD} from "./StakingV2.sol";
 import {Collector} from "./Collector.sol";
 
-import {console} from "forge-std/console.sol";
-
 function add(uint256 a, int256 b) pure returns (uint128) {
     if (b < 0) {
         return uint128(a - uint256(-b));
@@ -70,8 +68,8 @@ contract VotingV2 {
     // Shares (shares + vetoShares) allocated by user to initiatives
     mapping(address => mapping(address => ShareAllocation)) public sharesAllocatedByUserToInitiative;
 
-    // BOLD claimed since last epoch
-    uint256 public boldClaimedSinceLastEpoch;
+    // BOLD accrued since last epoch
+    uint256 public boldAccrued;
 
     constructor(address _stakingV2, address _bold, address _collector, uint256 _minClaim, uint256 _minAccrual) {
         stakingV2 = StakingV2(_stakingV2);
@@ -100,17 +98,12 @@ contract VotingV2 {
         uint256 minVotes;
         Snapshot memory snapshot = votesSnapshot;
         if (snapshot.votes != 0) {
-            uint256 payoutPerVote = (_boldAccrued() * WAD) / snapshot.votes;
+            uint256 payoutPerVote = (boldAccrued * WAD) / snapshot.votes;
             if (payoutPerVote != 0) {
                 minVotes = (MIN_CLAIM * WAD) / payoutPerVote;
             }
         }
         return max(snapshot.votes * 0.04e18 / WAD, minVotes);
-    }
-
-    function _boldAccrued() internal view returns (uint256 boldAccrued) {
-        boldAccrued = bold.balanceOf(address(this)) + boldClaimedSinceLastEpoch;
-        if (boldAccrued < MIN_ACCRUAL) boldAccrued = 0;
     }
 
     // Snapshots votes for the previous epoch and accrues funds for the current epoch
@@ -121,7 +114,8 @@ contract VotingV2 {
             snapshot.votes = uint240(sharesToVotes(_shareRate, qualifyingShares));
             snapshot.forEpoch = currentEpoch - 1;
             votesSnapshot = snapshot;
-            boldClaimedSinceLastEpoch = 0;
+            boldAccrued = bold.balanceOf(address(this));
+            boldAccrued = (boldAccrued < MIN_ACCRUAL) ? 0 : boldAccrued;
         }
         return snapshot;
     }
@@ -249,8 +243,6 @@ contract VotingV2 {
             "Voting: insufficient-or-unallocated-shares"
         );
 
-        console.log("qualifyingShares: %d", qualifyingShares);
-
         sharesAllocatedByUser[msg.sender] = sharesAllocatedByUser_;
     }
 
@@ -261,11 +253,10 @@ contract VotingV2 {
         Snapshot memory votesForInitiativeSnapshot_ = _snapshotVotesForInitiative(shareRate, _initiative);
         if (votesForInitiativeSnapshot_.votes == 0) return 0;
 
-        uint256 claim = votesForInitiativeSnapshot_.votes * _boldAccrued() / votesSnapshot_.votes;
+        uint256 claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
 
         votesForInitiativeSnapshot_.votes = 0;
         votesForInitiativeSnapshot[_initiative] = votesForInitiativeSnapshot_; // implicitly prevents double claiming
-        boldClaimedSinceLastEpoch += claim;
 
         bold.safeTransfer(_initiative, claim);
 
