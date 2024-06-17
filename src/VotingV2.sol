@@ -15,17 +15,17 @@ import {WAD, add, max} from "./Utils.sol";
 contract VotingV2 {
     using SafeERC20 for IERC20;
 
-    // Duration of an epoch in seconds (1 week)
-    uint256 public constant EPOCH_DURATION = 604800;
     // Reference timestamp used to derive the current share rate
-    uint256 public immutable DEPLOYMENT_TIMESTAMP = block.timestamp;
+    uint256 public immutable EPOCH_START;
+    // Duration of an epoch in seconds (1 week)
+    uint256 public immutable EPOCH_DURATION;
     // Minimum BOLD amount that can be claimed, if an initiative doesn't have enough votes to meet the criteria
     // then it's votes a excluded from the vote count and distribution
-    uint256 public immutable MIN_CLAIM = 0.05e18;
+    uint256 public immutable MIN_CLAIM;
     // Minimum amount of BOLD that have to be accrued for an epoch, otherwise accrual will be skipped for that epoch
-    uint256 public immutable MIN_ACCRUAL = 0.05e18;
+    uint256 public immutable MIN_ACCRUAL;
     // Amount of BOLD to be paid in order to register a new initiative
-    uint256 public immutable REGISTRATION_FEE = 100e18;
+    uint256 public immutable REGISTRATION_FEE;
 
     StakingV2 public immutable stakingV2;
     IERC20 public immutable bold;
@@ -61,18 +61,21 @@ contract VotingV2 {
     // BOLD accrued since last epoch
     uint256 public boldAccrued;
 
-    constructor(address _stakingV2, address _bold, uint256 _minClaim, uint256 _minAccrual, uint256 _registrationFee) {
+    constructor(address _stakingV2, address _bold, uint256 _minClaim, uint256 _minAccrual, uint256 _registrationFee, uint256 _epochStart, uint256 _epochDuration) {
         stakingV2 = StakingV2(_stakingV2);
         bold = IERC20(_bold);
         require(_minClaim <= _minAccrual, "Voting: min-claim-gt-min-accrual");
         MIN_CLAIM = _minClaim;
         MIN_ACCRUAL = _minAccrual;
         REGISTRATION_FEE = _registrationFee;
+        EPOCH_START = _epochStart;
+        require(_epochDuration > 0, "Voting: epoch-duration-zero");
+        EPOCH_DURATION = _epochDuration;
     }
 
     // Returns the current epoch number
     function epoch() public view returns (uint16) {
-        return uint16(((block.timestamp - DEPLOYMENT_TIMESTAMP) / EPOCH_DURATION) + 1);
+        return uint16(((block.timestamp - EPOCH_START) / EPOCH_DURATION) + 1);
     }
 
     // Voting power of a share linearly increases over time starting from 0 at time of share issuance

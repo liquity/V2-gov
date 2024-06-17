@@ -22,6 +22,7 @@ contract StakingV2Test is Test {
     uint256 private constant MIN_CLAIM = 500e18;
     uint256 private constant MIN_ACCRUAL = 1000e18;
     uint256 private constant REGISTRATION_FEE = 0;
+    uint256 private constant EPOCH_DURATION = 604800;
 
     StakingV2 private stakingV2;
     VotingV2 private voting;
@@ -30,7 +31,7 @@ contract StakingV2Test is Test {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
         address _voting = vm.computeCreateAddress(address(this), 2);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
-        voting = new VotingV2(address(stakingV2), address(lusd), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE);
+        voting = new VotingV2(address(stakingV2), address(lusd), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE, block.timestamp, EPOCH_DURATION);
     }
 
     function test_deployUserProxy() public {
