@@ -185,7 +185,7 @@ contract VotingV2 {
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];
             require(
-                initiativesRegistered[initiative] <= block.timestamp + EPOCH_DURATION, "Voting: initiative-not-active"
+                initiativesRegistered[initiative] + EPOCH_DURATION <= block.timestamp, "Voting: initiative-not-active"
             );
             _snapshotVotesForInitiative(shareRate, initiative);
 

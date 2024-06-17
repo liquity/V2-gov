@@ -105,8 +105,6 @@ contract VotingV2Test is Test {
         lqty.approve(address(userProxy), 1e18);
         assertEq(stakingV2.depositLQTY(1e18), 1e18);
 
-        vm.warp(block.timestamp + 365 days);
-
         assertEq(voting.qualifyingShares(), 0);
         assertEq(voting.sharesAllocatedByUser(user), 0);
 
@@ -116,7 +114,12 @@ contract VotingV2Test is Test {
         deltaShares[0] = 1e18;
         int256[] memory deltaVetoShares = new int256[](1);
 
+        vm.expectRevert("Voting: initiative-not-active");
         voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
+
+        vm.warp(block.timestamp + 365 days);
+        voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
+
         assertEq(voting.qualifyingShares(), 1e18);
         assertEq(voting.sharesAllocatedByUser(user), 1e18);
 
