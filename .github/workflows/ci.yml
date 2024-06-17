@@ -71,7 +71,10 @@ jobs:
         run: |
           forge --version
           forge build
-        id: build
+
+      - name: Add .env file
+        run: |
+          echo "MAINNET_RPC_URL=$MAINNET_RPC_URL" >> .env
 
       - name: Run tests
         run: forge test -vvv
