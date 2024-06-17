@@ -54,10 +54,7 @@ jobs:
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
 
   test:
-    strategy:
-      fail-fast: true
-
-    name: Foundry project
+    needs: ["lint", "build"]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,14 +64,14 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
 
-      - name: Run build
-        run: |
-          forge --version
-          forge build
+      - name: Show the Foundry config
+        run: "forge config"
 
-      # - name: Add .env file
-      #   run: |
-      #     echo "MAINNET_RPC_URL=$MAINNET_RPC_URL" >> .env
+      - name: Generate a fuzz seed that changes weekly to avoid burning through RPC allowance
+        run: >
+          echo "FOUNDRY_FUZZ_SEED=$(
+            echo $(($EPOCHSECONDS - $EPOCHSECONDS % 604800))
+          )" >> $GITHUB_ENV
 
       - name: Run tests
         run: forge test -vvv
