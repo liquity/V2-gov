@@ -6,7 +6,7 @@ import {VmSafe} from "forge-std/Vm.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {StakingV2} from "../src/StakingV2.sol";
-import {VotingV2} from "../src/VotingV2.sol";
+import {Voting} from "../src/Voting.sol";
 import {WAD, PermitParams} from "../src/Utils.sol";
 
 interface ILQTY {
@@ -25,13 +25,13 @@ contract StakingV2Test is Test {
     uint256 private constant EPOCH_DURATION = 604800;
 
     StakingV2 private stakingV2;
-    VotingV2 private voting;
+    Voting private voting;
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
         address _voting = vm.computeCreateAddress(address(this), 2);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
-        voting = new VotingV2(
+        voting = new Voting(
             address(stakingV2), address(lusd), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE, block.timestamp, EPOCH_DURATION
         );
     }

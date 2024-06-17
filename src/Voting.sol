@@ -12,7 +12,7 @@ import {WAD, add, max} from "./Utils.sol";
 //   VetoShares: Allocated by users (stakers to initiatives they reject
 //   QualifingShares: Shares that are included in the vote count (incl. initiatives that meet the voting threshold)
 //   Votes: Derived from the shares allocated to initiatives
-contract VotingV2 {
+contract Voting {
     using SafeERC20 for IERC20;
 
     // Reference timestamp used to derive the current share rate
