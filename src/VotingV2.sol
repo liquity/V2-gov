@@ -35,6 +35,8 @@ contract VotingV2 {
     uint256 public immutable MIN_CLAIM = 0.05e18;
     // Minimum amount of BOLD that have to be accrued for an epoch, otherwise accrual will be skipped for that epoch
     uint256 public immutable MIN_ACCRUAL = 0.05e18;
+    // Amount of BOLD to be paid in order to register a new initiative
+    uint256 public immutable REGISTRATION_FEE = 100e18;
 
     StakingV2 public immutable stakingV2;
     IERC20 public immutable bold;
@@ -71,13 +73,21 @@ contract VotingV2 {
     // BOLD accrued since last epoch
     uint256 public boldAccrued;
 
-    constructor(address _stakingV2, address _bold, address _collector, uint256 _minClaim, uint256 _minAccrual) {
+    constructor(
+        address _stakingV2,
+        address _bold,
+        address _collector,
+        uint256 _minClaim,
+        uint256 _minAccrual,
+        uint256 _registrationFee
+    ) {
         stakingV2 = StakingV2(_stakingV2);
         bold = IERC20(_bold);
         collector = _collector;
         require(_minClaim <= _minAccrual, "Voting: min-claim-gt-min-accrual");
         MIN_CLAIM = _minClaim;
         MIN_ACCRUAL = _minAccrual;
+        REGISTRATION_FEE = _registrationFee;
     }
 
     // Returns the current epoch number
@@ -152,6 +162,7 @@ contract VotingV2 {
 
     // Registers a new initiative
     function registerInitiative(address _initiative) external {
+        bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
         require(_initiative != address(0), "Voting: zero-address");
         require(initiativesRegistered[_initiative] == 0, "Voting: initiative-already-registered");
         initiativesRegistered[_initiative] = block.timestamp;

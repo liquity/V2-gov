@@ -21,6 +21,7 @@ contract VotingV2Test is Test {
 
     uint256 private constant MIN_CLAIM = 500e18;
     uint256 private constant MIN_ACCRUAL = 1000e18;
+    uint256 private constant REGISTRATION_FEE = 0;
 
     VotingV2 private voting;
     StakingV2 private stakingV2;
@@ -31,7 +32,9 @@ contract VotingV2Test is Test {
         address _voting = vm.computeCreateAddress(address(this), 3);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
         collector = new Collector(address(lusd), address(_voting));
-        voting = new VotingV2(address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL);
+        voting = new VotingV2(
+            address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE
+        );
     }
 
     function test_epoch() public {
@@ -61,7 +64,9 @@ contract VotingV2Test is Test {
     }
 
     function test_calculateVotingThreshold() public {
-        voting = new VotingV2(address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL);
+        voting = new VotingV2(
+            address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE
+        );
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
         VotingV2.Snapshot memory snapshot = VotingV2.Snapshot(1e18, 1);
@@ -76,7 +81,7 @@ contract VotingV2Test is Test {
         assertEq(voting.calculateVotingThreshold(), MIN_CLAIM / 1000);
 
         // check that votingThreshold is 4% of votes of previous epoch
-        voting = new VotingV2(address(stakingV2), address(lusd), address(collector), 10e18, 10e18);
+        voting = new VotingV2(address(stakingV2), address(lusd), address(collector), 10e18, 10e18, REGISTRATION_FEE);
 
         snapshot = VotingV2.Snapshot(10000e18, 1);
         vm.store(address(voting), bytes32(uint256(2)), bytes32(abi.encode(snapshot)));
