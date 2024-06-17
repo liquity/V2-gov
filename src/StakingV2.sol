@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 import {ILQTYStaking} from "./ILQTYStaking.sol";
-import {Voting} from "./Voting.sol";
+import {VotingV2} from "./VotingV2.sol";
 import {WAD, ONE_YEAR, PermitParams} from "./Utils.sol";
 
 // @title StakingV2
@@ -13,7 +13,7 @@ import {WAD, ONE_YEAR, PermitParams} from "./Utils.sol";
 // additional LUSD and ETH rewards via the UserProxy contract which is deployed for each user.
 contract StakingV2 is UserProxyFactory {
     uint256 public immutable deploymentTimestamp;
-    Voting public immutable voting;
+    VotingV2 public immutable voting;
 
     // Total shares in circulation
     uint256 public totalShares;
@@ -24,7 +24,7 @@ contract StakingV2 is UserProxyFactory {
         UserProxyFactory(_lqty, _lusd, _stakingV1)
     {
         deploymentTimestamp = block.timestamp;
-        voting = Voting(_voting);
+        voting = VotingV2(_voting);
     }
 
     // Returns the current share rate based on the time since deployment

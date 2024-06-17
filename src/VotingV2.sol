@@ -61,7 +61,15 @@ contract VotingV2 {
     // BOLD accrued since last epoch
     uint256 public boldAccrued;
 
-    constructor(address _stakingV2, address _bold, uint256 _minClaim, uint256 _minAccrual, uint256 _registrationFee, uint256 _epochStart, uint256 _epochDuration) {
+    constructor(
+        address _stakingV2,
+        address _bold,
+        uint256 _minClaim,
+        uint256 _minAccrual,
+        uint256 _registrationFee,
+        uint256 _epochStart,
+        uint256 _epochDuration
+    ) {
         stakingV2 = StakingV2(_stakingV2);
         bold = IERC20(_bold);
         require(_minClaim <= _minAccrual, "Voting: min-claim-gt-min-accrual");
