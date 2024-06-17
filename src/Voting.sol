@@ -4,19 +4,9 @@ pragma solidity ^0.8.13;
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {StakingV2, WAD} from "./StakingV2.sol";
+import {StakingV2} from "./StakingV2.sol";
+import {WAD, add, max} from "./Utils.sol";
 import {Collector} from "./Collector.sol";
-
-function add(uint256 a, int256 b) pure returns (uint128) {
-    if (b < 0) {
-        return uint128(a - uint256(-b));
-    }
-    return uint128(a + uint256(b));
-}
-
-function max(uint256 a, uint256 b) pure returns (uint256) {
-    return a > b ? a : b;
-}
 
 // Terminology:
 //   Shares: Allocated by users (stakers) to initiatives

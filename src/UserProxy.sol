@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {IERC20} from "./../lib/openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 import {ILQTYStaking} from "./ILQTYStaking.sol";
+import {PermitParams} from "./Utils.sol";
 
 contract UserProxy {
     IERC20 public immutable lqty;
@@ -27,6 +29,19 @@ contract UserProxy {
     function stake(address _user, uint256 _amount) public onlyStakingV2 {
         lqty.transferFrom(_user, address(this), _amount);
         stakingV1.stake(_amount);
+    }
+
+    function stakeViaPermit(address _user, uint256 _amount, PermitParams calldata _permitParams) public onlyStakingV2 {
+        IERC20Permit(address(lqty)).permit(
+            _permitParams.owner,
+            _permitParams.spender,
+            _permitParams.value,
+            _permitParams.deadline,
+            _permitParams.v,
+            _permitParams.r,
+            _permitParams.s
+        );
+        stake(_user, _amount);
     }
 
     function unstake(address _user, uint256 _amount) public onlyStakingV2 {

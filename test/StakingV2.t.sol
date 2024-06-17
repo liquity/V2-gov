@@ -2,11 +2,16 @@
 pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
+import {VmSafe} from "forge-std/Vm.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
-import {StakingV2, WAD} from "../src/StakingV2.sol";
-import {Voting} from "../src/Voting.sol";
-import {Collector} from "../src/Collector.sol";
+import {StakingV2} from "../src/StakingV2.sol";
+import {VotingV2} from "../src/VotingV2.sol";
+import {WAD, PermitParams} from "../src/Utils.sol";
+
+interface ILQTY {
+    function domainSeparator() external view returns (bytes32);
+}
 
 contract StakingV2Test is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
@@ -16,17 +21,16 @@ contract StakingV2Test is Test {
 
     uint256 private constant MIN_CLAIM = 500e18;
     uint256 private constant MIN_ACCRUAL = 1000e18;
+    uint256 private constant REGISTRATION_FEE = 0;
 
     StakingV2 private stakingV2;
-    Voting private voting;
-    Collector private collector;
+    VotingV2 private voting;
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
-        address _voting = vm.computeCreateAddress(address(this), 3);
+        address _voting = vm.computeCreateAddress(address(this), 2);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
-        collector = new Collector(address(lusd), address(_voting));
-        voting = new Voting(address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL);
+        voting = new VotingV2(address(stakingV2), address(lusd), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE);
     }
 
     function test_deployUserProxy() public {
@@ -67,6 +71,55 @@ contract StakingV2Test is Test {
         assertEq(stakingV2.withdrawShares(stakingV2.sharesByUser(user)), 1.5e18);
 
         vm.stopPrank();
+    }
+
+    function test_depositLQTYViaPermit() public {
+        vm.startPrank(user);
+        VmSafe.Wallet memory wallet = vm.createWallet(uint256(keccak256(bytes("1"))));
+        lqty.transfer(wallet.addr, 1e18);
+        vm.stopPrank();
+        vm.startPrank(wallet.addr);
+
+        // deploy
+        address userProxy = stakingV2.deployUserProxy();
+
+        PermitParams memory permitParams = PermitParams({
+            owner: wallet.addr,
+            spender: address(userProxy),
+            value: 1e18,
+            deadline: block.timestamp + 86400,
+            v: 0,
+            r: "",
+            s: ""
+        });
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            wallet.privateKey,
+            keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    ILQTY(address(lqty)).domainSeparator(),
+                    keccak256(
+                        abi.encode(
+                            0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9,
+                            permitParams.owner,
+                            permitParams.spender,
+                            permitParams.value,
+                            0,
+                            permitParams.deadline
+                        )
+                    )
+                )
+            )
+        );
+
+        permitParams.v = v;
+        permitParams.r = r;
+        permitParams.s = s;
+
+        // deposit 1 LQTY
+        assertEq(stakingV2.depositLQTYViaPermit(1e18, permitParams), 1e18);
+        assertEq(stakingV2.sharesByUser(wallet.addr), 1e18);
     }
 
     function test_currentShareRate() public payable {

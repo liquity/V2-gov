@@ -4,11 +4,10 @@ pragma solidity ^0.8.13;
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
-import {console} from "forge-std/console.sol";
+// import {console} from "forge-std/console.sol";
 
 import {StakingV2} from "../src/StakingV2.sol";
 import {VotingV2} from "../src/VotingV2.sol";
-import {Collector} from "../src/Collector.sol";
 
 contract VotingV2Test is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
@@ -25,16 +24,12 @@ contract VotingV2Test is Test {
 
     VotingV2 private voting;
     StakingV2 private stakingV2;
-    Collector private collector;
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
-        address _voting = vm.computeCreateAddress(address(this), 3);
+        address _voting = vm.computeCreateAddress(address(this), 2);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
-        collector = new Collector(address(lusd), address(_voting));
-        voting = new VotingV2(
-            address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE
-        );
+        voting = new VotingV2(address(stakingV2), address(lusd), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE);
     }
 
     function test_epoch() public {
@@ -64,9 +59,7 @@ contract VotingV2Test is Test {
     }
 
     function test_calculateVotingThreshold() public {
-        voting = new VotingV2(
-            address(stakingV2), address(lusd), address(collector), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE
-        );
+        voting = new VotingV2(address(stakingV2), address(lusd), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE);
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
         VotingV2.Snapshot memory snapshot = VotingV2.Snapshot(1e18, 1);
@@ -81,7 +74,7 @@ contract VotingV2Test is Test {
         assertEq(voting.calculateVotingThreshold(), MIN_CLAIM / 1000);
 
         // check that votingThreshold is 4% of votes of previous epoch
-        voting = new VotingV2(address(stakingV2), address(lusd), address(collector), 10e18, 10e18, REGISTRATION_FEE);
+        voting = new VotingV2(address(stakingV2), address(lusd), 10e18, 10e18, REGISTRATION_FEE);
 
         snapshot = VotingV2.Snapshot(10000e18, 1);
         vm.store(address(voting), bytes32(uint256(2)), bytes32(abi.encode(snapshot)));

@@ -5,9 +5,7 @@ import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 import {ILQTYStaking} from "./ILQTYStaking.sol";
 import {Voting} from "./Voting.sol";
-
-uint256 constant WAD = 1e18;
-uint256 constant ONE_YEAR = 31_536_000;
+import {WAD, ONE_YEAR, PermitParams} from "./Utils.sol";
 
 // @title StakingV2
 // @notice This contract allows users to stake their LQTY in return for receiving shares which can be used to vote
@@ -34,15 +32,25 @@ contract StakingV2 is UserProxyFactory {
         return ((block.timestamp - deploymentTimestamp) * WAD / ONE_YEAR) + WAD;
     }
 
-    // Deposits LQTY and mints shares based on the current share rate
-    function depositLQTY(uint256 _lqtyAmount) external returns (uint256) {
-        UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
-        userProxy.stake(msg.sender, _lqtyAmount);
-
+    function _mintShares(uint256 _lqtyAmount) private returns (uint256) {
         uint256 shareAmount = _lqtyAmount * WAD / currentShareRate();
         sharesByUser[msg.sender] += shareAmount;
-
         return shareAmount;
+    }
+
+    // Deposits LQTY and mints shares based on the current share rate
+    function depositLQTY(uint256 _lqtyAmount) external returns (uint256) {
+        UserProxy(payable(deriveUserProxyAddress(msg.sender))).stake(msg.sender, _lqtyAmount);
+        return _mintShares(_lqtyAmount);
+    }
+
+    // Deposits LQTY via Permit and mints shares based on the current share rate
+    function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams calldata _permitParams)
+        external
+        returns (uint256)
+    {
+        UserProxy(payable(deriveUserProxyAddress(msg.sender))).stakeViaPermit(msg.sender, _lqtyAmount, _permitParams);
+        return _mintShares(_lqtyAmount);
     }
 
     // Withdraws LQRT by burning the shares and claim any accrued LUSD and ETH rewards from StakingV1
