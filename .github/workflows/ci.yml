@@ -1,6 +1,11 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - "main"
 
 env:
   MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
