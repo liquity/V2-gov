@@ -9,7 +9,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {StakingV2} from "../src/StakingV2.sol";
 import {Voting} from "../src/Voting.sol";
 
-contract VotingV2Test is Test {
+contract VotingTest is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
     address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
@@ -22,6 +22,7 @@ contract VotingV2Test is Test {
     uint256 private constant MIN_ACCRUAL = 1000e18;
     uint256 private constant REGISTRATION_FEE = 0;
     uint256 private constant EPOCH_DURATION = 604800;
+    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Voting private voting;
     StakingV2 private stakingV2;
@@ -31,7 +32,14 @@ contract VotingV2Test is Test {
         address _voting = vm.computeCreateAddress(address(this), 2);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
         voting = new Voting(
-            address(stakingV2), address(lusd), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE, block.timestamp, EPOCH_DURATION
+            address(stakingV2),
+            address(lusd),
+            MIN_CLAIM,
+            MIN_ACCRUAL,
+            REGISTRATION_FEE,
+            block.timestamp,
+            EPOCH_DURATION,
+            EPOCH_VOTING_CUTOFF
         );
     }
 
@@ -63,7 +71,14 @@ contract VotingV2Test is Test {
 
     function test_calculateVotingThreshold() public {
         voting = new Voting(
-            address(stakingV2), address(lusd), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE, block.timestamp, EPOCH_DURATION
+            address(stakingV2),
+            address(lusd),
+            MIN_CLAIM,
+            MIN_ACCRUAL,
+            REGISTRATION_FEE,
+            block.timestamp,
+            EPOCH_DURATION,
+            EPOCH_VOTING_CUTOFF
         );
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
@@ -80,7 +95,14 @@ contract VotingV2Test is Test {
 
         // check that votingThreshold is 4% of votes of previous epoch
         voting = new Voting(
-            address(stakingV2), address(lusd), 10e18, 10e18, REGISTRATION_FEE, block.timestamp, EPOCH_DURATION
+            address(stakingV2),
+            address(lusd),
+            10e18,
+            10e18,
+            REGISTRATION_FEE,
+            block.timestamp,
+            EPOCH_DURATION,
+            EPOCH_VOTING_CUTOFF
         );
 
         snapshot = Voting.Snapshot(10000e18, 1);
@@ -130,12 +152,19 @@ contract VotingV2Test is Test {
         assertEq(voting.sharesAllocatedByUser(user), 1e18);
 
         vm.expectRevert("StakingV2: insufficient-unallocated-shares");
-
         stakingV2.withdrawShares(1e18);
+
+        vm.warp(block.timestamp + voting.secondsUntilNextEpoch() - 1);
+
+        initiatives[0] = initiative;
+        deltaShares[0] = 1e18;
+        vm.expectRevert("Voting: epoch-voting-cutoff");
+        voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
+
         initiatives[0] = initiative;
         deltaShares[0] = -1e18;
-
         voting.allocateShares(initiatives, deltaShares, deltaVetoShares);
+
         assertEq(voting.qualifyingShares(), 0);
         assertEq(voting.sharesAllocatedByUser(user), 0);
 

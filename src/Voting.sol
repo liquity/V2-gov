@@ -17,8 +17,10 @@ contract Voting {
 
     // Reference timestamp used to derive the current share rate
     uint256 public immutable EPOCH_START;
-    // Duration of an epoch in seconds (1 week)
+    // Duration of an epoch in seconds (e.g. 1 week)
     uint256 public immutable EPOCH_DURATION;
+    // Voting period of an epoch in seconds (e.g. 6 days)
+    uint256 public immutable EPOCH_VOTING_CUTOFF;
     // Minimum BOLD amount that can be claimed, if an initiative doesn't have enough votes to meet the criteria
     // then it's votes a excluded from the vote count and distribution
     uint256 public immutable MIN_CLAIM;
@@ -68,7 +70,8 @@ contract Voting {
         uint256 _minAccrual,
         uint256 _registrationFee,
         uint256 _epochStart,
-        uint256 _epochDuration
+        uint256 _epochDuration,
+        uint256 _epochVotingCutoff
     ) {
         stakingV2 = StakingV2(_stakingV2);
         bold = IERC20(_bold);
@@ -79,11 +82,18 @@ contract Voting {
         EPOCH_START = _epochStart;
         require(_epochDuration > 0, "Voting: epoch-duration-zero");
         EPOCH_DURATION = _epochDuration;
+        require(_epochVotingCutoff < _epochDuration, "Voting: epoch-voting-cutoff-gt-epoch-duration");
+        EPOCH_VOTING_CUTOFF = _epochVotingCutoff;
     }
 
     // Returns the current epoch number
     function epoch() public view returns (uint16) {
         return uint16(((block.timestamp - EPOCH_START) / EPOCH_DURATION) + 1);
+    }
+
+    // Returns the number of seconds until the next epoch
+    function secondsUntilNextEpoch() public view returns (uint256) {
+        return EPOCH_DURATION - ((block.timestamp - EPOCH_START) % EPOCH_DURATION);
     }
 
     // Voting power of a share linearly increases over time starting from 0 at time of share issuance
@@ -198,6 +208,11 @@ contract Voting {
             _snapshotVotesForInitiative(shareRate, initiative);
 
             int256 deltaShares = _deltaShares[i];
+            require(
+                deltaShares <= 0 || deltaShares >= 0 && secondsUntilNextEpoch() >= EPOCH_DURATION - EPOCH_VOTING_CUTOFF,
+                "Voting: epoch-voting-cutoff"
+            );
+
             ShareAllocation memory sharesAllocatedToInitiative_ = sharesAllocatedToInitiative[initiative];
 
             // Add or remove the initiatives shares count from the global qualifying shares count if the initiative
