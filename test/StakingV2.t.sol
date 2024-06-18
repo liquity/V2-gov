@@ -84,7 +84,7 @@ contract StakingV2Test is Test {
         vm.startPrank(wallet.addr);
 
         // check address
-        address userProxy = stakingV2.deriveUserProxyAddress(user);
+        address userProxy = stakingV2.deriveUserProxyAddress(wallet.addr);
 
         PermitParams memory permitParams = PermitParams({
             owner: wallet.addr,
