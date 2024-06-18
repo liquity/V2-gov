@@ -30,7 +30,7 @@ contract VotingV2Test is Test {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
         address _voting = vm.computeCreateAddress(address(this), 2);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
-        voting = new Voting{salt: bytes32(0)}(
+        voting = new Voting(
             address(stakingV2), address(lusd), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE, block.timestamp, EPOCH_DURATION
         );
     }
