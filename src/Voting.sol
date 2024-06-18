@@ -97,14 +97,14 @@ contract Voting {
     //   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
     function calculateVotingThreshold() public view returns (uint256) {
         uint256 minVotes;
-        Snapshot memory snapshot = votesSnapshot;
-        if (snapshot.votes != 0) {
-            uint256 payoutPerVote = (boldAccrued * WAD) / snapshot.votes;
+        uint256 snapshotVotes = votesSnapshot.votes;
+        if (snapshotVotes != 0) {
+            uint256 payoutPerVote = (boldAccrued * WAD) / snapshotVotes;
             if (payoutPerVote != 0) {
                 minVotes = (MIN_CLAIM * WAD) / payoutPerVote;
             }
         }
-        return max(snapshot.votes * 0.04e18 / WAD, minVotes);
+        return max(snapshotVotes * 0.04e18 / WAD, minVotes);
     }
 
     // Snapshots votes for the previous epoch and accrues funds for the current epoch
