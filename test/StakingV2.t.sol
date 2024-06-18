@@ -23,6 +23,7 @@ contract StakingV2Test is Test {
     uint256 private constant MIN_ACCRUAL = 1000e18;
     uint256 private constant REGISTRATION_FEE = 0;
     uint256 private constant EPOCH_DURATION = 604800;
+    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     StakingV2 private stakingV2;
     Voting private voting;
@@ -32,7 +33,14 @@ contract StakingV2Test is Test {
         address _voting = vm.computeCreateAddress(address(this), 2);
         stakingV2 = new StakingV2(address(lqty), address(lusd), stakingV1, _voting);
         voting = new Voting(
-            address(stakingV2), address(lusd), MIN_CLAIM, MIN_ACCRUAL, REGISTRATION_FEE, block.timestamp, EPOCH_DURATION
+            address(stakingV2),
+            address(lusd),
+            MIN_CLAIM,
+            MIN_ACCRUAL,
+            REGISTRATION_FEE,
+            block.timestamp,
+            EPOCH_DURATION,
+            EPOCH_VOTING_CUTOFF
         );
     }
 
