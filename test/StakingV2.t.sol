@@ -52,10 +52,10 @@ contract StakingV2Test is Test {
     function test_depositLQTY_withdrawShares() public {
         vm.startPrank(user);
 
-        // deploy
-        address userProxy = stakingV2.deployUserProxy();
+        // check address
+        address userProxy = stakingV2.deriveUserProxyAddress(user);
 
-        // deposit 1 LQTY
+        // deploy and deposit 1 LQTY
         lqty.approve(address(userProxy), 1e18);
         assertEq(stakingV2.depositLQTY(1e18), 1e18);
         assertEq(stakingV2.sharesByUser(user), 1e18);
@@ -83,8 +83,8 @@ contract StakingV2Test is Test {
         vm.stopPrank();
         vm.startPrank(wallet.addr);
 
-        // deploy
-        address userProxy = stakingV2.deployUserProxy();
+        // check address
+        address userProxy = stakingV2.deriveUserProxyAddress(user);
 
         PermitParams memory permitParams = PermitParams({
             owner: wallet.addr,
@@ -120,7 +120,7 @@ contract StakingV2Test is Test {
         permitParams.r = r;
         permitParams.s = s;
 
-        // deposit 1 LQTY
+        // deploy and deposit 1 LQTY
         assertEq(stakingV2.depositLQTYViaPermit(1e18, permitParams), 1e18);
         assertEq(stakingV2.sharesByUser(wallet.addr), 1e18);
     }
