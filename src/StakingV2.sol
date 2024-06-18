@@ -40,7 +40,13 @@ contract StakingV2 is UserProxyFactory {
 
     // Deposits LQTY and mints shares based on the current share rate
     function depositLQTY(uint256 _lqtyAmount) external returns (uint256) {
-        UserProxy(payable(deriveUserProxyAddress(msg.sender))).stake(msg.sender, _lqtyAmount);
+        address userProxyAddress = deriveUserProxyAddress(msg.sender);
+
+        if (userProxyAddress.code.length == 0) {
+            deployUserProxy();
+        }
+
+        UserProxy(payable(userProxyAddress)).stake(msg.sender, _lqtyAmount);
         return _mintShares(_lqtyAmount);
     }
 
@@ -49,7 +55,13 @@ contract StakingV2 is UserProxyFactory {
         external
         returns (uint256)
     {
-        UserProxy(payable(deriveUserProxyAddress(msg.sender))).stakeViaPermit(msg.sender, _lqtyAmount, _permitParams);
+        address userProxyAddress = deriveUserProxyAddress(msg.sender);
+
+        if (userProxyAddress.code.length == 0) {
+            deployUserProxy();
+        }
+
+        UserProxy(payable(userProxyAddress)).stakeViaPermit(msg.sender, _lqtyAmount, _permitParams);
         return _mintShares(_lqtyAmount);
     }
 
