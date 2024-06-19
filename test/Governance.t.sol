@@ -3,6 +3,8 @@ pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
+import {console} from "forge-std/console.sol";
+
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {Governance} from "../src/Governance.sol";
@@ -360,6 +362,52 @@ contract GovernanceTest is Test {
 
         assertEq(governance.claimForInitiative(initiative2), 0);
         assertEq(governance.claimForInitiative(initiative2), 0);
+
+        vm.stopPrank();
+    }
+
+    function test_multicall() public {
+        vm.startPrank(user);
+
+        governance.registerInitiative(initiative);
+
+        vm.warp(block.timestamp + 365 days);
+
+        uint256 lqtyAmount = 1000e18;
+        uint256 shareAmount = lqtyAmount * WAD / governance.currentShareRate();
+        uint256 lqtyBalance = lqty.balanceOf(user);
+
+        lqty.approve(address(governance.deriveUserProxyAddress(user)), lqtyAmount);
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = initiative;
+        int256[] memory deltaShares = new int256[](1);
+        deltaShares[0] = int256(shareAmount);
+        int256[] memory deltaVetoShares = new int256[](1);
+
+        int256[] memory deltaShares_ = new int256[](1);
+        deltaShares_[0] = -int256(shareAmount);
+
+        bytes[] memory data = new bytes[](7);
+        data[0] = abi.encodeWithSignature("deployUserProxy()");
+        data[1] = abi.encodeWithSignature("depositLQTY(uint256)", lqtyAmount);
+        data[2] = abi.encodeWithSignature(
+            "allocateShares(address[],int256[],int256[])", initiatives, deltaShares, deltaVetoShares
+        );
+        data[3] = abi.encodeWithSignature("sharesAllocatedToInitiative(address)", initiative);
+        data[4] = abi.encodeWithSignature("snapshotVotesForInitiative(address)", initiative);
+        data[5] = abi.encodeWithSignature(
+            "allocateShares(address[],int256[],int256[])", initiatives, deltaShares_, deltaVetoShares
+        );
+        data[6] = abi.encodeWithSignature("withdrawShares(uint256)", shareAmount);
+        bytes[] memory response = governance.multicall(data);
+
+        (Governance.ShareAllocation memory shareAllocation) = abi.decode(response[3], (Governance.ShareAllocation));
+        assertEq(shareAllocation.shares, shareAmount);
+        (Governance.Snapshot memory votes, Governance.Snapshot memory votesForInitiative) =
+            abi.decode(response[4], (Governance.Snapshot, Governance.Snapshot));
+        assertEq(votes.votes + votesForInitiative.votes, 0);
+        assertEq(lqty.balanceOf(user), lqtyBalance);
 
         vm.stopPrank();
     }
