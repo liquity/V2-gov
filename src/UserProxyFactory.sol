@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {Clones} from "./../lib/openzeppelin-contracts/contracts/proxy/Clones.sol";
+import {Clones} from "openzeppelin-contracts/contracts/proxy/Clones.sol";
 
 import {UserProxy} from "./UserProxy.sol";
 

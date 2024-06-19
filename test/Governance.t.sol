@@ -3,12 +3,13 @@ pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
-import {console} from "forge-std/console.sol";
+// import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
+import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {Governance} from "../src/Governance.sol";
-import {WAD, PermitParams} from "../src/Utils.sol";
+import {WAD, PermitParams} from "../src/utils/Types.sol";
 
 interface ILQTY {
     function domainSeparator() external view returns (bytes32);
@@ -206,7 +207,7 @@ contract GovernanceTest is Test {
         );
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
-        Governance.Snapshot memory snapshot = Governance.Snapshot(1e18, 1);
+        IGovernance.Snapshot memory snapshot = IGovernance.Snapshot(1e18, 1);
         vm.store(address(governance), bytes32(uint256(5)), bytes32(abi.encode(snapshot)));
         (uint240 votes,) = governance.votesSnapshot();
         assertEq(votes, 1e18);
@@ -231,7 +232,7 @@ contract GovernanceTest is Test {
             EPOCH_VOTING_CUTOFF
         );
 
-        snapshot = Governance.Snapshot(10000e18, 1);
+        snapshot = IGovernance.Snapshot(10000e18, 1);
         vm.store(address(governance), bytes32(uint256(5)), bytes32(abi.encode(snapshot)));
         (votes,) = governance.votesSnapshot();
         assertEq(votes, 10000e18);
@@ -402,10 +403,10 @@ contract GovernanceTest is Test {
         data[6] = abi.encodeWithSignature("withdrawShares(uint256)", shareAmount);
         bytes[] memory response = governance.multicall(data);
 
-        (Governance.ShareAllocation memory shareAllocation) = abi.decode(response[3], (Governance.ShareAllocation));
+        (IGovernance.ShareAllocation memory shareAllocation) = abi.decode(response[3], (IGovernance.ShareAllocation));
         assertEq(shareAllocation.shares, shareAmount);
-        (Governance.Snapshot memory votes, Governance.Snapshot memory votesForInitiative) =
-            abi.decode(response[4], (Governance.Snapshot, Governance.Snapshot));
+        (IGovernance.Snapshot memory votes, IGovernance.Snapshot memory votesForInitiative) =
+            abi.decode(response[4], (IGovernance.Snapshot, IGovernance.Snapshot));
         assertEq(votes.votes + votesForInitiative.votes, 0);
         assertEq(lqty.balanceOf(user), lqtyBalance);
 

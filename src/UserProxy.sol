@@ -4,8 +4,8 @@ pragma solidity ^0.8.13;
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
-import {ILQTYStaking} from "./ILQTYStaking.sol";
-import {PermitParams} from "./Utils.sol";
+import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
+import {PermitParams} from "./utils/Types.sol";
 
 contract UserProxy {
     IERC20 public immutable lqty;

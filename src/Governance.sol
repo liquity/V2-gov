@@ -4,65 +4,56 @@ pragma solidity ^0.8.13;
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {console} from "forge-std/console.sol";
+import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
+import {IGovernance} from "./interfaces/IGovernance.sol";
 
-import {Multicall} from "./Multicall.sol";
-import {ILQTYStaking} from "./ILQTYStaking.sol";
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
-import {WAD, ONE_YEAR, PermitParams, add, max} from "./Utils.sol";
 
-contract Governance is Multicall, UserProxyFactory {
+import {add, max} from "./utils/Math.sol";
+import {Multicall} from "./utils/Multicall.sol";
+import {WAD, ONE_YEAR, PermitParams} from "./utils/Types.sol";
+
+contract Governance is Multicall, UserProxyFactory, IGovernance {
     using SafeERC20 for IERC20;
 
-    // Address of the BOLD token
+    /// @inheritdoc IGovernance
     IERC20 public immutable bold;
-    // Reference timestamp used to derive the current share rate
+    /// @inheritdoc IGovernance
     uint256 public immutable EPOCH_START;
-    // Duration of an epoch in seconds (e.g. 1 week)
+    /// @inheritdoc IGovernance
     uint256 public immutable EPOCH_DURATION;
-    // Voting period of an epoch in seconds (e.g. 6 days)
+    /// @inheritdoc IGovernance
     uint256 public immutable EPOCH_VOTING_CUTOFF;
-    // Minimum BOLD amount that can be claimed, if an initiative doesn't have enough votes to meet the criteria
-    // then it's votes a excluded from the vote count and distribution
+    /// @inheritdoc IGovernance
     uint256 public immutable MIN_CLAIM;
-    // Minimum amount of BOLD that have to be accrued for an epoch, otherwise accrual will be skipped for that epoch
+    /// @inheritdoc IGovernance
     uint256 public immutable MIN_ACCRUAL;
-    // Amount of BOLD to be paid in order to register a new initiative
+    /// @inheritdoc IGovernance
     uint256 public immutable REGISTRATION_FEE;
 
-    // Total shares in circulation
+    /// @inheritdoc IGovernance
     uint256 public totalShares;
-    // Mapping of each user's share balance
+    /// @inheritdoc IGovernance
     mapping(address => uint256) public sharesByUser;
 
-    // Initiatives registered, by address
+    /// @inheritdoc IGovernance
     mapping(address => uint256) public initiativesRegistered;
 
-    // BOLD accrued since last epoch
+    /// @inheritdoc IGovernance
     uint256 public boldAccrued;
 
-    // Total number of shares allocated to initiatives that meet the voting threshold and are included in vote counting
+    /// @inheritdoc IGovernance
     uint256 public qualifyingShares;
 
-    struct Snapshot {
-        uint240 votes;
-        uint16 forEpoch;
-    }
-
-    // Number of votes at the last epoch
+    /// @inheritdoc IGovernance
     Snapshot public votesSnapshot;
-    // Number of votes received by an initiative at the last epoch
+    /// @inheritdoc IGovernance
     mapping(address => Snapshot) public votesForInitiativeSnapshot;
 
-    struct ShareAllocation {
-        uint128 shares; // Shares allocated vouching for the initiative
-        uint128 vetoShares; // Shares vetoing the initiative
-    }
-
-    // Number of shares (shares + vetoShares) allocated by user
+    /// @inheritdoc IGovernance
     mapping(address => uint256) public sharesAllocatedByUser;
-    // Shares (shares + vetoShares) allocated to initiatives
+    /// @inheritdoc IGovernance
     mapping(address => ShareAllocation) public sharesAllocatedToInitiative;
     // Shares (shares + vetoShares) allocated by user to initiatives
     mapping(address => mapping(address => ShareAllocation)) public sharesAllocatedByUserToInitiative;
@@ -95,7 +86,7 @@ contract Governance is Multicall, UserProxyFactory {
                                 STAKING
     //////////////////////////////////////////////////////////////*/
 
-    // Returns the current share rate based on the time since deployment
+    /// @inheritdoc IGovernance
     function currentShareRate() public view returns (uint256) {
         return ((block.timestamp - EPOCH_START) * WAD / ONE_YEAR) + WAD;
     }
@@ -106,7 +97,7 @@ contract Governance is Multicall, UserProxyFactory {
         return shareAmount;
     }
 
-    // Deposits LQTY and mints shares based on the current share rate
+    /// @inheritdoc IGovernance
     function depositLQTY(uint256 _lqtyAmount) external returns (uint256) {
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
@@ -118,7 +109,7 @@ contract Governance is Multicall, UserProxyFactory {
         return _mintShares(_lqtyAmount);
     }
 
-    // Deposits LQTY via Permit and mints shares based on the current share rate
+    /// @inheritdoc IGovernance
     function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams calldata _permitParams)
         external
         returns (uint256)
@@ -133,7 +124,7 @@ contract Governance is Multicall, UserProxyFactory {
         return _mintShares(_lqtyAmount);
     }
 
-    // Withdraws LQRT by burning the shares and claim any accrued LUSD and ETH rewards from StakingV1
+    /// @inheritdoc IGovernance
     function withdrawShares(uint256 _shareAmount) external returns (uint256) {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         uint256 shares = sharesByUser[msg.sender];
@@ -151,7 +142,7 @@ contract Governance is Multicall, UserProxyFactory {
         return lqtyAmount;
     }
 
-    // Claims staking rewards from StakingV1 without unstaking
+    /// @inheritdoc IGovernance
     function claimFromStakingV1() external {
         UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(msg.sender, 0);
     }
@@ -160,25 +151,23 @@ contract Governance is Multicall, UserProxyFactory {
                                  VOTING
     //////////////////////////////////////////////////////////////*/
 
-    // Returns the current epoch number
+    /// @inheritdoc IGovernance
     function epoch() public view returns (uint16) {
         return uint16(((block.timestamp - EPOCH_START) / EPOCH_DURATION) + 1);
     }
 
-    // Returns the number of seconds until the next epoch
+    /// @inheritdoc IGovernance
     function secondsUntilNextEpoch() public view returns (uint256) {
         return EPOCH_DURATION - ((block.timestamp - EPOCH_START) % EPOCH_DURATION);
     }
 
-    // Voting power of a share linearly increases over time starting from 0 at time of share issuance
+    /// @inheritdoc IGovernance
     function sharesToVotes(uint256 _shareRate, uint256 _shares) public pure returns (uint256) {
         uint256 weightedShares = _shares * _shareRate / WAD;
         return weightedShares - _shares;
     }
 
-    // Voting threshold is the max. of either:
-    //   - 4% of total shares allocated in the previous epoch
-    //   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
+    /// @inheritdoc IGovernance
     function calculateVotingThreshold() public view returns (uint256) {
         uint256 minVotes;
         uint256 snapshotVotes = votesSnapshot.votes;
@@ -225,7 +214,7 @@ contract Governance is Multicall, UserProxyFactory {
         return snapshot;
     }
 
-    // Snapshots votes for the previous epoch and accrues funds for the current epoch
+    /// @inheritdoc IGovernance
     function snapshotVotesForInitiative(address _initiative)
         external
         returns (Snapshot memory votes, Snapshot memory votesForInitiative)
@@ -235,7 +224,7 @@ contract Governance is Multicall, UserProxyFactory {
         votesForInitiative = _snapshotVotesForInitiative(shareRate, _initiative);
     }
 
-    // Registers a new initiative
+    /// @inheritdoc IGovernance
     function registerInitiative(address _initiative) external {
         bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
         require(_initiative != address(0), "Governance: zero-address");
@@ -243,8 +232,7 @@ contract Governance is Multicall, UserProxyFactory {
         initiativesRegistered[_initiative] = block.timestamp;
     }
 
-    // Unregisters an initiative if it didn't receive enough votes in the last 4 epochs
-    // or if it received more vetos than votes and the number of vetos are greater than 3 times the voting threshold
+    /// @inheritdoc IGovernance
     function unregisterInitiative(address _initiative) external {
         uint256 shareRate = currentShareRate();
         _snapshotVotes(shareRate);
@@ -262,7 +250,7 @@ contract Governance is Multicall, UserProxyFactory {
         delete initiativesRegistered[_initiative];
     }
 
-    // Allocates the user's shares to initiatives either as vote shares or veto shares
+    /// @inheritdoc IGovernance
     function allocateShares(
         address[] calldata _initiatives,
         int256[] calldata _deltaShares,
@@ -338,7 +326,7 @@ contract Governance is Multicall, UserProxyFactory {
         sharesAllocatedByUser[msg.sender] = sharesAllocatedByUser_;
     }
 
-    // split accrued funds according to votes received between all initiatives
+    /// @inheritdoc IGovernance
     function claimForInitiative(address _initiative) external returns (uint256) {
         uint256 shareRate = currentShareRate();
         Snapshot memory votesSnapshot_ = _snapshotVotes(shareRate);
