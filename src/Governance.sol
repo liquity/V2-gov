@@ -30,6 +30,8 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
     /// @inheritdoc IGovernance
     uint256 public immutable MIN_ACCRUAL;
     /// @inheritdoc IGovernance
+    uint256 public immutable REGISTRATION_FEE;
+    /// @inheritdoc IGovernance
     uint256 public immutable REGISTRATION_THRESHOLD_FACTOR;
     /// @inheritdoc IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
@@ -70,6 +72,9 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
     ) UserProxyFactory(_lqty, _lusd, _stakingV1) {
         bold = IERC20(_bold);
         require(_config.minClaim <= _config.minAccrual, "Gov: min-claim-gt-min-accrual");
+        REGISTRATION_FEE = _config.registrationFee;
+        REGISTRATION_THRESHOLD_FACTOR = _config.regstrationThresholdFactor;
+        VOTING_THRESHOLD_FACTOR = _config.votingThresholdFactor;
         MIN_CLAIM = _config.minClaim;
         MIN_ACCRUAL = _config.minAccrual;
         // REGISTRATION_FEE = _registrationFee;
@@ -78,8 +83,6 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         EPOCH_DURATION = _config.epochDuration;
         require(_config.epochVotingCutoff < _config.epochDuration, "Gov: epoch-voting-cutoff-gt-epoch-duration");
         EPOCH_VOTING_CUTOFF = _config.epochVotingCutoff;
-        REGISTRATION_THRESHOLD_FACTOR = _config.regstrationThresholdFactor;
-        VOTING_THRESHOLD_FACTOR = _config.votingThresholdFactor;
         for (uint256 i = 0; i < _initiatives.length; i++) {
             initiativesRegistered[_initiatives[i]] = block.timestamp;
         }
@@ -229,6 +232,8 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
 
     /// @inheritdoc IGovernance
     function registerInitiative(address _initiative) external {
+        bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
+
         require(_initiative != address(0), "Governance: zero-address");
         require(initiativesRegistered[_initiative] == 0, "Governance: initiative-already-registered");
 

@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
-import {console} from "forge-std/console.sol";
+// import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
@@ -25,13 +25,13 @@ contract GovernanceTest is Test {
     address private constant initiative2 = address(0x2);
     address private constant initiative3 = address(0x3);
 
-    uint256 private constant MIN_CLAIM = 500e18;
-    uint256 private constant MIN_ACCRUAL = 1000e18;
-    // uint256 private constant REGISTRATION_FEE = 0;
-    uint256 private constant EPOCH_DURATION = 604800;
-    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 private constant REGISTRATION_FEE = 1e18;
     uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
     uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint256 private constant MIN_CLAIM = 500e18;
+    uint256 private constant MIN_ACCRUAL = 1000e18;
+    uint256 private constant EPOCH_DURATION = 604800;
+    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -48,6 +48,7 @@ contract GovernanceTest is Test {
             stakingV1,
             address(lusd),
             IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
                 regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -157,6 +158,7 @@ contract GovernanceTest is Test {
             stakingV1,
             address(0),
             IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
                 regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -215,6 +217,7 @@ contract GovernanceTest is Test {
             address(stakingV1),
             address(lusd),
             IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
                 regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -245,6 +248,7 @@ contract GovernanceTest is Test {
             address(stakingV1),
             address(lusd),
             IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
                 regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: 10e18,
@@ -273,6 +277,15 @@ contract GovernanceTest is Test {
         vm.store(address(governance), bytes32(uint256(5)), bytes32(abi.encode(snapshot)));
         (uint240 votes,) = governance.votesSnapshot();
         assertEq(votes, 1e18);
+
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        governance.registerInitiative(initiative3);
+
+        vm.startPrank(lusdHolder);
+        lusd.transfer(address(this), 1e18);
+        vm.stopPrank();
+
+        lusd.approve(address(governance), 1e18);
 
         vm.expectRevert("Governance: insufficient-shares");
         governance.registerInitiative(initiative3);

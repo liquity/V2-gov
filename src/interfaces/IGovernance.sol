@@ -7,6 +7,7 @@ import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
     struct Configuration {
+        uint256 registrationFee;
         uint256 regstrationThresholdFactor;
         uint256 votingThresholdFactor;
         uint256 minClaim;
@@ -30,6 +31,8 @@ interface IGovernance {
     /// @notice Minimum amount of BOLD that have to be accrued for an epoch, otherwise accrual will be skipped for
     /// that epoch
     function MIN_ACCRUAL() external view returns (uint256);
+    /// @notice Amount of BOLD to be paid in order to register a new initiative
+    function REGISTRATION_FEE() external view returns (uint256);
     /// @notice Share of all votes that are necessary to register a new initiative
     function REGISTRATION_THRESHOLD_FACTOR() external view returns (uint256);
     /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
