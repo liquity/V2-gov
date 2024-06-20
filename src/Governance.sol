@@ -329,7 +329,7 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         }
 
         require(
-            sharesAllocatedByUser_ == 0 || sharesAllocatedByUser_ == sharesByUser[msg.sender],
+            sharesAllocatedByUser_ == 0 || sharesAllocatedByUser_ <= sharesByUser[msg.sender],
             "Governance: insufficient-or-unallocated-shares"
         );
 
