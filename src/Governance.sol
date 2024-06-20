@@ -77,7 +77,6 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         VOTING_THRESHOLD_FACTOR = _config.votingThresholdFactor;
         MIN_CLAIM = _config.minClaim;
         MIN_ACCRUAL = _config.minAccrual;
-        // REGISTRATION_FEE = _registrationFee;
         EPOCH_START = _config.epochStart;
         require(_config.epochDuration > 0, "Gov: epoch-duration-zero");
         EPOCH_DURATION = _config.epochDuration;
