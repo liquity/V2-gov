@@ -6,6 +6,16 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
+    struct Configuration {
+        uint256 regstrationThresholdFactor;
+        uint256 votingThresholdFactor;
+        uint256 minClaim;
+        uint256 minAccrual;
+        uint256 epochStart;
+        uint256 epochDuration;
+        uint256 epochVotingCutoff;
+    }
+
     /// @notice Address of the BOLD token
     function bold() external view returns (IERC20);
     /// @notice Reference timestamp used to derive the current share rate
@@ -20,8 +30,10 @@ interface IGovernance {
     /// @notice Minimum amount of BOLD that have to be accrued for an epoch, otherwise accrual will be skipped for
     /// that epoch
     function MIN_ACCRUAL() external view returns (uint256);
-    /// @notice Amount of BOLD to be paid in order to register a new initiative
-    function REGISTRATION_FEE() external view returns (uint256);
+    /// @notice Share of all votes that are necessary to register a new initiative
+    function REGISTRATION_THRESHOLD_FACTOR() external view returns (uint256);
+    /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
+    function VOTING_THRESHOLD_FACTOR() external view returns (uint256);
 
     /// @notice Total shares in circulation
     function totalShares() external view returns (uint256);

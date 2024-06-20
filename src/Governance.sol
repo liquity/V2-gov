@@ -30,7 +30,9 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
     /// @inheritdoc IGovernance
     uint256 public immutable MIN_ACCRUAL;
     /// @inheritdoc IGovernance
-    uint256 public immutable REGISTRATION_FEE;
+    uint256 public immutable REGISTRATION_THRESHOLD_FACTOR;
+    /// @inheritdoc IGovernance
+    uint256 public immutable VOTING_THRESHOLD_FACTOR;
 
     /// @inheritdoc IGovernance
     uint256 public totalShares;
@@ -63,23 +65,24 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         address _lusd,
         address _stakingV1,
         address _bold,
-        uint256 _minClaim,
-        uint256 _minAccrual,
-        uint256 _registrationFee,
-        uint256 _epochStart,
-        uint256 _epochDuration,
-        uint256 _epochVotingCutoff
+        Configuration memory _config,
+        address[] memory _initiatives
     ) UserProxyFactory(_lqty, _lusd, _stakingV1) {
         bold = IERC20(_bold);
-        require(_minClaim <= _minAccrual, "Gov: min-claim-gt-min-accrual");
-        MIN_CLAIM = _minClaim;
-        MIN_ACCRUAL = _minAccrual;
-        REGISTRATION_FEE = _registrationFee;
-        EPOCH_START = _epochStart;
-        require(_epochDuration > 0, "Gov: epoch-duration-zero");
-        EPOCH_DURATION = _epochDuration;
-        require(_epochVotingCutoff < _epochDuration, "Gov: epoch-voting-cutoff-gt-epoch-duration");
-        EPOCH_VOTING_CUTOFF = _epochVotingCutoff;
+        require(_config.minClaim <= _config.minAccrual, "Gov: min-claim-gt-min-accrual");
+        MIN_CLAIM = _config.minClaim;
+        MIN_ACCRUAL = _config.minAccrual;
+        // REGISTRATION_FEE = _registrationFee;
+        EPOCH_START = _config.epochStart;
+        require(_config.epochDuration > 0, "Gov: epoch-duration-zero");
+        EPOCH_DURATION = _config.epochDuration;
+        require(_config.epochVotingCutoff < _config.epochDuration, "Gov: epoch-voting-cutoff-gt-epoch-duration");
+        EPOCH_VOTING_CUTOFF = _config.epochVotingCutoff;
+        REGISTRATION_THRESHOLD_FACTOR = _config.regstrationThresholdFactor;
+        VOTING_THRESHOLD_FACTOR = _config.votingThresholdFactor;
+        for (uint256 i = 0; i < _initiatives.length; i++) {
+            initiativesRegistered[_initiatives[i]] = block.timestamp;
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -177,7 +180,7 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
                 minVotes = (MIN_CLAIM * WAD) / payoutPerVote;
             }
         }
-        return max(snapshotVotes * 0.04e18 / WAD, minVotes);
+        return max(snapshotVotes * VOTING_THRESHOLD_FACTOR / WAD, minVotes);
     }
 
     // Snapshots votes for the previous epoch and accrues funds for the current epoch
@@ -226,9 +229,16 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
 
     /// @inheritdoc IGovernance
     function registerInitiative(address _initiative) external {
-        bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
         require(_initiative != address(0), "Governance: zero-address");
         require(initiativesRegistered[_initiative] == 0, "Governance: initiative-already-registered");
+
+        uint256 shareRate = currentShareRate();
+        Snapshot memory snapshot = _snapshotVotes(shareRate);
+        require(
+            sharesToVotes(shareRate, sharesByUser[msg.sender]) >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
+            "Governance: insufficient-shares"
+        );
+
         initiativesRegistered[_initiative] = block.timestamp;
     }
 

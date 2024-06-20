@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
-// import {console} from "forge-std/console.sol";
+import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
@@ -23,28 +23,40 @@ contract GovernanceTest is Test {
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
     address private constant initiative = address(0x1);
     address private constant initiative2 = address(0x2);
+    address private constant initiative3 = address(0x3);
 
     uint256 private constant MIN_CLAIM = 500e18;
     uint256 private constant MIN_ACCRUAL = 1000e18;
-    uint256 private constant REGISTRATION_FEE = 0;
+    // uint256 private constant REGISTRATION_FEE = 0;
     uint256 private constant EPOCH_DURATION = 604800;
     uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
 
     Governance private governance;
+    address[] private initialInitiatives;
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
+
+        initialInitiatives.push(initiative);
+        initialInitiatives.push(initiative2);
+
         governance = new Governance(
             address(lqty),
             address(lusd),
             stakingV1,
             address(lusd),
-            MIN_CLAIM,
-            MIN_ACCRUAL,
-            REGISTRATION_FEE,
-            block.timestamp,
-            EPOCH_DURATION,
-            EPOCH_VOTING_CUTOFF
+            IGovernance.Configuration({
+                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: block.timestamp,
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
         );
     }
 
@@ -144,12 +156,16 @@ contract GovernanceTest is Test {
             address(lusd),
             stakingV1,
             address(0),
-            MIN_CLAIM,
-            MIN_ACCRUAL,
-            REGISTRATION_FEE,
-            0,
-            EPOCH_DURATION,
-            EPOCH_VOTING_CUTOFF
+            IGovernance.Configuration({
+                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: 0,
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
         );
         assertEq(governance.currentShareRate(), 1e18);
 
@@ -198,12 +214,16 @@ contract GovernanceTest is Test {
             address(lusd),
             address(stakingV1),
             address(lusd),
-            MIN_CLAIM,
-            MIN_ACCRUAL,
-            REGISTRATION_FEE,
-            block.timestamp,
-            EPOCH_DURATION,
-            EPOCH_VOTING_CUTOFF
+            IGovernance.Configuration({
+                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: block.timestamp,
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
         );
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
@@ -224,12 +244,16 @@ contract GovernanceTest is Test {
             address(lusd),
             address(stakingV1),
             address(lusd),
-            10e18,
-            10e18,
-            REGISTRATION_FEE,
-            block.timestamp,
-            EPOCH_DURATION,
-            EPOCH_VOTING_CUTOFF
+            IGovernance.Configuration({
+                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: 10e18,
+                minAccrual: 10e18,
+                epochStart: block.timestamp,
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
         );
 
         snapshot = IGovernance.Snapshot(10000e18, 1);
@@ -245,13 +269,23 @@ contract GovernanceTest is Test {
     }
 
     function test_registerInitiative() public {
-        governance.registerInitiative(initiative);
-        assertEq(governance.initiativesRegistered(initiative), block.timestamp);
+        IGovernance.Snapshot memory snapshot = IGovernance.Snapshot(1e18, 1);
+        vm.store(address(governance), bytes32(uint256(5)), bytes32(abi.encode(snapshot)));
+        (uint240 votes,) = governance.votesSnapshot();
+        assertEq(votes, 1e18);
+
+        vm.expectRevert("Governance: insufficient-shares");
+        governance.registerInitiative(initiative3);
+
+        vm.store(address(governance), keccak256(abi.encode(address(this), 1)), bytes32(abi.encode(1e18)));
+        assertEq(governance.sharesByUser(address(this)), 1e18);
+        vm.warp(block.timestamp + 365 days);
+
+        governance.registerInitiative(initiative3);
+        assertEq(governance.initiativesRegistered(initiative3), block.timestamp);
     }
 
     function test_allocateShares() public {
-        governance.registerInitiative(initiative);
-
         vm.startPrank(user);
 
         // deploy
@@ -299,9 +333,6 @@ contract GovernanceTest is Test {
     }
 
     function test_claimForInitiative() public {
-        governance.registerInitiative(initiative);
-        governance.registerInitiative(initiative2);
-
         vm.startPrank(user);
 
         // deploy
@@ -369,8 +400,6 @@ contract GovernanceTest is Test {
 
     function test_multicall() public {
         vm.startPrank(user);
-
-        governance.registerInitiative(initiative);
 
         vm.warp(block.timestamp + 365 days);
 
