@@ -136,9 +136,7 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         UserAllocation memory sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
 
         // check if user has enough unallocated shares
-        require(
-            _shareAmount <= shares - sharesAllocatedByUser_.shares, "Governance: insufficient-unallocated-shares"
-        );
+        require(_shareAmount <= shares - sharesAllocatedByUser_.shares, "Governance: insufficient-unallocated-shares");
 
         uint256 lqtyAmount = (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * _shareAmount) / shares;
         userProxy.unstake(msg.sender, lqtyAmount);
