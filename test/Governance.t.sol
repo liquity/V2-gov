@@ -308,7 +308,9 @@ contract GovernanceTest is Test {
         assertEq(governance.depositLQTY(1e18), 1e18);
 
         assertEq(governance.qualifyingShares(), 0);
-        assertEq(governance.sharesAllocatedByUser(user), 0);
+        (uint192 sharesAllocatedByUser_, uint16 atEpoch) = governance.sharesAllocatedByUser(user);
+        assertEq(sharesAllocatedByUser_, 0);
+        assertEq(atEpoch, 0);
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
@@ -323,7 +325,10 @@ contract GovernanceTest is Test {
         governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
 
         assertEq(governance.qualifyingShares(), 1e18);
-        assertEq(governance.sharesAllocatedByUser(user), 1e18);
+        (sharesAllocatedByUser_, atEpoch) = governance.sharesAllocatedByUser(user);
+        assertEq(sharesAllocatedByUser_, 1e18);
+        assertEq(atEpoch, governance.epoch());
+        assertGt(atEpoch, 0);
 
         vm.expectRevert("Governance: insufficient-unallocated-shares");
         governance.withdrawShares(1e18);
@@ -340,7 +345,8 @@ contract GovernanceTest is Test {
         governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
 
         assertEq(governance.qualifyingShares(), 0);
-        assertEq(governance.sharesAllocatedByUser(user), 0);
+        (sharesAllocatedByUser_,) = governance.sharesAllocatedByUser(user);
+        assertEq(sharesAllocatedByUser_, 0);
 
         vm.stopPrank();
     }
@@ -357,7 +363,8 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + 365 days);
 
         assertEq(governance.qualifyingShares(), 0);
-        assertEq(governance.sharesAllocatedByUser(user), 0);
+        (uint192 sharesAllocatedByUser_,) = governance.sharesAllocatedByUser(user);
+        assertEq(sharesAllocatedByUser_, 0);
 
         vm.stopPrank();
 
@@ -376,7 +383,8 @@ contract GovernanceTest is Test {
         int256[] memory deltaVetoShares = new int256[](2);
         governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
         assertEq(governance.qualifyingShares(), 1000e18);
-        assertEq(governance.sharesAllocatedByUser(user), 1000e18);
+        (sharesAllocatedByUser_,) = governance.sharesAllocatedByUser(user);
+        assertEq(sharesAllocatedByUser_, 1000e18);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 

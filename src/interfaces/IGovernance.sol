@@ -63,13 +63,19 @@ interface IGovernance {
     /// @notice Number of votes received by an initiative at the last epoch
     function votesForInitiativeSnapshot(address) external view returns (uint240 votes, uint16 forEpoch);
 
+    struct UserAllocation {
+        uint192 shares;
+        uint16 atEpoch;
+    }
+
+    /// @notice Number of shares (shares + vetoShares) allocated by user
+    function sharesAllocatedByUser(address) external view returns (uint192 shares, uint16 atEpoch);
+
     struct ShareAllocation {
         uint128 shares; // Shares allocated vouching for the initiative
         uint128 vetoShares; // Shares vetoing the initiative
     }
 
-    /// @notice Number of shares (shares + vetoShares) allocated by user
-    function sharesAllocatedByUser(address) external view returns (uint256);
     /// @notice Shares (shares + vetoShares) allocated to initiatives
     function sharesAllocatedToInitiative(address) external view returns (uint128 shares, uint128 vetoShares);
     /// @notice Shares (shares + vetoShares) allocated by user to initiatives
