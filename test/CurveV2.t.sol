@@ -42,6 +42,7 @@ contract GovernanceTest is Test {
     address[] private initialInitiatives;
     ICurveStableswapNG private curvePool;
     ILiquidityGauge private gauge;
+    CurveV2GaugeRewards private curveV2GaugeRewards;
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
@@ -67,7 +68,7 @@ contract GovernanceTest is Test {
 
         gauge = ILiquidityGauge(curveFactory.deploy_gauge(address(curvePool)));
 
-        CurveV2GaugeRewards curveV2GaugeRewards = new CurveV2GaugeRewards(
+        curveV2GaugeRewards = new CurveV2GaugeRewards(
             address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
             address(lusd),
             address(gauge),
@@ -111,7 +112,13 @@ contract GovernanceTest is Test {
         curvePool.add_liquidity(_amounts, 5998200000000000000000);
 
         vm.stopPrank();
+
+        vm.startPrank(lusdHolder);
+        lusd.transfer(address(curveV2GaugeRewards), 1000e18);
+        vm.stopPrank();
     }
 
-    function test_main() public {}
+    function test_main() public {
+        curveV2GaugeRewards.depositIntoGauge();
+    }
 }

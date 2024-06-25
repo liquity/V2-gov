@@ -391,8 +391,12 @@ contract GovernanceTest is Test {
         assertEq(governance.claimForInitiative(initiative), 5000e18);
         assertEq(governance.claimForInitiative(initiative), 0);
 
+        assertEq(lusd.balanceOf(initiative), 5000e18);
+
         assertEq(governance.claimForInitiative(initiative2), 5000e18);
         assertEq(governance.claimForInitiative(initiative2), 0);
+
+        assertEq(lusd.balanceOf(initiative2), 5000e18);
 
         vm.stopPrank();
 
@@ -412,9 +416,13 @@ contract GovernanceTest is Test {
 
         assertEq(governance.claimForInitiative(initiative), 10000e18);
         assertEq(governance.claimForInitiative(initiative), 0);
+        
+        assertEq(lusd.balanceOf(initiative), 15000e18);
 
         assertEq(governance.claimForInitiative(initiative2), 0);
         assertEq(governance.claimForInitiative(initiative2), 0);
+
+        assertEq(lusd.balanceOf(initiative2), 5000e18);
 
         vm.stopPrank();
     }
