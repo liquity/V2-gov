@@ -2,6 +2,8 @@
 pragma solidity ^0.8.13;
 
 interface ICurveStableswapFactoryNG {
+    function admin() external view returns (address);
+
     function deploy_plain_pool(
         string calldata _name,
         string calldata _symbol,
@@ -15,4 +17,6 @@ interface ICurveStableswapFactoryNG {
         bytes4[] calldata _method_ids,
         address[] calldata _oracles
     ) external returns (address);
+
+    function deploy_gauge(address _pool) external returns (address);
 }

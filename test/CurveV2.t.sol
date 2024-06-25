@@ -10,7 +10,9 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {ICurveStableswapFactoryNG} from "../src/interfaces/ICurveStableswapFactoryNG.sol";
 import {ICurveStableswapNG} from "../src/interfaces/ICurveStableswapNG.sol";
+import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
 
+import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
 import {Governance} from "../src/Governance.sol";
 import {WAD, PermitParams} from "../src/utils/Types.sol";
 
@@ -23,7 +25,7 @@ contract GovernanceTest is Test {
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
     IERC20 private constant usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
-    address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC); // Binance wallet
+    address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
     ICurveStableswapFactoryNG private constant curveFactory =
         ICurveStableswapFactoryNG(address(0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf));
@@ -39,6 +41,7 @@ contract GovernanceTest is Test {
     Governance private governance;
     address[] private initialInitiatives;
     ICurveStableswapNG private curvePool;
+    ILiquidityGauge private gauge;
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
@@ -56,19 +59,45 @@ contract GovernanceTest is Test {
         _oracles[0] = address(0x0);
         _oracles[1] = address(0x0);
 
-        curvePool = ICurveStableswapNG(curveFactory.deploy_plain_pool(
-            "BOLD-USDC",
-            "BOLDUSDC",
-            _coins,
-            200,
-            1000000,
-            50000000000,
-            866,
-            0,
-            _asset_types,
-            _method_ids,
-            _oracles
-        ));
+        curvePool = ICurveStableswapNG(
+            curveFactory.deploy_plain_pool(
+                "BOLD-USDC", "BOLDUSDC", _coins, 200, 1000000, 50000000000, 866, 0, _asset_types, _method_ids, _oracles
+            )
+        );
+
+        gauge = ILiquidityGauge(curveFactory.deploy_gauge(address(curvePool)));
+
+        CurveV2GaugeRewards curveV2GaugeRewards = new CurveV2GaugeRewards(
+            address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
+            address(lusd),
+            address(gauge),
+            604800
+        );
+
+        initialInitiatives = new address[](1);
+        initialInitiatives[0] = address(curveV2GaugeRewards);
+
+        governance = new Governance(
+            address(lqty),
+            address(lusd),
+            stakingV1,
+            address(lusd),
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: block.timestamp,
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
+        );
+
+        vm.startPrank(curveFactory.admin());
+        gauge.add_reward(address(lusd), address(curveV2GaugeRewards));
+        vm.stopPrank();
 
         vm.startPrank(lusdHolder);
 
@@ -81,28 +110,8 @@ contract GovernanceTest is Test {
 
         curvePool.add_liquidity(_amounts, 5998200000000000000000);
 
-        // governance = new Governance(
-        //     address(lqty),
-        //     address(lusd),
-        //     stakingV1,
-        //     address(lusd),
-        //     IGovernance.Configuration({
-        //         registrationFee: REGISTRATION_FEE,
-        //         regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-        //         votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-        //         minClaim: MIN_CLAIM,
-        //         minAccrual: MIN_ACCRUAL,
-        //         epochStart: block.timestamp,
-        //         epochDuration: EPOCH_DURATION,
-        //         epochVotingCutoff: EPOCH_VOTING_CUTOFF
-        //     }),
-        //     initialInitiatives
-        // );
-
         vm.stopPrank();
     }
 
-    function test_main() public {
-        
-    }
+    function test_main() public {}
 }
