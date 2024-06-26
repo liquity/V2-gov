@@ -416,7 +416,7 @@ contract GovernanceTest is Test {
 
         assertEq(governance.claimForInitiative(initiative), 10000e18);
         assertEq(governance.claimForInitiative(initiative), 0);
-        
+
         assertEq(lusd.balanceOf(initiative), 15000e18);
 
         assertEq(governance.claimForInitiative(initiative2), 0);
