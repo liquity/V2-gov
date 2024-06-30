@@ -19,11 +19,11 @@ contract UniV4Donations {
 
     Vesting public vesting;
 
-    constructor(address _governance, address _bold, uint256 _vestingEpochStart, uint256 _vestingEpochDuration) {
+    constructor(address _governance, address _bold) {
         governance = IGovernance(_governance);
         bold = IERC20(_bold);
-        VESTING_EPOCH_START = _vestingEpochStart;
-        VESTING_EPOCH_DURATION = _vestingEpochDuration;
+        VESTING_EPOCH_START = IGovernance(_governance).EPOCH_START();
+        VESTING_EPOCH_DURATION = IGovernance(_governance).EPOCH_DURATION();
     }
 
     function vestingEpoch() public view returns (uint16) {
