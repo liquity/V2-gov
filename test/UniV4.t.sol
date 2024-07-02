@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.13;
+
+import {Test} from "forge-std/Test.sol";
+import {console} from "forge-std/console.sol";
+
+import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+
+import {IPoolManager, PoolManager, Deployers, TickMath, Hooks} from "v4-core/test/utils/Deployers.sol";
+import {PoolModifyLiquidityTest} from "v4-core/src/test/PoolModifyLiquidityTest.sol";
+
+import {IGovernance} from "../src/interfaces/IGovernance.sol";
+
+import {UniV4Donations} from "../src/UniV4Donations.sol";
+import {Governance} from "../src/Governance.sol";
+import {BaseHook, Hooks} from "../src/utils/BaseHook.sol";
+
+interface ILQTY {
+    function domainSeparator() external view returns (bytes32);
+}
+
+contract UniV4DonationsImpl is UniV4Donations {
+    constructor(
+        address _governance,
+        address _bold,
+        address _poolManager,
+        address _token,
+        uint24 _fee,
+        int24 _tickSpacing,
+        BaseHook addressToEtch
+    ) UniV4Donations(_governance, _bold, _poolManager, _token, _fee, _tickSpacing) {
+        BaseHook.validateHookAddress(addressToEtch);
+    }
+
+    // make this a no-op in testing
+    function validateHookAddress(BaseHook _this) internal pure override {}
+}
+
+contract UniV4Test is Test, Deployers {
+    IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
+    IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
+    IERC20 private constant usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
+    address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
+    address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
+
+    uint256 private constant REGISTRATION_FEE = 1e18;
+    uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint256 private constant MIN_CLAIM = 500e18;
+    uint256 private constant MIN_ACCRUAL = 1000e18;
+    uint256 private constant EPOCH_DURATION = 604800;
+    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+
+    Governance private governance;
+    address[] private initialInitiatives;
+
+    UniV4Donations private uniV4Donations =
+        UniV4Donations(address(uint160(Hooks.AFTER_INITIALIZE_FLAG | Hooks.AFTER_ADD_LIQUIDITY_FLAG)));
+
+    int24 constant MAX_TICK_SPACING = 32767;
+
+    function setUp() public {
+        vm.createSelectFork(vm.rpcUrl("mainnet"));
+
+        manager = new PoolManager(500000);
+        modifyLiquidityRouter = new PoolModifyLiquidityTest(manager);
+
+        initialInitiatives = new address[](0);
+
+        governance = new Governance(
+            address(lqty),
+            address(lusd),
+            stakingV1,
+            address(lusd),
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: block.timestamp,
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
+        );
+
+        UniV4DonationsImpl impl = new UniV4DonationsImpl(
+            address(governance),
+            address(lusd),
+            address(manager),
+            address(usdc),
+            400,
+            MAX_TICK_SPACING,
+            BaseHook(address(uniV4Donations))
+        );
+
+        (, bytes32[] memory writes) = vm.accesses(address(impl));
+        vm.etch(address(uniV4Donations), address(impl).code);
+        // for each storage key that was written during the hook implementation, copy the value over
+        unchecked {
+            for (uint256 i = 0; i < writes.length; i++) {
+                bytes32 slot = writes[i];
+                vm.store(address(uniV4Donations), slot, vm.load(address(impl), slot));
+            }
+        }
+    }
+
+    function testAfterInitializeState() public {
+        manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
+    }
+
+    function testModifyPosition() public {
+        manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
+
+        vm.startPrank(lusdHolder);
+
+        lusd.transfer(address(uniV4Donations), 1000e18);
+
+        uniV4Donations.restartVesting();
+        assertEq(uniV4Donations.donateToPool(), 0);
+        (uint240 amount, uint16 epoch, uint256 released) = uniV4Donations.vesting();
+        assertEq(amount, 1000e18);
+        assertEq(epoch, 1);
+        assertEq(released, 0);
+
+        vm.warp(block.timestamp + uniV4Donations.VESTING_EPOCH_DURATION() / 2);
+        lusd.approve(address(modifyLiquidityRouter), type(uint256).max);
+        usdc.approve(address(modifyLiquidityRouter), type(uint256).max);
+        modifyLiquidityRouter.modifyLiquidity(
+            uniV4Donations.poolKey(),
+            IPoolManager.ModifyLiquidityParams(
+                TickMath.minUsableTick(MAX_TICK_SPACING), TickMath.maxUsableTick(MAX_TICK_SPACING), 1000, 0
+            ),
+            bytes("")
+        );
+        (amount, epoch, released) = uniV4Donations.vesting();
+        assertEq(amount, 1000e18);
+        assertEq(released, amount * 50 / 100);
+        assertEq(epoch, 1);
+
+        vm.warp(block.timestamp + (uniV4Donations.VESTING_EPOCH_DURATION() / 2) - 1);
+        uint256 donated = uniV4Donations.donateToPool();
+        assertGt(donated, amount * 49 / 100);
+        assertLt(donated, amount * 50 / 100);
+        (amount, epoch, released) = uniV4Donations.vesting();
+        assertEq(amount, 1000e18);
+        assertEq(epoch, 1);
+        assertGt(released, amount * 99 / 100);
+
+        vm.stopPrank();
+    }
+}
