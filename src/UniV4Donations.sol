@@ -74,6 +74,7 @@ contract UniV4Donations is BaseHook {
         if (_vesting.epoch < epoch) {
             _vesting.amount = uint240(bold.balanceOf(address(this)));
             _vesting.epoch = epoch;
+            _vesting.released = 0;
             vesting = _vesting;
         }
         return _vesting;
@@ -96,7 +97,7 @@ contract UniV4Donations is BaseHook {
     }
 
     function donateToPool() public returns (uint256) {
-        return abi.decode(manager.unlock(bytes("")), (uint256));
+        return abi.decode(manager.unlock(abi.encode(address(this), poolKey())), (uint256));
     }
 
     function poolKey() public view returns (PoolKey memory key) {
@@ -150,7 +151,10 @@ contract UniV4Donations is BaseHook {
         return (this.afterAddLiquidity.selector, delta);
     }
 
-    function _unlockCallback(bytes calldata) internal override returns (bytes memory) {
+    function _unlockCallback(bytes calldata data) internal override returns (bytes memory) {
+        (address sender, PoolKey memory key) = abi.decode(data, (address, PoolKey));
+        require(sender == address(this), "UniV4Donations: invalid-sender");
+        require(PoolId.unwrap(poolKey().toId()) == PoolId.unwrap(key.toId()), "UniV4Donations: invalid-pool-id");
         return abi.encode(_donateToPool());
     }
 }

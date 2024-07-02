@@ -149,6 +149,13 @@ contract UniV4Test is Test, Deployers {
         assertEq(epoch, 1);
         assertGt(released, amount * 99 / 100);
 
+        vm.warp(block.timestamp + 1);
+        uniV4Donations.restartVesting();
+        (amount, epoch, released) = uniV4Donations.vesting();
+        assertLt(amount, 0.01e18);
+        assertEq(epoch, 2);
+        assertEq(released, 0);
+
         vm.stopPrank();
     }
 }
