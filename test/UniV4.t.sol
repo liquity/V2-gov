@@ -29,7 +29,18 @@ contract UniV4DonationsImpl is UniV4Donations {
         uint24 _fee,
         int24 _tickSpacing,
         BaseHook addressToEtch
-    ) UniV4Donations(_governance, _bold, _vestingEpochStart, _vestingEpochDuration, _poolManager, _token, _fee, _tickSpacing) {
+    )
+        UniV4Donations(
+            _governance,
+            _bold,
+            _vestingEpochStart,
+            _vestingEpochDuration,
+            _poolManager,
+            _token,
+            _fee,
+            _tickSpacing
+        )
+    {
         BaseHook.validateHookAddress(addressToEtch);
     }
 
