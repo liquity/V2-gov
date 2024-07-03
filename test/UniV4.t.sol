@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
-import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
@@ -23,12 +22,14 @@ contract UniV4DonationsImpl is UniV4Donations {
     constructor(
         address _governance,
         address _bold,
+        uint256 _vestingEpochStart,
+        uint256 _vestingEpochDuration,
         address _poolManager,
         address _token,
         uint24 _fee,
         int24 _tickSpacing,
         BaseHook addressToEtch
-    ) UniV4Donations(_governance, _bold, _poolManager, _token, _fee, _tickSpacing) {
+    ) UniV4Donations(_governance, _bold, _vestingEpochStart, _vestingEpochDuration, _poolManager, _token, _fee, _tickSpacing) {
         BaseHook.validateHookAddress(addressToEtch);
     }
 
@@ -66,7 +67,30 @@ contract UniV4Test is Test, Deployers {
         manager = new PoolManager(500000);
         modifyLiquidityRouter = new PoolModifyLiquidityTest(manager);
 
-        initialInitiatives = new address[](0);
+        initialInitiatives = new address[](1);
+        initialInitiatives[0] = address(uniV4Donations);
+
+        UniV4DonationsImpl impl = new UniV4DonationsImpl(
+            address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
+            address(lusd),
+            block.timestamp,
+            EPOCH_DURATION,
+            address(manager),
+            address(usdc),
+            400,
+            MAX_TICK_SPACING,
+            BaseHook(address(uniV4Donations))
+        );
+
+        (, bytes32[] memory writes) = vm.accesses(address(impl));
+        vm.etch(address(uniV4Donations), address(impl).code);
+        // for each storage key that was written during the hook implementation, copy the value over
+        unchecked {
+            for (uint256 i = 0; i < writes.length; i++) {
+                bytes32 slot = writes[i];
+                vm.store(address(uniV4Donations), slot, vm.load(address(impl), slot));
+            }
+        }
 
         governance = new Governance(
             address(lqty),
@@ -85,26 +109,6 @@ contract UniV4Test is Test, Deployers {
             }),
             initialInitiatives
         );
-
-        UniV4DonationsImpl impl = new UniV4DonationsImpl(
-            address(governance),
-            address(lusd),
-            address(manager),
-            address(usdc),
-            400,
-            MAX_TICK_SPACING,
-            BaseHook(address(uniV4Donations))
-        );
-
-        (, bytes32[] memory writes) = vm.accesses(address(impl));
-        vm.etch(address(uniV4Donations), address(impl).code);
-        // for each storage key that was written during the hook implementation, copy the value over
-        unchecked {
-            for (uint256 i = 0; i < writes.length; i++) {
-                bytes32 slot = writes[i];
-                vm.store(address(uniV4Donations), slot, vm.load(address(impl), slot));
-            }
-        }
     }
 
     function testAfterInitializeState() public {

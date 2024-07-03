@@ -39,6 +39,8 @@ contract UniV4Donations is BaseHook {
     constructor(
         address _governance,
         address _bold,
+        uint256 _vestingEpochStart,
+        uint256 _vestingEpochDuration,
         address _poolManager,
         address _token,
         uint24 _fee,
@@ -46,8 +48,8 @@ contract UniV4Donations is BaseHook {
     ) BaseHook(IPoolManager(_poolManager)) {
         governance = IGovernance(_governance);
         bold = IERC20(_bold);
-        VESTING_EPOCH_START = IGovernance(_governance).EPOCH_START();
-        VESTING_EPOCH_DURATION = IGovernance(_governance).EPOCH_DURATION();
+        VESTING_EPOCH_START = _vestingEpochStart;
+        VESTING_EPOCH_DURATION = _vestingEpochDuration;
 
         if (uint256(uint160(address(_bold))) <= uint256(uint160(address(_token)))) {
             currency0 = _bold;
