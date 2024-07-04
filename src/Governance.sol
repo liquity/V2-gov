@@ -17,6 +17,7 @@ import {WAD, ONE_YEAR, PermitParams} from "./utils/Types.sol";
 contract Governance is Multicall, UserProxyFactory, IGovernance {
     using SafeERC20 for IERC20;
 
+    IERC20 public immutable lqty;
     /// @inheritdoc IGovernance
     IERC20 public immutable bold;
     /// @inheritdoc IGovernance
@@ -70,6 +71,7 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         Configuration memory _config,
         address[] memory _initiatives
     ) UserProxyFactory(_lqty, _lusd, _stakingV1) {
+        lqty = IERC20(_lqty);
         bold = IERC20(_bold);
         require(_config.minClaim <= _config.minAccrual, "Gov: min-claim-gt-min-accrual");
         REGISTRATION_FEE = _config.registrationFee;
@@ -139,16 +141,36 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         require(_shareAmount <= shares - sharesAllocatedByUser_.shares, "Governance: insufficient-unallocated-shares");
 
         uint256 lqtyAmount = (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * _shareAmount) / shares;
-        userProxy.unstake(msg.sender, lqtyAmount);
+        userProxy.unstake(msg.sender, lqtyAmount, msg.sender);
 
         sharesByUser[msg.sender] = shares - _shareAmount;
 
         return lqtyAmount;
     }
 
+    function transferShares(uint256 _shareAmount, address _to) public {
+        uint256 shares = sharesByUser[msg.sender];
+        UserAllocation memory sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
+
+        // check if user has enough unallocated shares
+        require(_shareAmount <= shares - sharesAllocatedByUser_.shares, "Governance: insufficient-unallocated-shares");
+
+        UserProxy fromUserProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
+        uint256 lqtyAmount =
+            (ILQTYStaking(fromUserProxy.stakingV1()).stakes(address(fromUserProxy)) * _shareAmount) / shares;
+        (lqtyAmount,,) = fromUserProxy.unstake(msg.sender, lqtyAmount, address(this));
+
+        UserProxy toUserProxy = UserProxy(payable(deriveUserProxyAddress(_to)));
+        lqty.approve(address(toUserProxy), lqtyAmount);
+        UserProxy(payable(toUserProxy)).stake(address(this), lqtyAmount);
+
+        sharesByUser[msg.sender] = shares - _shareAmount;
+        sharesByUser[_to] += _shareAmount;
+    }
+
     /// @inheritdoc IGovernance
     function claimFromStakingV1() external {
-        UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(msg.sender, 0);
+        UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(msg.sender, 0, msg.sender);
     }
 
     /*//////////////////////////////////////////////////////////////

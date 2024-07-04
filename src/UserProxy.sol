@@ -44,15 +44,19 @@ contract UserProxy {
         stake(_user, _amount);
     }
 
-    function unstake(address _user, uint256 _amount) public onlyStakingV2 {
+    function unstake(address _user, uint256 _amount, address lqtyTo)
+        public
+        onlyStakingV2
+        returns (uint256 lqtyAmount, uint256 lusdAmount, uint256 ethAmount)
+    {
         stakingV1.unstake(_amount);
 
-        uint256 lqtyBalance = lqty.balanceOf(address(this));
-        if (lqtyBalance > 0) lqty.transfer(_user, lqtyBalance);
-        uint256 lusdBalance = lusd.balanceOf(address(this));
-        if (lusdBalance > 0) lusd.transfer(_user, lusdBalance);
-        uint256 ethBalance = address(this).balance;
-        if (ethBalance > 0) payable(_user).transfer(ethBalance);
+        lqtyAmount = lqty.balanceOf(address(this));
+        if (lqtyAmount > 0) lqty.transfer(lqtyTo, lqtyAmount);
+        lusdAmount = lusd.balanceOf(address(this));
+        if (lusdAmount > 0) lusd.transfer(_user, lusdAmount);
+        ethAmount = address(this).balance;
+        if (ethAmount > 0) payable(_user).transfer(ethAmount);
     }
 
     receive() external payable {}

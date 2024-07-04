@@ -470,4 +470,22 @@ contract GovernanceTest is Test {
 
         vm.stopPrank();
     }
+
+    function test_transfer_position() public {
+        governance.deployUserProxy();
+
+        vm.startPrank(user);
+
+        address userProxy = governance.deployUserProxy();
+
+        lqty.approve(address(userProxy), 1e18);
+        assertEq(governance.depositLQTY(1e18), 1e18);
+
+        governance.transferShares(1e18, address(this));
+
+        assertEq(governance.sharesByUser(user), 0);
+        assertEq(governance.sharesByUser(address(this)), 1e18);
+
+        vm.stopPrank();
+    }
 }
