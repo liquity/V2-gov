@@ -38,7 +38,21 @@ contract BribeProxy {
         bribeByEpoch[_epoch] += _amount;
     }
 
+    function _claimBribes(Delegation memory delegation, uint16 currentEpoch, uint256 newlyDelegatedShares) internal {
+        // claim accrued bribes from previous epochs
+        if (delegation.epoch < currentEpoch) {
+            (uint256 delegatedShares,) = governance.sharesAllocatedByUser(address(this));
+            if (delegatedShares > newlyDelegatedShares) {
+                bribeToken.transfer(
+                    msg.sender,
+                    bribeByEpoch[currentEpoch] * delegation.shares / (delegatedShares - newlyDelegatedShares)
+                );
+            }
+        }
+    }
+
     function sync() external {
+        uint16 currentEpoch = governance.epoch();
         uint256 shareBalance = governance.sharesByUser(address(this));
         if (shareBalance > lastShareBalance) {
             uint256 shareAmount = shareBalance - lastShareBalance;
@@ -55,18 +69,10 @@ contract BribeProxy {
             Delegation memory delegation = delegatedSharesByUser[msg.sender];
 
             // claim accrued bribes from previous epochs
-            if (delegation.epoch < governance.epoch()) {
-                (uint256 delegatedShares,) = governance.sharesAllocatedByUser(address(this));
-                if (delegatedShares > shareAmount) {
-                    bribeToken.transfer(
-                        msg.sender,
-                        bribeByEpoch[governance.epoch()] * delegation.shares / (delegatedShares - shareAmount)
-                    );
-                }
-            }
+            _claimBribes(delegation, currentEpoch, shareAmount);
 
             delegation.shares += uint240(shareAmount);
-            delegation.epoch = governance.epoch();
+            delegation.epoch = currentEpoch;
             delegatedSharesByUser[msg.sender] = delegation;
         }
     }
@@ -81,6 +87,8 @@ contract BribeProxy {
         int256[] memory deltaVetoShares = new int256[](1);
         deltaVetoShares[0] = int256(0);
         governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
+
+        _claimBribes(delegation, governance.epoch(), 0);
 
         governance.transferShares(delegation.shares, _to);
     }
