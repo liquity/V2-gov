@@ -43,10 +43,12 @@ contract BribeProxy {
         if (delegation.epoch < currentEpoch) {
             (uint256 delegatedShares,) = governance.sharesAllocatedByUser(address(this));
             if (delegatedShares > newlyDelegatedShares) {
-                bribeToken.transfer(
-                    msg.sender,
-                    bribeByEpoch[currentEpoch] * delegation.shares / (delegatedShares - newlyDelegatedShares)
-                );
+                uint256 bribe = bribeByEpoch[delegation.epoch];
+                if (bribe != 0) {
+                    bribeToken.transfer(
+                        msg.sender, bribe * delegation.shares / (delegatedShares - newlyDelegatedShares)
+                    );
+                }
             }
         }
     }
@@ -90,6 +92,6 @@ contract BribeProxy {
 
         _claimBribes(delegation, governance.epoch(), 0);
 
-        governance.transferShares(delegation.shares, _to);
+        governance.transferShares(delegation.shares, _to, _to);
     }
 }

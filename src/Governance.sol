@@ -141,14 +141,14 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         require(_shareAmount <= shares - sharesAllocatedByUser_.shares, "Governance: insufficient-unallocated-shares");
 
         uint256 lqtyAmount = (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * _shareAmount) / shares;
-        userProxy.unstake(msg.sender, lqtyAmount, msg.sender);
+        userProxy.unstake(msg.sender, lqtyAmount, msg.sender, msg.sender);
 
         sharesByUser[msg.sender] = shares - _shareAmount;
 
         return lqtyAmount;
     }
 
-    function transferShares(uint256 _shareAmount, address _to) public {
+    function transferShares(uint256 _shareAmount, address _shareRecipient, address _rewardRecepient) public {
         uint256 shares = sharesByUser[msg.sender];
         UserAllocation memory sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
 
@@ -158,19 +158,21 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         UserProxy fromUserProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         uint256 lqtyAmount =
             (ILQTYStaking(fromUserProxy.stakingV1()).stakes(address(fromUserProxy)) * _shareAmount) / shares;
-        (lqtyAmount,,) = fromUserProxy.unstake(msg.sender, lqtyAmount, address(this));
+        (lqtyAmount,,) = fromUserProxy.unstake(msg.sender, lqtyAmount, address(this), _rewardRecepient);
 
-        UserProxy toUserProxy = UserProxy(payable(deriveUserProxyAddress(_to)));
+        UserProxy toUserProxy = UserProxy(payable(deriveUserProxyAddress(_shareRecipient)));
         lqty.approve(address(toUserProxy), lqtyAmount);
         UserProxy(payable(toUserProxy)).stake(address(this), lqtyAmount);
 
         sharesByUser[msg.sender] = shares - _shareAmount;
-        sharesByUser[_to] += _shareAmount;
+        sharesByUser[_shareRecipient] += _shareAmount;
     }
 
     /// @inheritdoc IGovernance
-    function claimFromStakingV1() external {
-        UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(msg.sender, 0, msg.sender);
+    function claimFromStakingV1(address _rewardRecipient) external {
+        UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(
+            msg.sender, 0, _rewardRecipient, _rewardRecipient
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

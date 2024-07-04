@@ -78,7 +78,7 @@ contract GovernanceTest is Test {
         lqty.approve(address(userProxy), 1e18);
         assertEq(governance.depositLQTY(1e18), 1e18);
 
-        governance.transferShares(1e18, address(bribeProxy));
+        governance.transferShares(1e18, address(bribeProxy), address(user));
 
         assertEq(governance.sharesByUser(user), 0);
         assertEq(governance.sharesByUser(address(bribeProxy)), 1e18);
@@ -94,4 +94,6 @@ contract GovernanceTest is Test {
 
         vm.stopPrank();
     }
+
+    function test_undelegate() public {}
 }

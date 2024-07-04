@@ -481,7 +481,7 @@ contract GovernanceTest is Test {
         lqty.approve(address(userProxy), 1e18);
         assertEq(governance.depositLQTY(1e18), 1e18);
 
-        governance.transferShares(1e18, address(this));
+        governance.transferShares(1e18, address(this), user);
 
         assertEq(governance.sharesByUser(user), 0);
         assertEq(governance.sharesByUser(address(this)), 1e18);
