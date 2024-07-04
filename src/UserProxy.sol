@@ -26,12 +26,12 @@ contract UserProxy {
         _;
     }
 
-    function stake(address _user, uint256 _amount) public onlyStakingV2 {
-        lqty.transferFrom(_user, address(this), _amount);
+    function stake(address _from, uint256 _amount) public onlyStakingV2 {
+        lqty.transferFrom(_from, address(this), _amount);
         stakingV1.stake(_amount);
     }
 
-    function stakeViaPermit(address _user, uint256 _amount, PermitParams calldata _permitParams) public onlyStakingV2 {
+    function stakeViaPermit(address _from, uint256 _amount, PermitParams calldata _permitParams) public onlyStakingV2 {
         IERC20Permit(address(lqty)).permit(
             _permitParams.owner,
             _permitParams.spender,
@@ -41,10 +41,10 @@ contract UserProxy {
             _permitParams.r,
             _permitParams.s
         );
-        stake(_user, _amount);
+        stake(_from, _amount);
     }
 
-    function unstake(address _user, uint256 _amount, address _lqtyRecipient, address _lusdEthRecipient)
+    function unstake(uint256 _amount, address _lqtyRecipient, address _lusdEthRecipient)
         public
         onlyStakingV2
         returns (uint256 lqtyAmount, uint256 lusdAmount, uint256 ethAmount)

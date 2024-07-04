@@ -141,7 +141,7 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         require(_shareAmount <= shares - sharesAllocatedByUser_.shares, "Governance: insufficient-unallocated-shares");
 
         uint256 lqtyAmount = (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * _shareAmount) / shares;
-        userProxy.unstake(msg.sender, lqtyAmount, msg.sender, msg.sender);
+        userProxy.unstake(lqtyAmount, msg.sender, msg.sender);
 
         sharesByUser[msg.sender] = shares - _shareAmount;
 
@@ -158,7 +158,7 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         UserProxy fromUserProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         uint256 lqtyAmount =
             (ILQTYStaking(fromUserProxy.stakingV1()).stakes(address(fromUserProxy)) * _shareAmount) / shares;
-        (lqtyAmount,,) = fromUserProxy.unstake(msg.sender, lqtyAmount, address(this), _rewardRecepient);
+        (lqtyAmount,,) = fromUserProxy.unstake(lqtyAmount, address(this), _rewardRecepient);
 
         UserProxy toUserProxy = UserProxy(payable(deriveUserProxyAddress(_shareRecipient)));
         lqty.approve(address(toUserProxy), lqtyAmount);
@@ -170,9 +170,7 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
 
     /// @inheritdoc IGovernance
     function claimFromStakingV1(address _rewardRecipient) external {
-        UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(
-            msg.sender, 0, _rewardRecipient, _rewardRecipient
-        );
+        UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(0, _rewardRecipient, _rewardRecipient);
     }
 
     /*//////////////////////////////////////////////////////////////
