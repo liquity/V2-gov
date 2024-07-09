@@ -192,8 +192,8 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
             snapshot.votes = uint240(sharesToVotes(_shareRate, qualifyingShares));
             snapshot.forEpoch = currentEpoch - 1;
             votesSnapshot = snapshot;
-            boldAccrued = bold.balanceOf(address(this));
-            boldAccrued = (boldAccrued < MIN_ACCRUAL) ? 0 : boldAccrued;
+            uint256 boldBalance = bold.balanceOf(address(this));
+            boldAccrued = (boldBalance < MIN_ACCRUAL) ? 0 : boldBalance;
         }
         return snapshot;
     }
