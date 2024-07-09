@@ -295,11 +295,11 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
             // meets the voting threshold or not
             uint256 votesForInitiative = sharesToVotes(shareRate, sharesAllocatedToInitiative_.shares);
             if (deltaShares > 0) {
-                if (votesForInitiative + sharesToVotes(shareRate, uint256(deltaShares)) >= votingThreshold) {
-                    if (votesForInitiative < votingThreshold) {
+                if (votesForInitiative >= votingThreshold) {
+                    qualifyingShares += uint256(deltaShares);
+                } else {
+                    if (votesForInitiative + sharesToVotes(shareRate, uint256(deltaShares)) >= votingThreshold) {
                         qualifyingShares += sharesAllocatedToInitiative_.shares + uint256(deltaShares);
-                    } else {
-                        qualifyingShares += uint256(deltaShares);
                     }
                 }
             } else if (deltaShares < 0) {
