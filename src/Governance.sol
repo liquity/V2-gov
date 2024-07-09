@@ -174,7 +174,7 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
     /// @inheritdoc IGovernance
     function calculateVotingThreshold() public view returns (uint256) {
         uint256 snapshotVotes = votesSnapshot.votes;
-        if (snapshotVotes == 0) { return 0; }
+        if (snapshotVotes == 0) return 0;
 
         uint256 minVotes; // to reach MIN_CLAIM: snapshotVotes * MIN_CLAIM / boldAccrued
         uint256 payoutPerVote = boldAccrued * WAD / snapshotVotes;
