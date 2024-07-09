@@ -2,6 +2,7 @@
 pragma solidity ^0.8.13;
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
@@ -11,14 +12,12 @@ import {Currency, CurrencyLibrary} from "v4-core/src/types/Currency.sol";
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 
 import {BaseHook, Hooks} from "./utils/BaseHook.sol";
-import {IGovernance} from "./interfaces/IGovernance.sol";
+import {BaseInitiative} from "./BaseInitiative.sol";
 
-contract UniV4Donations is BaseHook {
+contract UniV4Donations is BaseInitiative, BaseHook {
+    using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using PoolIdLibrary for PoolKey;
-
-    IGovernance public immutable governance;
-    IERC20 public immutable bold;
 
     uint256 public immutable VESTING_EPOCH_START;
     uint256 public immutable VESTING_EPOCH_DURATION;
@@ -39,15 +38,14 @@ contract UniV4Donations is BaseHook {
     constructor(
         address _governance,
         address _bold,
+        address _bribeToken,
         uint256 _vestingEpochStart,
         uint256 _vestingEpochDuration,
         address _poolManager,
         address _token,
         uint24 _fee,
         int24 _tickSpacing
-    ) BaseHook(IPoolManager(_poolManager)) {
-        governance = IGovernance(_governance);
-        bold = IERC20(_bold);
+    ) BaseInitiative(_governance, _bold, _bribeToken) BaseHook(IPoolManager(_poolManager)) {
         VESTING_EPOCH_START = _vestingEpochStart;
         VESTING_EPOCH_DURATION = _vestingEpochDuration;
 

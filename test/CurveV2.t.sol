@@ -71,6 +71,7 @@ contract CurveV2Test is Test {
         curveV2GaugeRewards = new CurveV2GaugeRewards(
             address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
             address(lusd),
+            address(lqty),
             address(gauge),
             604800
         );

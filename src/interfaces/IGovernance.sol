@@ -97,9 +97,6 @@ interface IGovernance {
     function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams memory _permitParams) external returns (uint256);
     /// @notice Withdraws LQRT by burning the shares and claim any accrued LUSD and ETH rewards from StakingV1
     function withdrawShares(uint256 _shareAmount) external returns (uint256);
-
-    function transferShares(uint256 _shareAmount, address _sharesRecipient, address _rewardRecipient) external;
-
     /// @notice Claims staking rewards from StakingV1 without unstaking
     function claimFromStakingV1(address _rewardRecipient) external;
 

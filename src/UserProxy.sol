@@ -3,11 +3,14 @@ pragma solidity ^0.8.13;
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {PermitParams} from "./utils/Types.sol";
 
 contract UserProxy {
+    using SafeERC20 for IERC20;
+
     IERC20 public immutable lqty;
     IERC20 public immutable lusd;
 
@@ -28,6 +31,7 @@ contract UserProxy {
 
     function stake(address _from, uint256 _amount) public onlyStakingV2 {
         lqty.transferFrom(_from, address(this), _amount);
+        lqty.approve(address(stakingV1), _amount);
         stakingV1.stake(_amount);
     }
 

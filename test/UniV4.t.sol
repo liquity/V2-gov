@@ -22,6 +22,7 @@ contract UniV4DonationsImpl is UniV4Donations {
     constructor(
         address _governance,
         address _bold,
+        address _bribeToken,
         uint256 _vestingEpochStart,
         uint256 _vestingEpochDuration,
         address _poolManager,
@@ -33,6 +34,7 @@ contract UniV4DonationsImpl is UniV4Donations {
         UniV4Donations(
             _governance,
             _bold,
+            _bribeToken,
             _vestingEpochStart,
             _vestingEpochDuration,
             _poolManager,
@@ -84,6 +86,7 @@ contract UniV4Test is Test, Deployers {
         UniV4DonationsImpl impl = new UniV4DonationsImpl(
             address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
             address(lusd),
+            address(lqty),
             block.timestamp,
             EPOCH_DURATION,
             address(manager),

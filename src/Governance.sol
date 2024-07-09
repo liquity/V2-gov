@@ -3,9 +3,11 @@ pragma solidity ^0.8.13;
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 
 import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {IGovernance} from "./interfaces/IGovernance.sol";
+import {IInitiative} from "./interfaces/IInitiative.sol";
 
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
@@ -14,7 +16,7 @@ import {add, max} from "./utils/Math.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, ONE_YEAR, PermitParams} from "./utils/Types.sol";
 
-contract Governance is Multicall, UserProxyFactory, IGovernance {
+contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
     using SafeERC20 for IERC20;
 
     IERC20 public immutable lqty;
@@ -148,26 +150,6 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         return lqtyAmount;
     }
 
-    function transferShares(uint256 _shareAmount, address _shareRecipient, address _rewardRecepient) public {
-        uint256 shares = sharesByUser[msg.sender];
-        UserAllocation memory sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
-
-        // check if user has enough unallocated shares
-        require(_shareAmount <= shares - sharesAllocatedByUser_.shares, "Governance: insufficient-unallocated-shares");
-
-        UserProxy fromUserProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
-        uint256 lqtyAmount =
-            (ILQTYStaking(fromUserProxy.stakingV1()).stakes(address(fromUserProxy)) * _shareAmount) / shares;
-        (lqtyAmount,,) = fromUserProxy.unstake(lqtyAmount, address(this), _rewardRecepient);
-
-        UserProxy toUserProxy = UserProxy(payable(deriveUserProxyAddress(_shareRecipient)));
-        lqty.approve(address(toUserProxy), lqtyAmount);
-        UserProxy(payable(toUserProxy)).stake(address(this), lqtyAmount);
-
-        sharesByUser[msg.sender] = shares - _shareAmount;
-        sharesByUser[_shareRecipient] += _shareAmount;
-    }
-
     /// @inheritdoc IGovernance
     function claimFromStakingV1(address _rewardRecipient) external {
         UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(0, _rewardRecipient, _rewardRecipient);
@@ -290,7 +272,7 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
         address[] calldata _initiatives,
         int256[] calldata _deltaShares,
         int256[] calldata _deltaVetoShares
-    ) external {
+    ) external nonReentrant {
         uint256 shareRate = currentShareRate();
         _snapshotVotes(shareRate);
 
@@ -351,6 +333,8 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
 
             sharesAllocatedToInitiative[initiative] = sharesAllocatedToInitiative_;
             sharesAllocatedByUserToInitiative[msg.sender][initiative] = sharesAllocatedByUserToInitiative_;
+
+            IInitiative(initiative).onAfterAllocateShares(msg.sender, deltaShares, deltaVetoShares);
         }
 
         require(
