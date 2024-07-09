@@ -161,8 +161,8 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
     }
 
     /// @inheritdoc IGovernance
-    function secondsUntilNextEpoch() public view returns (uint256) {
-        return EPOCH_DURATION - ((block.timestamp - EPOCH_START) % EPOCH_DURATION);
+    function secondsDuringCurrentEpoch() public view returns (uint256) {
+        return (block.timestamp - EPOCH_START) % EPOCH_DURATION;
     }
 
     /// @inheritdoc IGovernance
@@ -285,7 +285,7 @@ contract Governance is Multicall, UserProxyFactory, IGovernance {
 
             int256 deltaShares = _deltaShares[i];
             require(
-                deltaShares <= 0 || deltaShares >= 0 && secondsUntilNextEpoch() >= EPOCH_DURATION - EPOCH_VOTING_CUTOFF,
+                deltaShares <= 0 || deltaShares >= 0 && secondsDuringCurrentEpoch() <= EPOCH_VOTING_CUTOFF,
                 "Governance: epoch-voting-cutoff"
             );
 
