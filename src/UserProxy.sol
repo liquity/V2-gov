@@ -36,7 +36,7 @@ contract UserProxy {
     }
 
     function stakeViaPermit(address _from, uint256 _amount, PermitParams calldata _permitParams) public onlyStakingV2 {
-        IERC20Permit(address(lqty)).permit(
+        try IERC20Permit(address(lqty)).permit(
             _permitParams.owner,
             _permitParams.spender,
             _permitParams.value,
@@ -44,7 +44,7 @@ contract UserProxy {
             _permitParams.v,
             _permitParams.r,
             _permitParams.s
-        );
+        ) {} catch {}
         stake(_from, _amount);
     }
 

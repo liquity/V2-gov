@@ -40,8 +40,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
 
     /// @inheritdoc IGovernance
-    uint256 public totalShares;
-    /// @inheritdoc IGovernance
     mapping(address => uint256) public sharesByUser;
 
     /// @inheritdoc IGovernance
@@ -54,9 +52,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     uint256 public qualifyingShares;
 
     /// @inheritdoc IGovernance
-    Snapshot public votesSnapshot;
+    VoteSnapshot public votesSnapshot;
     /// @inheritdoc IGovernance
-    mapping(address => Snapshot) public votesForInitiativeSnapshot;
+    mapping(address => InitiativeVoteSnapshot) public votesForInitiativeSnapshot;
 
     /// @inheritdoc IGovernance
     mapping(address => UserAllocation) public sharesAllocatedByUser;
@@ -107,7 +105,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function depositLQTY(uint256 _lqtyAmount) external returns (uint256) {
+    function depositLQTY(uint256 _lqtyAmount) external returns (uint256 shares) {
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
         if (userProxyAddress.code.length == 0) {
@@ -115,13 +113,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
 
         UserProxy(payable(userProxyAddress)).stake(msg.sender, _lqtyAmount);
-        return _mintShares(_lqtyAmount);
+        shares = _mintShares(_lqtyAmount);
+
+        emit DepositLQTY(msg.sender, _lqtyAmount, shares);
     }
 
     /// @inheritdoc IGovernance
     function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams calldata _permitParams)
         external
-        returns (uint256)
+        returns (uint256 shares)
     {
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
@@ -130,22 +130,27 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
 
         UserProxy(payable(userProxyAddress)).stakeViaPermit(msg.sender, _lqtyAmount, _permitParams);
-        return _mintShares(_lqtyAmount);
+        shares = _mintShares(_lqtyAmount);
+
+        emit DepositLQTY(msg.sender, _lqtyAmount, shares);
     }
 
     /// @inheritdoc IGovernance
-    function withdrawShares(uint256 _shareAmount) external returns (uint256) {
+    function withdrawLQTY(uint256 _shares) external returns (uint256) {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         uint256 shares = sharesByUser[msg.sender];
         UserAllocation memory sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
 
         // check if user has enough unallocated shares
-        require(_shareAmount <= shares - sharesAllocatedByUser_.shares, "Governance: insufficient-unallocated-shares");
+        require(_shares <= shares - sharesAllocatedByUser_.shares, "Governance: insufficient-unallocated-shares");
 
-        uint256 lqtyAmount = (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * _shareAmount) / shares;
-        userProxy.unstake(lqtyAmount, msg.sender, msg.sender);
+        uint256 lqtyAmount = (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * _shares) / shares;
+        (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH) =
+            userProxy.unstake(lqtyAmount, msg.sender, msg.sender);
 
-        sharesByUser[msg.sender] = shares - _shareAmount;
+        sharesByUser[msg.sender] = shares - _shares;
+
+        emit WithdrawLQTY(msg.sender, lqtyAmount, _shares, accruedLQTY, accruedLUSD, accruedETH);
 
         return lqtyAmount;
     }
@@ -189,35 +194,40 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     // Snapshots votes for the previous epoch and accrues funds for the current epoch
-    function _snapshotVotes(uint256 _shareRate) internal returns (Snapshot memory) {
+    function _snapshotVotes(uint256 _shareRate) internal returns (VoteSnapshot memory snapshot) {
         uint16 currentEpoch = epoch();
-        Snapshot memory snapshot = votesSnapshot;
+        snapshot = votesSnapshot;
         if (snapshot.forEpoch < currentEpoch - 1) {
-            snapshot.votes = uint240(sharesToVotes(_shareRate, qualifyingShares));
+            snapshot.shareRate = _shareRate;
+            snapshot.votes = uint240(sharesToVotes(snapshot.shareRate, qualifyingShares));
             snapshot.forEpoch = currentEpoch - 1;
             votesSnapshot = snapshot;
             boldAccrued = bold.balanceOf(address(this));
             boldAccrued = (boldAccrued < MIN_ACCRUAL) ? 0 : boldAccrued;
+            emit SnapshotVotes(snapshot.votes, snapshot.forEpoch, snapshot.shareRate);
         }
-        return snapshot;
     }
 
     // Snapshots votes for an initiative for the previous epoch but only count the votes
     // if the received votes meet the voting threshold
-    function _snapshotVotesForInitiative(uint256 _shareRate, address _initiative) internal returns (Snapshot memory) {
+    function _snapshotVotesForInitiative(address _initiative, uint256 _shareRateSnapshot)
+        internal
+        returns (InitiativeVoteSnapshot memory)
+    {
         uint16 currentEpoch = epoch();
-        Snapshot memory snapshot = votesForInitiativeSnapshot[_initiative];
+        InitiativeVoteSnapshot memory snapshot = votesForInitiativeSnapshot[_initiative];
         if (snapshot.forEpoch < currentEpoch - 1) {
             uint256 votingThreshold = calculateVotingThreshold();
             ShareAllocation memory shareAllocation = sharesAllocatedToInitiative[_initiative];
-            uint256 votes = sharesToVotes(_shareRate, shareAllocation.shares);
-            uint256 vetos = sharesToVotes(_shareRate, shareAllocation.vetoShares);
+            uint256 votes = sharesToVotes(_shareRateSnapshot, shareAllocation.shares);
+            uint256 vetos = sharesToVotes(_shareRateSnapshot, shareAllocation.vetoShares);
             // if the votes didn't meet the voting threshold then no votes qualify
             if (votes >= votingThreshold && votes >= vetos) {
                 snapshot.votes = uint240(votes);
             }
             snapshot.forEpoch = currentEpoch - 1;
             votesForInitiativeSnapshot[_initiative] = snapshot;
+            emit SnapshotVotesForInitiative(_initiative, snapshot.votes, snapshot.forEpoch);
         }
         return snapshot;
     }
@@ -225,11 +235,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     function snapshotVotesForInitiative(address _initiative)
         external
-        returns (Snapshot memory votes, Snapshot memory votesForInitiative)
+        returns (VoteSnapshot memory voteSnapshot, InitiativeVoteSnapshot memory initiativeVoteSnapshot)
     {
-        uint256 shareRate = currentShareRate();
-        votes = _snapshotVotes(shareRate);
-        votesForInitiative = _snapshotVotesForInitiative(shareRate, _initiative);
+        voteSnapshot = _snapshotVotes(currentShareRate());
+        initiativeVoteSnapshot = _snapshotVotesForInitiative(_initiative, voteSnapshot.shareRate);
     }
 
     /// @inheritdoc IGovernance
@@ -240,22 +249,27 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         require(initiativesRegistered[_initiative] == 0, "Governance: initiative-already-registered");
 
         uint256 shareRate = currentShareRate();
-        Snapshot memory snapshot = _snapshotVotes(shareRate);
+
+        VoteSnapshot memory snapshot = _snapshotVotes(shareRate);
         require(
             sharesToVotes(shareRate, sharesByUser[msg.sender]) >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-shares"
         );
 
         initiativesRegistered[_initiative] = block.timestamp;
+
+        emit RegisterInitiative(_initiative, msg.sender, epoch());
+
+        try IInitiative(_initiative).onRegisterInitiative() {} catch {}
     }
 
     /// @inheritdoc IGovernance
     function unregisterInitiative(address _initiative) external {
-        uint256 shareRate = currentShareRate();
-        _snapshotVotes(shareRate);
-        Snapshot memory votesForInitiativeSnapshot_ = _snapshotVotesForInitiative(shareRate, _initiative);
+        VoteSnapshot memory snapshot = _snapshotVotes(currentShareRate());
+        InitiativeVoteSnapshot memory votesForInitiativeSnapshot_ =
+            _snapshotVotesForInitiative(_initiative, snapshot.shareRate);
         ShareAllocation memory shareAllocation = sharesAllocatedToInitiative[_initiative];
-        uint256 vetosForInitiative = sharesToVotes(shareRate, shareAllocation.vetoShares);
+        uint256 vetosForInitiative = sharesToVotes(snapshot.shareRate, shareAllocation.vetoShares);
 
         require(
             (votesForInitiativeSnapshot_.votes == 0 && votesForInitiativeSnapshot_.forEpoch + 4 < epoch())
@@ -265,6 +279,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         );
 
         delete initiativesRegistered[_initiative];
+
+        emit UnregisterInitiative(_initiative, epoch());
+
+        try IInitiative(_initiative).onUnregisterInitiative() {} catch {}
     }
 
     /// @inheritdoc IGovernance
@@ -274,7 +292,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         int256[] calldata _deltaVetoShares
     ) external nonReentrant {
         uint256 shareRate = currentShareRate();
-        _snapshotVotes(shareRate);
+        VoteSnapshot memory snapshot = _snapshotVotes(shareRate);
 
         uint256 votingThreshold = calculateVotingThreshold();
         UserAllocation memory sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
@@ -285,7 +303,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 initiativesRegistered[initiative] + EPOCH_DURATION <= block.timestamp,
                 "Governance: initiative-not-active"
             );
-            _snapshotVotesForInitiative(shareRate, initiative);
+            _snapshotVotesForInitiative(initiative, snapshot.shareRate);
 
             int256 deltaShares = _deltaShares[i];
             require(
@@ -334,7 +352,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             sharesAllocatedToInitiative[initiative] = sharesAllocatedToInitiative_;
             sharesAllocatedByUserToInitiative[msg.sender][initiative] = sharesAllocatedByUserToInitiative_;
 
-            IInitiative(initiative).onAfterAllocateShares(msg.sender, deltaShares, deltaVetoShares);
+            emit AllocateShares(msg.sender, initiative, deltaShares, deltaVetoShares, epoch());
+
+            try IInitiative(initiative).onAfterAllocateShares(msg.sender, deltaShares, deltaVetoShares) {} catch {}
         }
 
         require(
@@ -348,9 +368,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function claimForInitiative(address _initiative) external returns (uint256) {
-        uint256 shareRate = currentShareRate();
-        Snapshot memory votesSnapshot_ = _snapshotVotes(shareRate);
-        Snapshot memory votesForInitiativeSnapshot_ = _snapshotVotesForInitiative(shareRate, _initiative);
+        VoteSnapshot memory votesSnapshot_ = _snapshotVotes(currentShareRate());
+        InitiativeVoteSnapshot memory votesForInitiativeSnapshot_ =
+            _snapshotVotesForInitiative(_initiative, votesSnapshot_.shareRate);
         if (votesForInitiativeSnapshot_.votes == 0) return 0;
 
         uint256 claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
@@ -359,6 +379,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         votesForInitiativeSnapshot[_initiative] = votesForInitiativeSnapshot_; // implicitly prevents double claiming
 
         bold.safeTransfer(_initiative, claim);
+
+        emit ClaimForInitiative(_initiative, claim, votesSnapshot_.forEpoch);
+
+        try IInitiative(_initiative).onClaimForInitiative(claim) {} catch {}
 
         return claim;
     }

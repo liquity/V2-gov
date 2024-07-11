@@ -20,10 +20,6 @@ contract BaseInitiative is IInitiative {
     mapping(address => uint16) public claimedAtEpoch;
     mapping(uint256 => uint256) public bribeByEpoch;
 
-    // uint256 public totalBribes;
-    // uint256 public bribePerEpoch;
-    // uint256 public bribeTilEpoch;
-
     constructor(address _governance, address _bold, address _bribeToken) {
         // prohibit the use of BOLD as the bribe token since initiatives are receiving BOLD from Governance
         require(_bold != _bribeToken, "BaseInitiative: invalid-tokens");
@@ -39,33 +35,16 @@ contract BaseInitiative is IInitiative {
         bribeByEpoch[_epoch] += _amount;
     }
 
-    // function depositBribe(uint256 _amount, bool increaseOrExtend) {
-    //     require(bribePerEpoch != 0 && bribeTilEpoch != 0, "BaseInitiative: invalid-bribe");
-    //     bribeToken.transferFrom(msg.sender, address(this), _amount);
-    //     uint16 epoch = governance.epoch();
-    //     if (increaseOrExtend) {
-    //         uint256 totalBribes_ += _amount;
-    //         totalBribes = totalBribes_;
-    //         bribePerEpoch = totalBribes_ / bribeTilEpoch;
-    //     } else {
-    //         uint256 totalBribes_ += _amount;
-    //         totalBribes = totalBribes_;
-    //         bribeTilEpoch = totalBribes_ / bribePerEpoch;
-    //     }
-    // }
-
     function _claimBribes(address _user, uint16 _lastEpoch, uint16 _currentEpoch, int256 _deltaShares)
         internal
         returns (uint256 amount)
     {
         // claim accrued bribes from previous epochs
         if (_lastEpoch < _currentEpoch) {
-            // uint16 epochs = sub(_currentEpoch, _lastEpoch);
             (uint128 totalAllocatedShares,) = governance.sharesAllocatedToInitiative(address(this));
             (uint128 sharesAllocatedByUser, uint128 vetoSharesAllocatedByUser) =
                 governance.sharesAllocatedByUserToInitiative(_user, address(this));
             if (int128(totalAllocatedShares) > _deltaShares && vetoSharesAllocatedByUser == 0) {
-                // uint256 bribe = bribePerEpoch * epochs;
                 uint256 bribe = bribeByEpoch[_currentEpoch];
                 amount = bribe * sub(sharesAllocatedByUser, _deltaShares) / (sub(totalAllocatedShares, _deltaShares));
                 if (bribe != 0) {
@@ -79,7 +58,11 @@ contract BaseInitiative is IInitiative {
         return _claimBribes(_user, allocatedSharesByUserAtEpoch[_user], governance.epoch(), 0);
     }
 
-    function onAfterAllocateShares(address _user, int256 _deltaShares, int256) external {
+    function onRegisterInitiative() external virtual override {}
+
+    function onUnregisterInitiative() external virtual override {}
+
+    function onAfterAllocateShares(address _user, int256 _deltaShares, int256) external virtual {
         require(msg.sender == address(governance), "BaseInitiative: invalid-sender");
 
         uint16 currentEpoch = governance.epoch();
@@ -89,4 +72,6 @@ contract BaseInitiative is IInitiative {
 
         allocatedSharesByUserAtEpoch[_user] = currentEpoch;
     }
+
+    function onClaimForInitiative(uint256) external virtual override {}
 }
