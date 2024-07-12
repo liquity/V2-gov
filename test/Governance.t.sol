@@ -30,6 +30,7 @@ contract GovernanceTest is Test {
     uint256 private constant MIN_ACCRUAL = 1000e18;
     uint256 private constant EPOCH_DURATION = 604800;
     uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 private constant ALLOCATION_DELAY = 1;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -81,7 +82,8 @@ contract GovernanceTest is Test {
                 minAccrual: MIN_ACCRUAL,
                 epochStart: block.timestamp,
                 epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF,
+                allocationDelay: ALLOCATION_DELAY
             }),
             initialInitiatives
         );
@@ -109,20 +111,24 @@ contract GovernanceTest is Test {
         // deploy and deposit 1 LQTY
         lqty.approve(address(userProxy), 1e18);
         assertEq(governance.depositLQTY(1e18), 1e18);
-        assertEq(governance.sharesByUser(user), 1e18);
+        (uint240 shares,) = governance.sharesByUser(user);
+        assertEq(shares, 1e18);
 
         // deposit 2 LQTY
         vm.warp(block.timestamp + 86400 * 30);
         lqty.approve(address(userProxy), 2e18);
         assertEq(governance.depositLQTY(2e18), 2e18 * WAD / governance.currentShareRate());
-        assertEq(governance.sharesByUser(user), 1e18 + 2e18 * WAD / governance.currentShareRate());
+        (shares,) = governance.sharesByUser(user);
+        assertEq(shares, 1e18 + 2e18 * WAD / governance.currentShareRate());
 
         // withdraw 0.5 half of shares
         vm.warp(block.timestamp + 86400 * 30);
-        assertEq(governance.withdrawLQTY(governance.sharesByUser(user) / 2), 1.5e18);
+        (shares,) = governance.sharesByUser(user);
+        assertEq(governance.withdrawLQTY(shares / 2), 1.5e18);
 
         // withdraw remaining shares
-        assertEq(governance.withdrawLQTY(governance.sharesByUser(user)), 1.5e18);
+        (shares,) = governance.sharesByUser(user);
+        assertEq(governance.withdrawLQTY(shares), 1.5e18);
 
         vm.stopPrank();
     }
@@ -173,7 +179,8 @@ contract GovernanceTest is Test {
 
         // deploy and deposit 1 LQTY
         assertEq(governance.depositLQTYViaPermit(1e18, permitParams), 1e18);
-        assertEq(governance.sharesByUser(wallet.addr), 1e18);
+        (uint240 shares,) = governance.sharesByUser(wallet.addr);
+        assertEq(shares, 1e18);
     }
 
     function test_currentShareRate() public payable {
@@ -191,7 +198,8 @@ contract GovernanceTest is Test {
                 minAccrual: MIN_ACCRUAL,
                 epochStart: 0,
                 epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF,
+                allocationDelay: ALLOCATION_DELAY
             }),
             initialInitiatives
         );
@@ -250,7 +258,8 @@ contract GovernanceTest is Test {
                 minAccrual: MIN_ACCRUAL,
                 epochStart: block.timestamp,
                 epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF,
+                allocationDelay: ALLOCATION_DELAY
             }),
             initialInitiatives
         );
@@ -281,7 +290,8 @@ contract GovernanceTest is Test {
                 minAccrual: 10e18,
                 epochStart: block.timestamp,
                 epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF,
+                allocationDelay: ALLOCATION_DELAY
             }),
             initialInitiatives
         );
@@ -317,7 +327,8 @@ contract GovernanceTest is Test {
         governance.registerInitiative(baseInitiative3);
 
         vm.store(address(governance), keccak256(abi.encode(address(this), 1)), bytes32(abi.encode(1e18)));
-        assertEq(governance.sharesByUser(address(this)), 1e18);
+        (uint240 shares,) = governance.sharesByUser(address(this));
+        assertEq(shares, 1e18);
         vm.warp(block.timestamp + 365 days);
 
         governance.registerInitiative(baseInitiative3);
@@ -464,7 +475,12 @@ contract GovernanceTest is Test {
         uint256 lqtyBalance = lqty.balanceOf(user);
 
         lqty.approve(address(governance.deriveUserProxyAddress(user)), lqtyAmount);
+        governance.deployUserProxy();
+        governance.depositLQTY(lqtyAmount);
 
+        vm.warp(block.timestamp + 365 days);
+
+        bytes[] memory data = new bytes[](5);
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
         int256[] memory deltaShares = new int256[](1);
@@ -474,24 +490,21 @@ contract GovernanceTest is Test {
         int256[] memory deltaShares_ = new int256[](1);
         deltaShares_[0] = -int256(shareAmount);
 
-        bytes[] memory data = new bytes[](7);
-        data[0] = abi.encodeWithSignature("deployUserProxy()");
-        data[1] = abi.encodeWithSignature("depositLQTY(uint256)", lqtyAmount);
-        data[2] = abi.encodeWithSignature(
+        data[0] = abi.encodeWithSignature(
             "allocateShares(address[],int256[],int256[])", initiatives, deltaShares, deltaVetoShares
         );
-        data[3] = abi.encodeWithSignature("sharesAllocatedToInitiative(address)", baseInitiative1);
-        data[4] = abi.encodeWithSignature("snapshotVotesForInitiative(address)", baseInitiative1);
-        data[5] = abi.encodeWithSignature(
+        data[1] = abi.encodeWithSignature("sharesAllocatedToInitiative(address)", baseInitiative1);
+        data[2] = abi.encodeWithSignature("snapshotVotesForInitiative(address)", baseInitiative1);
+        data[3] = abi.encodeWithSignature(
             "allocateShares(address[],int256[],int256[])", initiatives, deltaShares_, deltaVetoShares
         );
-        data[6] = abi.encodeWithSignature("withdrawLQTY(uint256)", shareAmount);
+        data[4] = abi.encodeWithSignature("withdrawLQTY(uint240)", uint240(shareAmount));
         bytes[] memory response = governance.multicall(data);
 
-        (IGovernance.ShareAllocation memory shareAllocation) = abi.decode(response[3], (IGovernance.ShareAllocation));
+        (IGovernance.ShareAllocation memory shareAllocation) = abi.decode(response[1], (IGovernance.ShareAllocation));
         assertEq(shareAllocation.shares, shareAmount);
         (IGovernance.VoteSnapshot memory votes, IGovernance.InitiativeVoteSnapshot memory votesForInitiative) =
-            abi.decode(response[4], (IGovernance.VoteSnapshot, IGovernance.InitiativeVoteSnapshot));
+            abi.decode(response[2], (IGovernance.VoteSnapshot, IGovernance.InitiativeVoteSnapshot));
         assertEq(votes.votes + votesForInitiative.votes, 0);
         assertEq(lqty.balanceOf(user), lqtyBalance);
 

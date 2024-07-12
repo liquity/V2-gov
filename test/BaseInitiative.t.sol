@@ -30,6 +30,7 @@ contract BaseInitiativeTest is Test {
     uint256 private constant MIN_ACCRUAL = 1000e18;
     uint256 private constant EPOCH_DURATION = 604800;
     uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 private constant ALLOCATION_DELAY = 1;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -68,7 +69,8 @@ contract BaseInitiativeTest is Test {
                 minAccrual: MIN_ACCRUAL,
                 epochStart: block.timestamp,
                 epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF,
+                allocationDelay: ALLOCATION_DELAY
             }),
             initialInitiatives
         );

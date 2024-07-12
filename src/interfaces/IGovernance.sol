@@ -38,6 +38,7 @@ interface IGovernance {
         uint256 epochStart;
         uint256 epochDuration;
         uint256 epochVotingCutoff;
+        uint256 allocationDelay;
     }
 
     /// @notice Address of the BOLD token
@@ -60,9 +61,16 @@ interface IGovernance {
     function REGISTRATION_THRESHOLD_FACTOR() external view returns (uint256);
     /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
     function VOTING_THRESHOLD_FACTOR() external view returns (uint256);
+    /// @notice Delay in epochs before the allocation of shares to initiatives is allowed by a user
+    function ALLOCATION_DELAY() external view returns (uint256);
+
+    struct ShareBalance {
+        uint240 shares;
+        uint16 depositedAtEpoch;
+    }
 
     /// @notice Mapping of each user's share balance
-    function sharesByUser(address) external view returns (uint256);
+    function sharesByUser(address) external view returns (uint240, uint16);
 
     /// @notice Initiatives registered, by address
     function initiativesRegistered(address) external view returns (uint256);
@@ -124,7 +132,7 @@ interface IGovernance {
     /// @notice Deposits LQTY via Permit and mints shares based on the current share rate
     function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams memory _permitParams) external returns (uint256);
     /// @notice Withdraws LQRT by burning the shares and claim any accrued LUSD and ETH rewards from StakingV1
-    function withdrawLQTY(uint256 _shareAmount) external returns (uint256);
+    function withdrawLQTY(uint240 _shareAmount) external returns (uint256);
     /// @notice Claims staking rewards from StakingV1 without unstaking
     function claimFromStakingV1(address _rewardRecipient) external;
 
