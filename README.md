@@ -75,3 +75,25 @@ sufficient will to do so by voters, but is not envisaged to be a regular occuran
 Snapshots of results from the voting activity of an epoch takes place on an initiative by initiative basis in a permissionless manner.
 User interactions or direct calls following the closure of an epoch trigger the snapshot logic which makes a Claim available to a
 qualifying Initiative.
+
+## Bribing
+
+LQTY depositors can also receive bribes in the form of ERC20s in exchange for voting for a specified initiative.
+This is done externally to the Governance.sol logic and should be implemented at the initiative level.
+BaseInitiative.sol is a reference implementation which allows for bribes to be set and paid in BOLD + another token,
+all claims for bribes are made by directly interacting with the implemented BaseInitiative contract.
+
+## Example Initiatives
+
+To facilitate the development of liquidity for BOLD and other relevant tokens after the launch of Liquity v2, initial example initiatives will be added.
+They will be available from the first epoch in which claims are available (epoch 1), added in the construtor. Following epoch 1, these examples have
+no further special status and can be removed by LQTY voters
+
+### Curve v2
+
+Simple adapter to Claim from Governance.sol and deposit into a Curve v2 gauge, which must be preconfigured, and release rewards over a specified duration.
+Claiming and depositing to gauges must be done manually after each epoch in which this Initiative has a Claim.
+
+### Uniswap v4
+
+Simple hook for Uniswap v4 which implements a donate to a preconfigured pool. Allowing for adjustments to liquidity positions to make Claims which are smoothed over a vesting epoch.
