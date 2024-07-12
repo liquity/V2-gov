@@ -39,7 +39,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
     /// @inheritdoc IGovernance
-    uint256 public immutable ALLOCATION_DELAY = 1;
+    uint256 public immutable ALLOCATION_DELAY;
 
     /// @inheritdoc IGovernance
     mapping(address => ShareBalance) public sharesByUser;
