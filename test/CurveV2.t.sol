@@ -2,8 +2,6 @@
 pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
-import {VmSafe} from "forge-std/Vm.sol";
-// import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
@@ -14,10 +12,15 @@ import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
 
 import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
 import {Governance} from "../src/Governance.sol";
-import {WAD, PermitParams} from "../src/utils/Types.sol";
 
 interface ILQTY {
     function domainSeparator() external view returns (bytes32);
+}
+
+contract MockGovernance {
+    function claimForInitiative(address) external returns (uint256) {
+        return 1000e18;
+    }
 }
 
 contract CurveV2Test is Test {
@@ -70,7 +73,8 @@ contract CurveV2Test is Test {
         gauge = ILiquidityGauge(curveFactory.deploy_gauge(address(curvePool)));
 
         curveV2GaugeRewards = new CurveV2GaugeRewards(
-            address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
+            // address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
+            address(new MockGovernance()),
             address(lusd),
             address(lqty),
             address(gauge),
@@ -115,13 +119,16 @@ contract CurveV2Test is Test {
         curvePool.add_liquidity(_amounts, 5998200000000000000000);
 
         vm.stopPrank();
+    }
 
+    function test_depositIntoGauge() public {
         vm.startPrank(lusdHolder);
         lusd.transfer(address(curveV2GaugeRewards), 1000e18);
         vm.stopPrank();
-    }
 
-    function test_main() public {
+        vm.mockCall(
+            address(governance), abi.encode(IGovernance.claimForInitiative.selector), abi.encode(uint256(1000e18))
+        );
         curveV2GaugeRewards.depositIntoGauge();
     }
 }

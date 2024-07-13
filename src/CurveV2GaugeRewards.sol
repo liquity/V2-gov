@@ -16,15 +16,10 @@ contract CurveV2GaugeRewards is BaseInitiative {
         duration = _duration;
     }
 
-    function depositIntoGauge() public returns (uint256) {
-        uint256 amount = bold.balanceOf(address(this));
+    function depositIntoGauge() external returns (uint256) {
+        uint256 amount = governance.claimForInitiative(address(this));
         bold.approve(address(gauge), amount);
         gauge.deposit_reward_token(address(bold), amount, duration);
         return amount;
-    }
-
-    function claimAndDepositIntoGauge() external returns (uint256) {
-        governance.claimForInitiative(address(this));
-        return depositIntoGauge();
     }
 }

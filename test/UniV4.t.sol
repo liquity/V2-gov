@@ -127,18 +127,20 @@ contract UniV4Test is Test, Deployers {
         );
     }
 
-    function testAfterInitializeState() public {
+    function test_afterInitializeState() public {
         manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
     }
 
-    function testModifyPosition() public {
+    function test_modifyPosition() public {
         manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
 
         vm.startPrank(lusdHolder);
 
         lusd.transfer(address(uniV4Donations), 1000e18);
 
-        uniV4Donations.restartVesting();
+        vm.mockCall(
+            address(governance), abi.encode(IGovernance.claimForInitiative.selector), abi.encode(uint256(1000e18))
+        );
         assertEq(uniV4Donations.donateToPool(), 0);
         (uint240 amount, uint16 epoch, uint256 released) = uniV4Donations.vesting();
         assertEq(amount, 1000e18);
@@ -170,7 +172,8 @@ contract UniV4Test is Test, Deployers {
         assertGt(released, amount * 99 / 100);
 
         vm.warp(block.timestamp + 1);
-        uniV4Donations.restartVesting();
+        vm.mockCall(address(governance), abi.encode(IGovernance.claimForInitiative.selector), abi.encode(uint256(0)));
+        uniV4Donations.donateToPool();
         (amount, epoch, released) = uniV4Donations.vesting();
         assertLt(amount, 0.01e18);
         assertEq(epoch, 2);

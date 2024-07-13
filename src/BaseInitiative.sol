@@ -21,8 +21,6 @@ contract BaseInitiative is IInitiative {
     mapping(uint256 => uint256) public bribeByEpoch;
 
     constructor(address _governance, address _bold, address _bribeToken) {
-        // prohibit the use of BOLD as the bribe token since initiatives are receiving BOLD from Governance
-        require(_bold != _bribeToken, "BaseInitiative: invalid-tokens");
         governance = IGovernance(_governance);
         bold = IERC20(_bold);
         bribeToken = IERC20(_bribeToken);
