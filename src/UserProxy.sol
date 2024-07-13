@@ -56,11 +56,11 @@ contract UserProxy {
         stakingV1.unstake(_amount);
 
         lqtyAmount = lqty.balanceOf(address(this));
-        if (lqtyAmount > 0) lqty.transfer(_lqtyRecipient, lqtyAmount);
+        if (lqtyAmount > 0) lqty.safeTransfer(_lqtyRecipient, lqtyAmount);
         lusdAmount = lusd.balanceOf(address(this));
-        if (lusdAmount > 0) lusd.transfer(_lusdEthRecipient, lusdAmount);
+        if (lusdAmount > 0) lusd.safeTransfer(_lusdEthRecipient, lusdAmount);
         ethAmount = address(this).balance;
-        if (ethAmount > 0) payable(_lusdEthRecipient).transfer(ethAmount);
+        if (ethAmount > 0) payable(_lusdEthRecipient).send(ethAmount);
     }
 
     receive() external payable {}

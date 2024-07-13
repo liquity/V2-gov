@@ -16,6 +16,7 @@ import {add, max} from "./utils/Math.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, ONE_YEAR, PermitParams} from "./utils/Types.sol";
 
+/// @title Governance: Modular Initiative based Governance
 contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
     using SafeERC20 for IERC20;
 

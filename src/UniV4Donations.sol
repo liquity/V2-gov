@@ -88,7 +88,7 @@ contract UniV4Donations is BaseInitiative, BaseHook {
             manager.donate(poolKey(), amount, 0, bytes(""));
             PoolKey memory key = poolKey();
             manager.sync(key.currency0);
-            IERC20(Currency.unwrap(key.currency0)).transfer(address(manager), amount);
+            IERC20(Currency.unwrap(key.currency0)).safeTransfer(address(manager), amount);
             manager.settle(key.currency0);
             vesting.released += amount;
         }

@@ -77,6 +77,7 @@ contract BaseInitiativeTest is Test {
 
         vm.startPrank(lusdHolder);
         lqty.transfer(user, 1e18);
+        lusd.transfer(user, 1e18);
         vm.stopPrank();
     }
 
@@ -94,7 +95,8 @@ contract BaseInitiativeTest is Test {
         vm.startPrank(lusdHolder);
 
         lqty.approve(address(baseInitiative), 1e18);
-        baseInitiative.depositBribe(1e18, governance.epoch());
+        lusd.approve(address(baseInitiative), 1e18);
+        baseInitiative.depositBribe(1e18, 1e18, governance.epoch());
 
         vm.stopPrank();
 
