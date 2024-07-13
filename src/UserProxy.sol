@@ -5,16 +5,21 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import {IUserProxy} from "./interfaces/IUserProxy.sol";
 import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {PermitParams} from "./utils/Types.sol";
 
-contract UserProxy {
+contract UserProxy is IUserProxy {
     using SafeERC20 for IERC20;
 
+    /// @inheritdoc IUserProxy
     IERC20 public immutable lqty;
+    /// @inheritdoc IUserProxy
     IERC20 public immutable lusd;
 
+    /// @inheritdoc IUserProxy
     ILQTYStaking public immutable stakingV1;
+    /// @inheritdoc IUserProxy
     address public immutable stakingV2;
 
     constructor(address _lqty, address _lusd, address _stakingV1) {
@@ -29,12 +34,14 @@ contract UserProxy {
         _;
     }
 
+    /// @inheritdoc IUserProxy
     function stake(address _from, uint256 _amount) public onlyStakingV2 {
         lqty.transferFrom(_from, address(this), _amount);
         lqty.approve(address(stakingV1), _amount);
         stakingV1.stake(_amount);
     }
 
+    /// @inheritdoc IUserProxy
     function stakeViaPermit(address _from, uint256 _amount, PermitParams calldata _permitParams) public onlyStakingV2 {
         try IERC20Permit(address(lqty)).permit(
             _permitParams.owner,
@@ -48,6 +55,7 @@ contract UserProxy {
         stake(_from, _amount);
     }
 
+    /// @inheritdoc IUserProxy
     function unstake(uint256 _amount, address _lqtyRecipient, address _lusdEthRecipient)
         public
         onlyStakingV2
@@ -60,7 +68,10 @@ contract UserProxy {
         lusdAmount = lusd.balanceOf(address(this));
         if (lusdAmount > 0) lusd.safeTransfer(_lusdEthRecipient, lusdAmount);
         ethAmount = address(this).balance;
-        if (ethAmount > 0) payable(_lusdEthRecipient).send(ethAmount);
+        if (ethAmount > 0) {
+            (bool success,) = payable(_lusdEthRecipient).call{value: ethAmount}("");
+            success;
+        }
     }
 
     receive() external payable {}

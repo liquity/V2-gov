@@ -18,7 +18,7 @@ interface ILQTY {
 }
 
 contract MockGovernance {
-    function claimForInitiative(address) external returns (uint256) {
+    function claimForInitiative(address) external pure returns (uint256) {
         return 1000e18;
     }
 }

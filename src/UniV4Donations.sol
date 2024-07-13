@@ -130,6 +130,7 @@ contract UniV4Donations is BaseInitiative, BaseHook {
 
     function afterInitialize(address, PoolKey calldata key, uint160, int24, bytes calldata)
         external
+        view
         override
         onlyByManager
         returns (bytes4)

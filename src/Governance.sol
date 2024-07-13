@@ -154,13 +154,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             "Governance: insufficient-unallocated-shares"
         );
 
-        uint256 lqtyAmount =
-            (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * _shares) / sharesByUser_.shares;
-        (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH) =
-            userProxy.unstake(lqtyAmount, msg.sender, msg.sender);
-
+        uint256 shares = sharesByUser_.shares;
         sharesByUser_.shares -= _shares;
         sharesByUser[msg.sender] = sharesByUser_;
+
+        uint256 lqtyAmount = (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * _shares) / shares;
+        (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH) =
+            userProxy.unstake(lqtyAmount, msg.sender, msg.sender);
 
         emit WithdrawLQTY(msg.sender, lqtyAmount, _shares, accruedLQTY, accruedLUSD, accruedETH);
 
