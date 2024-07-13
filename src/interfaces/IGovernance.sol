@@ -38,7 +38,6 @@ interface IGovernance {
         uint256 epochStart;
         uint256 epochDuration;
         uint256 epochVotingCutoff;
-        uint256 allocationDelay;
     }
 
     /// @notice Address of the BOLD token
@@ -61,8 +60,6 @@ interface IGovernance {
     function REGISTRATION_THRESHOLD_FACTOR() external view returns (uint256);
     /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
     function VOTING_THRESHOLD_FACTOR() external view returns (uint256);
-    /// @notice Delay in epochs before the allocation of shares to initiatives is allowed by a user
-    function ALLOCATION_DELAY() external view returns (uint256);
 
     struct ShareBalance {
         uint240 shares;
@@ -99,21 +96,27 @@ interface IGovernance {
     /// @notice Number of votes received by an initiative at the last epoch
     function votesForInitiativeSnapshot(address) external view returns (uint240 votes, uint16 forEpoch);
 
-    struct UserAllocation {
-        uint240 shares;
-        uint16 atEpoch;
-    }
-
     /// @notice Number of shares (shares + vetoShares) allocated by user
-    function sharesAllocatedByUser(address) external view returns (uint240 shares, uint16 atEpoch);
+    function sharesAllocatedByUser(address) external view returns (uint256);
 
     struct ShareAllocation {
         uint128 shares; // Shares allocated vouching for the initiative
         uint128 vetoShares; // Shares vetoing the initiative
     }
 
+    struct ShareAllocationAtEpoch {
+        uint120 shares; // Shares allocated vouching for the initiative
+        uint120 vetoShares; // Shares vetoing the initiative
+        uint16 atEpoch; // Epoch at which the allocation was last updated
+    }
+
     /// @notice Shares (shares + vetoShares) allocated to initiatives
-    function sharesAllocatedToInitiative(address) external view returns (uint128 shares, uint128 vetoShares);
+    function sharesAllocatedToInitiative(address)
+        external
+        view
+        returns (uint120 shares, uint120 vetoShares, uint16 atEpoch);
+    /// @notice Shares (shares + vetoShares) allocated to initiatives
+    function pendingSharesAllocatedToInitiative(address) external view returns (uint128 shares, uint128 vetoShares);
     /// @notice Shares (shares + vetoShares) allocated by user to initiatives
     function sharesAllocatedByUserToInitiative(address, address)
         external

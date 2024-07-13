@@ -39,8 +39,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     uint256 public immutable REGISTRATION_THRESHOLD_FACTOR;
     /// @inheritdoc IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
-    /// @inheritdoc IGovernance
-    uint256 public immutable ALLOCATION_DELAY;
 
     /// @inheritdoc IGovernance
     mapping(address => ShareBalance) public sharesByUser;
@@ -60,9 +58,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     mapping(address => InitiativeVoteSnapshot) public votesForInitiativeSnapshot;
 
     /// @inheritdoc IGovernance
-    mapping(address => UserAllocation) public sharesAllocatedByUser;
+    mapping(address => uint256) public sharesAllocatedByUser;
     /// @inheritdoc IGovernance
-    mapping(address => ShareAllocation) public sharesAllocatedToInitiative;
+    mapping(address => ShareAllocation) public pendingSharesAllocatedToInitiative;
+    /// @inheritdoc IGovernance
+    mapping(address => ShareAllocationAtEpoch) public sharesAllocatedToInitiative;
     // Shares (shares + vetoShares) allocated by user to initiatives
     mapping(address => mapping(address => ShareAllocation)) public sharesAllocatedByUserToInitiative;
 
@@ -87,7 +87,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         EPOCH_DURATION = _config.epochDuration;
         require(_config.epochVotingCutoff < _config.epochDuration, "Gov: epoch-voting-cutoff-gt-epoch-duration");
         EPOCH_VOTING_CUTOFF = _config.epochVotingCutoff;
-        ALLOCATION_DELAY = _config.allocationDelay;
         for (uint256 i = 0; i < _initiatives.length; i++) {
             initiativesRegistered[_initiatives[i]] = block.timestamp;
         }
@@ -146,11 +145,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     function withdrawLQTY(uint240 _shares) external returns (uint256) {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         ShareBalance memory sharesByUser_ = sharesByUser[msg.sender];
-        UserAllocation memory sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
 
         // check if user has enough unallocated shares
         require(
-            _shares <= sharesByUser_.shares - sharesAllocatedByUser_.shares,
+            _shares <= sharesByUser_.shares - sharesAllocatedByUser[msg.sender],
             "Governance: insufficient-unallocated-shares"
         );
 
@@ -230,15 +228,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         InitiativeVoteSnapshot memory snapshot = votesForInitiativeSnapshot[_initiative];
         if (snapshot.forEpoch < currentEpoch - 1) {
             uint256 votingThreshold = calculateVotingThreshold();
-            ShareAllocation memory shareAllocation = sharesAllocatedToInitiative[_initiative];
-            uint256 votes = sharesToVotes(_shareRateSnapshot, shareAllocation.shares);
-            uint256 vetos = sharesToVotes(_shareRateSnapshot, shareAllocation.vetoShares);
+            ShareAllocationAtEpoch memory shareAllocation = sharesAllocatedToInitiative[_initiative];
+            ShareAllocation memory pendingSharesAllocation = pendingSharesAllocatedToInitiative[_initiative];
+            uint256 votes = 0;
+            if (shareAllocation.shares > pendingSharesAllocation.shares) {
+                votes = sharesToVotes(_shareRateSnapshot, shareAllocation.shares - pendingSharesAllocation.shares);
+            }
+            uint256 vetos = 0;
+            if (shareAllocation.vetoShares > pendingSharesAllocation.vetoShares) {
+                vetos =
+                    sharesToVotes(_shareRateSnapshot, shareAllocation.vetoShares - pendingSharesAllocation.vetoShares);
+            }
             // if the votes didn't meet the voting threshold then no votes qualify
             if (votes >= votingThreshold && votes >= vetos) {
                 snapshot.votes = uint240(votes);
             }
             snapshot.forEpoch = currentEpoch - 1;
             votesForInitiativeSnapshot[_initiative] = snapshot;
+            pendingSharesAllocatedToInitiative[_initiative] = ShareAllocation(0, 0);
             emit SnapshotVotesForInitiative(_initiative, snapshot.votes, snapshot.forEpoch);
         }
         return snapshot;
@@ -281,7 +288,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         VoteSnapshot memory snapshot = _snapshotVotes(currentShareRate());
         InitiativeVoteSnapshot memory votesForInitiativeSnapshot_ =
             _snapshotVotesForInitiative(_initiative, snapshot.shareRate);
-        ShareAllocation memory shareAllocation = sharesAllocatedToInitiative[_initiative];
+        ShareAllocationAtEpoch memory shareAllocation = sharesAllocatedToInitiative[_initiative];
         uint256 vetosForInitiative = sharesToVotes(snapshot.shareRate, shareAllocation.vetoShares);
 
         require(
@@ -308,8 +315,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         VoteSnapshot memory snapshot = _snapshotVotes(shareRate);
 
         uint256 votingThreshold = calculateVotingThreshold();
-        UserAllocation memory sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
-        uint256 prevAllocatedShares = sharesAllocatedByUser_.shares;
+        uint256 sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
+
+        uint16 currentEpoch = epoch();
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];
@@ -325,7 +333,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 "Governance: epoch-voting-cutoff"
             );
 
-            ShareAllocation memory sharesAllocatedToInitiative_ = sharesAllocatedToInitiative[initiative];
+            ShareAllocationAtEpoch memory sharesAllocatedToInitiative_ = sharesAllocatedToInitiative[initiative];
+            ShareAllocation memory pendingSharesAllocatedToInitiative_ = pendingSharesAllocatedToInitiative[initiative];
 
             // Add or remove the initiatives shares count from the global qualifying shares count if the initiative
             // meets the voting threshold or not
@@ -346,42 +355,61 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                         qualifyingShares -= sharesAllocatedToInitiative_.shares;
                     }
                 }
+                // deduct the shares from the pending shares if the shares were allocated in the current epoch
+                if (sharesAllocatedToInitiative_.atEpoch == currentEpoch) {
+                    if (deltaShares < 0 && uint256(-deltaShares) > pendingSharesAllocatedToInitiative_.shares) {
+                        pendingSharesAllocatedToInitiative_.shares = 0;
+                    } else {
+                        pendingSharesAllocatedToInitiative_.shares =
+                            add(pendingSharesAllocatedToInitiative_.shares, deltaShares);
+                    }
+                }
             }
 
             ShareAllocation memory sharesAllocatedByUserToInitiative_ =
                 sharesAllocatedByUserToInitiative[msg.sender][initiative];
 
-            sharesAllocatedByUser_.shares = add(sharesAllocatedByUser_.shares, deltaShares);
+            sharesAllocatedByUser_ = add(sharesAllocatedByUser_, deltaShares);
             sharesAllocatedToInitiative_.shares = add(sharesAllocatedToInitiative_.shares, deltaShares);
             sharesAllocatedByUserToInitiative_.shares = add(sharesAllocatedByUserToInitiative_.shares, deltaShares);
 
             int256 deltaVetoShares = _deltaVetoShares[i];
             if (deltaVetoShares != 0) {
-                sharesAllocatedByUser_.shares = add(sharesAllocatedByUser_.shares, deltaVetoShares);
+                sharesAllocatedByUser_ = add(sharesAllocatedByUser_, deltaVetoShares);
                 sharesAllocatedToInitiative_.vetoShares = add(sharesAllocatedToInitiative_.vetoShares, deltaVetoShares);
                 sharesAllocatedByUserToInitiative_.vetoShares =
                     add(sharesAllocatedByUserToInitiative_.vetoShares, deltaVetoShares);
+                // deduct the shares from the pending shares if the shares were allocated in the current epoch
+                if (sharesAllocatedToInitiative_.atEpoch == currentEpoch) {
+                    if (
+                        deltaVetoShares < 0
+                            && uint256(-deltaVetoShares) > pendingSharesAllocatedToInitiative_.vetoShares
+                    ) {
+                        pendingSharesAllocatedToInitiative_.vetoShares = 0;
+                    } else {
+                        pendingSharesAllocatedToInitiative_.vetoShares =
+                            add(pendingSharesAllocatedToInitiative_.vetoShares, deltaVetoShares);
+                    }
+                }
             }
 
+            sharesAllocatedToInitiative_.atEpoch = currentEpoch;
+
             sharesAllocatedToInitiative[initiative] = sharesAllocatedToInitiative_;
+            pendingSharesAllocatedToInitiative[initiative] = pendingSharesAllocatedToInitiative_;
             sharesAllocatedByUserToInitiative[msg.sender][initiative] = sharesAllocatedByUserToInitiative_;
 
-            emit AllocateShares(msg.sender, initiative, deltaShares, deltaVetoShares, epoch());
+            emit AllocateShares(msg.sender, initiative, deltaShares, deltaVetoShares, currentEpoch);
 
             try IInitiative(initiative).onAfterAllocateShares(msg.sender, deltaShares, deltaVetoShares) {} catch {}
         }
 
         ShareBalance memory sharesByUser_ = sharesByUser[msg.sender];
-        if (sharesByUser_.depositedAtEpoch + ALLOCATION_DELAY >= epoch()) {
-            require(prevAllocatedShares >= sharesAllocatedByUser_.shares, "Governance: allocation-warm-up");
-        }
-
         require(
-            sharesAllocatedByUser_.shares == 0 || sharesAllocatedByUser_.shares <= sharesByUser_.shares,
+            sharesAllocatedByUser_ == 0 || sharesAllocatedByUser_ <= sharesByUser_.shares,
             "Governance: insufficient-or-unallocated-shares"
         );
 
-        sharesAllocatedByUser_.atEpoch = epoch();
         sharesAllocatedByUser[msg.sender] = sharesAllocatedByUser_;
     }
 

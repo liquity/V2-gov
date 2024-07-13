@@ -49,7 +49,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     {
         // claim accrued bribes from previous epochs
         if (_lastEpoch < _currentEpoch) {
-            (uint128 totalAllocatedShares,) = governance.sharesAllocatedToInitiative(address(this));
+            (uint128 totalAllocatedShares,,) = governance.sharesAllocatedToInitiative(address(this));
             (uint128 sharesAllocatedByUser, uint128 vetoSharesAllocatedByUser) =
                 governance.sharesAllocatedByUserToInitiative(_user, address(this));
             if (int128(totalAllocatedShares) > _deltaShares && vetoSharesAllocatedByUser == 0) {
