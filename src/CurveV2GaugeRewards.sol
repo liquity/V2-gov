@@ -3,14 +3,14 @@ pragma solidity ^0.8.13;
 
 import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
 
-import {BaseInitiative} from "./BaseInitiative.sol";
+import {BribeInitiative} from "./BribeInitiative.sol";
 
-contract CurveV2GaugeRewards is BaseInitiative {
+contract CurveV2GaugeRewards is BribeInitiative {
     ILiquidityGauge public immutable gauge;
     uint256 public immutable duration;
 
     constructor(address _governance, address _bold, address _bribeToken, address _gauge, uint256 _duration)
-        BaseInitiative(_governance, _bold, _bribeToken)
+        BribeInitiative(_governance, _bold, _bribeToken)
     {
         gauge = ILiquidityGauge(_gauge);
         duration = _duration;

@@ -12,9 +12,9 @@ import {Currency, CurrencyLibrary} from "v4-core/src/types/Currency.sol";
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 
 import {BaseHook, Hooks} from "./utils/BaseHook.sol";
-import {BaseInitiative} from "./BaseInitiative.sol";
+import {BribeInitiative} from "./BribeInitiative.sol";
 
-contract UniV4Donations is BaseInitiative, BaseHook {
+contract UniV4Donations is BribeInitiative, BaseHook {
     using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using PoolIdLibrary for PoolKey;
@@ -45,7 +45,7 @@ contract UniV4Donations is BaseInitiative, BaseHook {
         address _token,
         uint24 _fee,
         int24 _tickSpacing
-    ) BaseInitiative(_governance, _bold, _bribeToken) BaseHook(IPoolManager(_poolManager)) {
+    ) BribeInitiative(_governance, _bold, _bribeToken) BaseHook(IPoolManager(_poolManager)) {
         VESTING_EPOCH_START = _vestingEpochStart;
         VESTING_EPOCH_DURATION = _vestingEpochDuration;
 

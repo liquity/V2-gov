@@ -8,7 +8,7 @@ import {VmSafe} from "forge-std/Vm.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
-import {BaseInitiative} from "../src/BaseInitiative.sol";
+import {BribeInitiative} from "../src/BribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 import {WAD, PermitParams} from "../src/utils/Types.sol";
 
@@ -43,7 +43,7 @@ contract GovernanceTest is Test {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
 
         baseInitiative1 = address(
-            new BaseInitiative(
+            new BribeInitiative(
                 address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 3)),
                 address(lusd),
                 address(lqty)
@@ -51,7 +51,7 @@ contract GovernanceTest is Test {
         );
 
         baseInitiative2 = address(
-            new BaseInitiative(
+            new BribeInitiative(
                 address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 2)),
                 address(lusd),
                 address(lqty)
@@ -59,7 +59,7 @@ contract GovernanceTest is Test {
         );
 
         baseInitiative3 = address(
-            new BaseInitiative(
+            new BribeInitiative(
                 address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
                 address(lusd),
                 address(lqty)

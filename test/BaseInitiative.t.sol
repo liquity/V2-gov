@@ -7,7 +7,7 @@ import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 import {MockStakingV1} from "./MockStakingV1.sol";
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {Governance} from "../src/Governance.sol";
-import {BaseInitiative} from "../src/BaseInitiative.sol";
+import {BribeInitiative} from "../src/BribeInitiative.sol";
 
 interface ILQTY {
     function domainSeparator() external view returns (bytes32);
@@ -35,7 +35,7 @@ contract BaseInitiativeTest is Test {
     Governance private governance;
     address[] private initialInitiatives;
 
-    BaseInitiative private baseInitiative;
+    BribeInitiative private bribeInitiative;
 
     // BribeProxy private bribeProxy;
 
@@ -48,13 +48,13 @@ contract BaseInitiativeTest is Test {
 
         stakingV1 = address(new MockStakingV1(address(lqty)));
 
-        baseInitiative = new BaseInitiative(
+        bribeInitiative = new BribeInitiative(
             address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
             address(lusd),
             address(lqty)
         );
 
-        initialInitiatives.push(address(baseInitiative));
+        initialInitiatives.push(address(bribeInitiative));
 
         governance = new Governance(
             address(lqty),
@@ -94,16 +94,16 @@ contract BaseInitiativeTest is Test {
 
         vm.startPrank(lusdHolder);
 
-        lqty.approve(address(baseInitiative), 1e18);
-        lusd.approve(address(baseInitiative), 1e18);
-        baseInitiative.depositBribe(1e18, 1e18, governance.epoch());
+        lqty.approve(address(bribeInitiative), 1e18);
+        lusd.approve(address(bribeInitiative), 1e18);
+        bribeInitiative.depositBribe(1e18, 1e18, governance.epoch());
 
         vm.stopPrank();
 
         vm.startPrank(user);
 
         address[] memory initiatives = new address[](1);
-        initiatives[0] = address(baseInitiative);
+        initiatives[0] = address(bribeInitiative);
         int256[] memory deltaShares = new int256[](1);
         int256[] memory deltaVetoShares = new int256[](1);
         governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
@@ -111,7 +111,7 @@ contract BaseInitiativeTest is Test {
         vm.warp(block.timestamp + 365 days);
 
         initiatives = new address[](1);
-        initiatives[0] = address(baseInitiative);
+        initiatives[0] = address(bribeInitiative);
         deltaShares = new int256[](1);
         deltaShares[0] = 1e18;
         deltaVetoShares = new int256[](1);

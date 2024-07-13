@@ -5,7 +5,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "./IGovernance.sol";
 
-interface IBaseInitiative {
+interface IBribeInitiative {
     /// @notice Address of the governance contract
     function governance() external view returns (IGovernance);
     /// @notice Address of the BOLD token

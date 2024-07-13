@@ -6,23 +6,23 @@ import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/Safe
 
 import {IGovernance} from "./interfaces/IGovernance.sol";
 import {IInitiative} from "./interfaces/IInitiative.sol";
-import {IBaseInitiative} from "./interfaces/IBaseInitiative.sol";
+import {IBribeInitiative} from "./interfaces/IBribeInitiative.sol";
 
 import {sub} from "./utils/Math.sol";
 
-contract BaseInitiative is IInitiative, IBaseInitiative {
+contract BribeInitiative is IInitiative, IBribeInitiative {
     using SafeERC20 for IERC20;
 
-    /// @inheritdoc IBaseInitiative
+    /// @inheritdoc IBribeInitiative
     IGovernance public immutable governance;
-    /// @inheritdoc IBaseInitiative
+    /// @inheritdoc IBribeInitiative
     IERC20 public immutable bold;
-    /// @inheritdoc IBaseInitiative
+    /// @inheritdoc IBribeInitiative
     IERC20 public immutable bribeToken;
 
-    /// @inheritdoc IBaseInitiative
+    /// @inheritdoc IBribeInitiative
     mapping(address => uint16) public allocatedAtEpoch;
-    /// @inheritdoc IBaseInitiative
+    /// @inheritdoc IBribeInitiative
     mapping(uint256 => Bribe) public bribeByEpoch;
 
     constructor(address _governance, address _bold, address _bribeToken) {
@@ -31,12 +31,12 @@ contract BaseInitiative is IInitiative, IBaseInitiative {
         bribeToken = IERC20(_bribeToken);
     }
 
-    /// @inheritdoc IBaseInitiative
+    /// @inheritdoc IBribeInitiative
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint256 _epoch) external {
         bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
         bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
         uint16 epoch = governance.epoch();
-        require(_epoch >= epoch, "BaseInitiative: invalid-epoch");
+        require(_epoch >= epoch, "BribeInitiative: invalid-epoch");
         Bribe memory bribe = bribeByEpoch[_epoch];
         bribe.boldAmount += _boldAmount;
         bribe.bribeTokenAmount += _bribeTokenAmount;
@@ -68,7 +68,7 @@ contract BaseInitiative is IInitiative, IBaseInitiative {
         }
     }
 
-    /// @inheritdoc IBaseInitiative
+    /// @inheritdoc IBribeInitiative
     function claimBribes(address _user) external returns (uint256, uint256) {
         return _claimBribes(_user, allocatedAtEpoch[_user], governance.epoch(), 0);
     }
@@ -81,7 +81,7 @@ contract BaseInitiative is IInitiative, IBaseInitiative {
 
     /// @inheritdoc IInitiative
     function onAfterAllocateShares(address _user, int256 _deltaShares, int256) external virtual {
-        require(msg.sender == address(governance), "BaseInitiative: invalid-sender");
+        require(msg.sender == address(governance), "BribeInitiative: invalid-sender");
 
         uint16 currentEpoch = governance.epoch();
 
