@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IPoolManager} from "v4-core/src/interfaces/IPoolManager.sol";
 import {IHooks} from "v4-core/src/interfaces/IHooks.sol";
@@ -11,14 +12,12 @@ import {Currency, CurrencyLibrary} from "v4-core/src/types/Currency.sol";
 import {BalanceDelta} from "v4-core/src/types/BalanceDelta.sol";
 
 import {BaseHook, Hooks} from "./utils/BaseHook.sol";
-import {IGovernance} from "./interfaces/IGovernance.sol";
+import {BribeInitiative} from "./BribeInitiative.sol";
 
-contract UniV4Donations is BaseHook {
+contract UniV4Donations is BribeInitiative, BaseHook {
+    using SafeERC20 for IERC20;
     using CurrencyLibrary for Currency;
     using PoolIdLibrary for PoolKey;
-
-    IGovernance public immutable governance;
-    IERC20 public immutable bold;
 
     uint256 public immutable VESTING_EPOCH_START;
     uint256 public immutable VESTING_EPOCH_DURATION;
@@ -39,15 +38,14 @@ contract UniV4Donations is BaseHook {
     constructor(
         address _governance,
         address _bold,
+        address _bribeToken,
         uint256 _vestingEpochStart,
         uint256 _vestingEpochDuration,
         address _poolManager,
         address _token,
         uint24 _fee,
         int24 _tickSpacing
-    ) BaseHook(IPoolManager(_poolManager)) {
-        governance = IGovernance(_governance);
-        bold = IERC20(_bold);
+    ) BribeInitiative(_governance, _bold, _bribeToken) BaseHook(IPoolManager(_poolManager)) {
         VESTING_EPOCH_START = _vestingEpochStart;
         VESTING_EPOCH_DURATION = _vestingEpochDuration;
 
@@ -70,11 +68,11 @@ contract UniV4Donations is BaseHook {
         return VESTING_EPOCH_START + ((vestingEpoch() - 1) * VESTING_EPOCH_DURATION);
     }
 
-    function restartVesting() public returns (Vesting memory) {
+    function _restartVesting(uint240 claimed) internal returns (Vesting memory) {
         uint16 epoch = vestingEpoch();
         Vesting memory _vesting = vesting;
         if (_vesting.epoch < epoch) {
-            _vesting.amount = uint240(bold.balanceOf(address(this)));
+            _vesting.amount = claimed + _vesting.amount - uint240(_vesting.released); // roll over unclaimed amount
             _vesting.epoch = epoch;
             _vesting.released = 0;
             vesting = _vesting;
@@ -83,15 +81,14 @@ contract UniV4Donations is BaseHook {
     }
 
     function _donateToPool() internal returns (uint256) {
-        governance.claimForInitiative(address(this));
-        Vesting memory _vesting = restartVesting();
+        Vesting memory _vesting = _restartVesting(uint240(governance.claimForInitiative(address(this))));
         uint256 amount =
             (_vesting.amount * (block.timestamp - vestingEpochStart()) / VESTING_EPOCH_DURATION) - _vesting.released;
         if (amount != 0) {
             manager.donate(poolKey(), amount, 0, bytes(""));
             PoolKey memory key = poolKey();
             manager.sync(key.currency0);
-            IERC20(Currency.unwrap(key.currency0)).transfer(address(manager), amount);
+            IERC20(Currency.unwrap(key.currency0)).safeTransfer(address(manager), amount);
             manager.settle(key.currency0);
             vesting.released += amount;
         }
@@ -133,6 +130,7 @@ contract UniV4Donations is BaseHook {
 
     function afterInitialize(address, PoolKey calldata key, uint160, int24, bytes calldata)
         external
+        view
         override
         onlyByManager
         returns (bytes4)

@@ -8,6 +8,7 @@ import {VmSafe} from "forge-std/Vm.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
+import {BribeInitiative} from "../src/BribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 import {WAD, PermitParams} from "../src/utils/Types.sol";
 
@@ -21,9 +22,6 @@ contract GovernanceTest is Test {
     address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
     address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
-    address private constant initiative = address(0x1);
-    address private constant initiative2 = address(0x2);
-    address private constant initiative3 = address(0x3);
 
     uint256 private constant REGISTRATION_FEE = 1e18;
     uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
@@ -32,15 +30,44 @@ contract GovernanceTest is Test {
     uint256 private constant MIN_ACCRUAL = 1000e18;
     uint256 private constant EPOCH_DURATION = 604800;
     uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 private constant ALLOCATION_DELAY = 1;
 
     Governance private governance;
     address[] private initialInitiatives;
 
+    address private baseInitiative2;
+    address private baseInitiative3;
+    address private baseInitiative1;
+
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"));
 
-        initialInitiatives.push(initiative);
-        initialInitiatives.push(initiative2);
+        baseInitiative1 = address(
+            new BribeInitiative(
+                address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 3)),
+                address(lusd),
+                address(lqty)
+            )
+        );
+
+        baseInitiative2 = address(
+            new BribeInitiative(
+                address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 2)),
+                address(lusd),
+                address(lqty)
+            )
+        );
+
+        baseInitiative3 = address(
+            new BribeInitiative(
+                address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
+                address(lusd),
+                address(lqty)
+            )
+        );
+
+        initialInitiatives.push(baseInitiative1);
+        initialInitiatives.push(baseInitiative2);
 
         governance = new Governance(
             address(lqty),
@@ -55,7 +82,8 @@ contract GovernanceTest is Test {
                 minAccrual: MIN_ACCRUAL,
                 epochStart: block.timestamp,
                 epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF,
+                allocationDelay: ALLOCATION_DELAY
             }),
             initialInitiatives
         );
@@ -83,20 +111,24 @@ contract GovernanceTest is Test {
         // deploy and deposit 1 LQTY
         lqty.approve(address(userProxy), 1e18);
         assertEq(governance.depositLQTY(1e18), 1e18);
-        assertEq(governance.sharesByUser(user), 1e18);
+        (uint240 shares,) = governance.sharesByUser(user);
+        assertEq(shares, 1e18);
 
         // deposit 2 LQTY
         vm.warp(block.timestamp + 86400 * 30);
         lqty.approve(address(userProxy), 2e18);
         assertEq(governance.depositLQTY(2e18), 2e18 * WAD / governance.currentShareRate());
-        assertEq(governance.sharesByUser(user), 1e18 + 2e18 * WAD / governance.currentShareRate());
+        (shares,) = governance.sharesByUser(user);
+        assertEq(shares, 1e18 + 2e18 * WAD / governance.currentShareRate());
 
         // withdraw 0.5 half of shares
         vm.warp(block.timestamp + 86400 * 30);
-        assertEq(governance.withdrawShares(governance.sharesByUser(user) / 2), 1.5e18);
+        (shares,) = governance.sharesByUser(user);
+        assertEq(governance.withdrawLQTY(shares / 2), 1.5e18);
 
         // withdraw remaining shares
-        assertEq(governance.withdrawShares(governance.sharesByUser(user)), 1.5e18);
+        (shares,) = governance.sharesByUser(user);
+        assertEq(governance.withdrawLQTY(shares), 1.5e18);
 
         vm.stopPrank();
     }
@@ -147,7 +179,8 @@ contract GovernanceTest is Test {
 
         // deploy and deposit 1 LQTY
         assertEq(governance.depositLQTYViaPermit(1e18, permitParams), 1e18);
-        assertEq(governance.sharesByUser(wallet.addr), 1e18);
+        (uint240 shares,) = governance.sharesByUser(wallet.addr);
+        assertEq(shares, 1e18);
     }
 
     function test_currentShareRate() public payable {
@@ -165,7 +198,8 @@ contract GovernanceTest is Test {
                 minAccrual: MIN_ACCRUAL,
                 epochStart: 0,
                 epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF,
+                allocationDelay: ALLOCATION_DELAY
             }),
             initialInitiatives
         );
@@ -224,15 +258,16 @@ contract GovernanceTest is Test {
                 minAccrual: MIN_ACCRUAL,
                 epochStart: block.timestamp,
                 epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF,
+                allocationDelay: ALLOCATION_DELAY
             }),
             initialInitiatives
         );
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
-        IGovernance.Snapshot memory snapshot = IGovernance.Snapshot(1e18, 1);
+        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1, governance.currentShareRate());
         vm.store(address(governance), bytes32(uint256(5)), bytes32(abi.encode(snapshot)));
-        (uint240 votes,) = governance.votesSnapshot();
+        (uint240 votes,,) = governance.votesSnapshot();
         assertEq(votes, 1e18);
 
         uint256 boldAccrued = 1000e18;
@@ -255,14 +290,15 @@ contract GovernanceTest is Test {
                 minAccrual: 10e18,
                 epochStart: block.timestamp,
                 epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF,
+                allocationDelay: ALLOCATION_DELAY
             }),
             initialInitiatives
         );
 
-        snapshot = IGovernance.Snapshot(10000e18, 1);
+        snapshot = IGovernance.VoteSnapshot(10000e18, 1, governance.currentShareRate());
         vm.store(address(governance), bytes32(uint256(5)), bytes32(abi.encode(snapshot)));
-        (votes,) = governance.votesSnapshot();
+        (votes,,) = governance.votesSnapshot();
         assertEq(votes, 10000e18);
 
         boldAccrued = 1000e18;
@@ -273,13 +309,13 @@ contract GovernanceTest is Test {
     }
 
     function test_registerInitiative() public {
-        IGovernance.Snapshot memory snapshot = IGovernance.Snapshot(1e18, 1);
+        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1, governance.currentShareRate());
         vm.store(address(governance), bytes32(uint256(5)), bytes32(abi.encode(snapshot)));
-        (uint240 votes,) = governance.votesSnapshot();
+        (uint240 votes,,) = governance.votesSnapshot();
         assertEq(votes, 1e18);
 
         vm.expectRevert("ERC20: transfer amount exceeds balance");
-        governance.registerInitiative(initiative3);
+        governance.registerInitiative(baseInitiative3);
 
         vm.startPrank(lusdHolder);
         lusd.transfer(address(this), 1e18);
@@ -288,14 +324,15 @@ contract GovernanceTest is Test {
         lusd.approve(address(governance), 1e18);
 
         vm.expectRevert("Governance: insufficient-shares");
-        governance.registerInitiative(initiative3);
+        governance.registerInitiative(baseInitiative3);
 
         vm.store(address(governance), keccak256(abi.encode(address(this), 1)), bytes32(abi.encode(1e18)));
-        assertEq(governance.sharesByUser(address(this)), 1e18);
+        (uint240 shares,) = governance.sharesByUser(address(this));
+        assertEq(shares, 1e18);
         vm.warp(block.timestamp + 365 days);
 
-        governance.registerInitiative(initiative3);
-        assertEq(governance.initiativesRegistered(initiative3), block.timestamp);
+        governance.registerInitiative(baseInitiative3);
+        assertEq(governance.initiativesRegistered(baseInitiative3), block.timestamp);
     }
 
     function test_allocateShares() public {
@@ -308,12 +345,12 @@ contract GovernanceTest is Test {
         assertEq(governance.depositLQTY(1e18), 1e18);
 
         assertEq(governance.qualifyingShares(), 0);
-        (uint192 sharesAllocatedByUser_, uint16 atEpoch) = governance.sharesAllocatedByUser(user);
+        (uint240 sharesAllocatedByUser_, uint16 atEpoch) = governance.sharesAllocatedByUser(user);
         assertEq(sharesAllocatedByUser_, 0);
         assertEq(atEpoch, 0);
 
         address[] memory initiatives = new address[](1);
-        initiatives[0] = initiative;
+        initiatives[0] = baseInitiative1;
         int256[] memory deltaShares = new int256[](1);
         deltaShares[0] = 1e18;
         int256[] memory deltaVetoShares = new int256[](1);
@@ -331,16 +368,16 @@ contract GovernanceTest is Test {
         assertGt(atEpoch, 0);
 
         vm.expectRevert("Governance: insufficient-unallocated-shares");
-        governance.withdrawShares(1e18);
+        governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsDuringCurrentEpoch() - 1);
 
-        initiatives[0] = initiative;
+        initiatives[0] = baseInitiative1;
         deltaShares[0] = 1e18;
         vm.expectRevert("Governance: epoch-voting-cutoff");
         governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
 
-        initiatives[0] = initiative;
+        initiatives[0] = baseInitiative1;
         deltaShares[0] = -1e18;
         governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
 
@@ -363,7 +400,7 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + 365 days);
 
         assertEq(governance.qualifyingShares(), 0);
-        (uint192 sharesAllocatedByUser_,) = governance.sharesAllocatedByUser(user);
+        (uint240 sharesAllocatedByUser_,) = governance.sharesAllocatedByUser(user);
         assertEq(sharesAllocatedByUser_, 0);
 
         vm.stopPrank();
@@ -375,8 +412,8 @@ contract GovernanceTest is Test {
         vm.startPrank(user);
 
         address[] memory initiatives = new address[](2);
-        initiatives[0] = initiative;
-        initiatives[1] = initiative2;
+        initiatives[0] = baseInitiative1;
+        initiatives[1] = baseInitiative2;
         int256[] memory deltaShares = new int256[](2);
         deltaShares[0] = 500e18;
         deltaShares[1] = 500e18;
@@ -388,15 +425,16 @@ contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
-        assertEq(governance.claimForInitiative(initiative), 5000e18);
-        assertEq(governance.claimForInitiative(initiative), 0);
+        assertEq(governance.claimForInitiative(baseInitiative1), 5000e18);
+        governance.claimForInitiative(baseInitiative1);
+        assertEq(governance.claimForInitiative(baseInitiative1), 0);
 
-        assertEq(lusd.balanceOf(initiative), 5000e18);
+        assertEq(lusd.balanceOf(baseInitiative1), 5000e18);
 
-        assertEq(governance.claimForInitiative(initiative2), 5000e18);
-        assertEq(governance.claimForInitiative(initiative2), 0);
+        assertEq(governance.claimForInitiative(baseInitiative2), 5000e18);
+        assertEq(governance.claimForInitiative(baseInitiative2), 0);
 
-        assertEq(lusd.balanceOf(initiative2), 5000e18);
+        assertEq(lusd.balanceOf(baseInitiative2), 5000e18);
 
         vm.stopPrank();
 
@@ -406,23 +444,23 @@ contract GovernanceTest is Test {
 
         vm.startPrank(user);
 
-        initiatives[0] = initiative;
-        initiatives[1] = initiative2;
+        initiatives[0] = baseInitiative1;
+        initiatives[1] = baseInitiative2;
         deltaShares[0] = 495e18;
         deltaShares[1] = -495e18;
         governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
-        assertEq(governance.claimForInitiative(initiative), 10000e18);
-        assertEq(governance.claimForInitiative(initiative), 0);
+        assertEq(governance.claimForInitiative(baseInitiative1), 10000e18);
+        assertEq(governance.claimForInitiative(baseInitiative1), 0);
 
-        assertEq(lusd.balanceOf(initiative), 15000e18);
+        assertEq(lusd.balanceOf(baseInitiative1), 15000e18);
 
-        assertEq(governance.claimForInitiative(initiative2), 0);
-        assertEq(governance.claimForInitiative(initiative2), 0);
+        assertEq(governance.claimForInitiative(baseInitiative2), 0);
+        assertEq(governance.claimForInitiative(baseInitiative2), 0);
 
-        assertEq(lusd.balanceOf(initiative2), 5000e18);
+        assertEq(lusd.balanceOf(baseInitiative2), 5000e18);
 
         vm.stopPrank();
     }
@@ -437,9 +475,14 @@ contract GovernanceTest is Test {
         uint256 lqtyBalance = lqty.balanceOf(user);
 
         lqty.approve(address(governance.deriveUserProxyAddress(user)), lqtyAmount);
+        governance.deployUserProxy();
+        governance.depositLQTY(lqtyAmount);
 
+        vm.warp(block.timestamp + 365 days);
+
+        bytes[] memory data = new bytes[](5);
         address[] memory initiatives = new address[](1);
-        initiatives[0] = initiative;
+        initiatives[0] = baseInitiative1;
         int256[] memory deltaShares = new int256[](1);
         deltaShares[0] = int256(shareAmount);
         int256[] memory deltaVetoShares = new int256[](1);
@@ -447,24 +490,21 @@ contract GovernanceTest is Test {
         int256[] memory deltaShares_ = new int256[](1);
         deltaShares_[0] = -int256(shareAmount);
 
-        bytes[] memory data = new bytes[](7);
-        data[0] = abi.encodeWithSignature("deployUserProxy()");
-        data[1] = abi.encodeWithSignature("depositLQTY(uint256)", lqtyAmount);
-        data[2] = abi.encodeWithSignature(
+        data[0] = abi.encodeWithSignature(
             "allocateShares(address[],int256[],int256[])", initiatives, deltaShares, deltaVetoShares
         );
-        data[3] = abi.encodeWithSignature("sharesAllocatedToInitiative(address)", initiative);
-        data[4] = abi.encodeWithSignature("snapshotVotesForInitiative(address)", initiative);
-        data[5] = abi.encodeWithSignature(
+        data[1] = abi.encodeWithSignature("sharesAllocatedToInitiative(address)", baseInitiative1);
+        data[2] = abi.encodeWithSignature("snapshotVotesForInitiative(address)", baseInitiative1);
+        data[3] = abi.encodeWithSignature(
             "allocateShares(address[],int256[],int256[])", initiatives, deltaShares_, deltaVetoShares
         );
-        data[6] = abi.encodeWithSignature("withdrawShares(uint256)", shareAmount);
+        data[4] = abi.encodeWithSignature("withdrawLQTY(uint240)", uint240(shareAmount));
         bytes[] memory response = governance.multicall(data);
 
-        (IGovernance.ShareAllocation memory shareAllocation) = abi.decode(response[3], (IGovernance.ShareAllocation));
+        (IGovernance.ShareAllocation memory shareAllocation) = abi.decode(response[1], (IGovernance.ShareAllocation));
         assertEq(shareAllocation.shares, shareAmount);
-        (IGovernance.Snapshot memory votes, IGovernance.Snapshot memory votesForInitiative) =
-            abi.decode(response[4], (IGovernance.Snapshot, IGovernance.Snapshot));
+        (IGovernance.VoteSnapshot memory votes, IGovernance.InitiativeVoteSnapshot memory votesForInitiative) =
+            abi.decode(response[2], (IGovernance.VoteSnapshot, IGovernance.InitiativeVoteSnapshot));
         assertEq(votes.votes + votesForInitiative.votes, 0);
         assertEq(lqty.balanceOf(user), lqtyBalance);
 

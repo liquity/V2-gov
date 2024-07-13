@@ -6,6 +6,29 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
+    event DepositLQTY(address user, uint256 depositedLQTY, uint256 mintedShares);
+
+    event WithdrawLQTY(
+        address user,
+        uint256 withdrawnLQTY,
+        uint256 burnedShares,
+        uint256 accruedLQTY_,
+        uint256 accruedLUSD,
+        uint256 accruedETH
+    );
+
+    event SnapshotVotes(uint240 votes, uint16 forEpoch, uint256 shareRate);
+
+    event SnapshotVotesForInitiative(address initiative, uint240 votes, uint16 forEpoch);
+
+    event RegisterInitiative(address initiative, address registrant, uint16 atEpoch);
+
+    event UnregisterInitiative(address initiative, uint16 atEpoch);
+
+    event AllocateShares(address user, address initiative, int256 deltaShares, int256 deltaVetoShares, uint16 atEpoch);
+
+    event ClaimForInitiative(address initiative, uint256 bold, uint256 forEpoch);
+
     struct Configuration {
         uint256 registrationFee;
         uint256 regstrationThresholdFactor;
@@ -15,6 +38,7 @@ interface IGovernance {
         uint256 epochStart;
         uint256 epochDuration;
         uint256 epochVotingCutoff;
+        uint256 allocationDelay;
     }
 
     /// @notice Address of the BOLD token
@@ -37,11 +61,16 @@ interface IGovernance {
     function REGISTRATION_THRESHOLD_FACTOR() external view returns (uint256);
     /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
     function VOTING_THRESHOLD_FACTOR() external view returns (uint256);
+    /// @notice Delay in epochs before the allocation of shares to initiatives is allowed by a user
+    function ALLOCATION_DELAY() external view returns (uint256);
 
-    /// @notice Total shares in circulation
-    function totalShares() external view returns (uint256);
+    struct ShareBalance {
+        uint240 shares;
+        uint16 depositedAtEpoch;
+    }
+
     /// @notice Mapping of each user's share balance
-    function sharesByUser(address) external view returns (uint256);
+    function sharesByUser(address) external view returns (uint240, uint16);
 
     /// @notice Initiatives registered, by address
     function initiativesRegistered(address) external view returns (uint256);
@@ -53,23 +82,30 @@ interface IGovernance {
     /// in vote counting
     function qualifyingShares() external view returns (uint256);
 
-    struct Snapshot {
+    /// @notice Number of votes at the last epoch
+    function votesSnapshot() external view returns (uint240 votes, uint16 forEpoch, uint256 shareRate);
+
+    struct VoteSnapshot {
+        uint240 votes;
+        uint16 forEpoch;
+        uint256 shareRate;
+    }
+
+    struct InitiativeVoteSnapshot {
         uint240 votes;
         uint16 forEpoch;
     }
 
-    /// @notice Number of votes at the last epoch
-    function votesSnapshot() external view returns (uint240 votes, uint16 forEpoch);
     /// @notice Number of votes received by an initiative at the last epoch
     function votesForInitiativeSnapshot(address) external view returns (uint240 votes, uint16 forEpoch);
 
     struct UserAllocation {
-        uint192 shares;
+        uint240 shares;
         uint16 atEpoch;
     }
 
     /// @notice Number of shares (shares + vetoShares) allocated by user
-    function sharesAllocatedByUser(address) external view returns (uint192 shares, uint16 atEpoch);
+    function sharesAllocatedByUser(address) external view returns (uint240 shares, uint16 atEpoch);
 
     struct ShareAllocation {
         uint128 shares; // Shares allocated vouching for the initiative
@@ -96,9 +132,9 @@ interface IGovernance {
     /// @notice Deposits LQTY via Permit and mints shares based on the current share rate
     function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams memory _permitParams) external returns (uint256);
     /// @notice Withdraws LQRT by burning the shares and claim any accrued LUSD and ETH rewards from StakingV1
-    function withdrawShares(uint256 _shareAmount) external returns (uint256);
+    function withdrawLQTY(uint240 _shareAmount) external returns (uint256);
     /// @notice Claims staking rewards from StakingV1 without unstaking
-    function claimFromStakingV1() external;
+    function claimFromStakingV1(address _rewardRecipient) external;
 
     /*//////////////////////////////////////////////////////////////
                                  VOTING
@@ -119,7 +155,7 @@ interface IGovernance {
     /// @notice Snapshots votes for the previous epoch and accrues funds for the current epoch
     function snapshotVotesForInitiative(address _initiative)
         external
-        returns (Snapshot memory votes, Snapshot memory votesForInitiative);
+        returns (VoteSnapshot memory voteSnapshot, InitiativeVoteSnapshot memory initiativeVoteSnapshot);
 
     /// @notice Registers a new initiative
     function registerInitiative(address _initiative) external;

@@ -22,6 +22,7 @@ contract UniV4DonationsImpl is UniV4Donations {
     constructor(
         address _governance,
         address _bold,
+        address _bribeToken,
         uint256 _vestingEpochStart,
         uint256 _vestingEpochDuration,
         address _poolManager,
@@ -33,6 +34,7 @@ contract UniV4DonationsImpl is UniV4Donations {
         UniV4Donations(
             _governance,
             _bold,
+            _bribeToken,
             _vestingEpochStart,
             _vestingEpochDuration,
             _poolManager,
@@ -63,6 +65,7 @@ contract UniV4Test is Test, Deployers {
     uint256 private constant MIN_ACCRUAL = 1000e18;
     uint256 private constant EPOCH_DURATION = 604800;
     uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 private constant ALLOCATION_DELAY = 1;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -84,6 +87,7 @@ contract UniV4Test is Test, Deployers {
         UniV4DonationsImpl impl = new UniV4DonationsImpl(
             address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
             address(lusd),
+            address(lqty),
             block.timestamp,
             EPOCH_DURATION,
             address(manager),
@@ -116,24 +120,27 @@ contract UniV4Test is Test, Deployers {
                 minAccrual: MIN_ACCRUAL,
                 epochStart: block.timestamp,
                 epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF,
+                allocationDelay: ALLOCATION_DELAY
             }),
             initialInitiatives
         );
     }
 
-    function testAfterInitializeState() public {
+    function test_afterInitializeState() public {
         manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
     }
 
-    function testModifyPosition() public {
+    function test_modifyPosition() public {
         manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
 
         vm.startPrank(lusdHolder);
 
         lusd.transfer(address(uniV4Donations), 1000e18);
 
-        uniV4Donations.restartVesting();
+        vm.mockCall(
+            address(governance), abi.encode(IGovernance.claimForInitiative.selector), abi.encode(uint256(1000e18))
+        );
         assertEq(uniV4Donations.donateToPool(), 0);
         (uint240 amount, uint16 epoch, uint256 released) = uniV4Donations.vesting();
         assertEq(amount, 1000e18);
@@ -165,7 +172,8 @@ contract UniV4Test is Test, Deployers {
         assertGt(released, amount * 99 / 100);
 
         vm.warp(block.timestamp + 1);
-        uniV4Donations.restartVesting();
+        vm.mockCall(address(governance), abi.encode(IGovernance.claimForInitiative.selector), abi.encode(uint256(0)));
+        uniV4Donations.donateToPool();
         (amount, epoch, released) = uniV4Donations.vesting();
         assertLt(amount, 0.01e18);
         assertEq(epoch, 2);
