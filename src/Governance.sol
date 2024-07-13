@@ -182,8 +182,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function secondsUntilNextEpoch() public view returns (uint256) {
-        return EPOCH_DURATION - ((block.timestamp - EPOCH_START) % EPOCH_DURATION);
+    function secondsDuringCurrentEpoch() public view returns (uint256) {
+        return (block.timestamp - EPOCH_START) % EPOCH_DURATION;
     }
 
     /// @inheritdoc IGovernance
@@ -194,13 +194,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function calculateVotingThreshold() public view returns (uint256) {
-        uint256 minVotes;
         uint256 snapshotVotes = votesSnapshot.votes;
-        if (snapshotVotes != 0) {
-            uint256 payoutPerVote = (boldAccrued * WAD) / snapshotVotes;
-            if (payoutPerVote != 0) {
-                minVotes = (MIN_CLAIM * WAD) / payoutPerVote;
-            }
+        if (snapshotVotes == 0) return 0;
+
+        uint256 minVotes; // to reach MIN_CLAIM: snapshotVotes * MIN_CLAIM / boldAccrued
+        uint256 payoutPerVote = boldAccrued * WAD / snapshotVotes;
+        if (payoutPerVote != 0) {
+            minVotes = MIN_CLAIM * WAD / payoutPerVote;
         }
         return max(snapshotVotes * VOTING_THRESHOLD_FACTOR / WAD, minVotes);
     }
@@ -214,8 +214,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             snapshot.votes = uint240(sharesToVotes(snapshot.shareRate, qualifyingShares));
             snapshot.forEpoch = currentEpoch - 1;
             votesSnapshot = snapshot;
-            boldAccrued = bold.balanceOf(address(this));
-            boldAccrued = (boldAccrued < MIN_ACCRUAL) ? 0 : boldAccrued;
+            uint256 boldBalance = bold.balanceOf(address(this));
+            boldAccrued = (boldBalance < MIN_ACCRUAL) ? 0 : boldBalance;
             emit SnapshotVotes(snapshot.votes, snapshot.forEpoch, snapshot.shareRate);
         }
     }
@@ -321,7 +321,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             int256 deltaShares = _deltaShares[i];
             require(
-                deltaShares <= 0 || deltaShares >= 0 && secondsUntilNextEpoch() >= EPOCH_DURATION - EPOCH_VOTING_CUTOFF,
+                deltaShares <= 0 || deltaShares >= 0 && secondsDuringCurrentEpoch() <= EPOCH_VOTING_CUTOFF,
                 "Governance: epoch-voting-cutoff"
             );
 
@@ -331,11 +331,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // meets the voting threshold or not
             uint256 votesForInitiative = sharesToVotes(shareRate, sharesAllocatedToInitiative_.shares);
             if (deltaShares > 0) {
-                if (votesForInitiative + sharesToVotes(shareRate, uint256(deltaShares)) >= votingThreshold) {
-                    if (votesForInitiative < votingThreshold) {
+                if (votesForInitiative >= votingThreshold) {
+                    qualifyingShares += uint256(deltaShares);
+                } else {
+                    if (votesForInitiative + sharesToVotes(shareRate, uint256(deltaShares)) >= votingThreshold) {
                         qualifyingShares += sharesAllocatedToInitiative_.shares + uint256(deltaShares);
-                    } else {
-                        qualifyingShares += uint256(deltaShares);
                     }
                 }
             } else if (deltaShares < 0) {

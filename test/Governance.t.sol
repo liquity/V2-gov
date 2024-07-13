@@ -370,7 +370,7 @@ contract GovernanceTest is Test {
         vm.expectRevert("Governance: insufficient-unallocated-shares");
         governance.withdrawLQTY(1e18);
 
-        vm.warp(block.timestamp + governance.secondsUntilNextEpoch() - 1);
+        vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsDuringCurrentEpoch() - 1);
 
         initiatives[0] = baseInitiative1;
         deltaShares[0] = 1e18;

@@ -142,8 +142,8 @@ interface IGovernance {
 
     /// @notice Returns the current epoch number
     function epoch() external view returns (uint16);
-    /// @notice Returns the number of seconds until the next epoch
-    function secondsUntilNextEpoch() external view returns (uint256);
+    /// @notice Returns the number of seconds that have gone by during current epoch
+    function secondsDuringCurrentEpoch() external view returns (uint256);
     /// @notice Voting power of a share linearly increases over time starting from 0 at time of share issuance
     function sharesToVotes(uint256 _shareRate, uint256 _shares) external pure returns (uint256);
 
