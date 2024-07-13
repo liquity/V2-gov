@@ -68,11 +68,11 @@ contract UniV4Donations is BaseInitiative, BaseHook {
         return VESTING_EPOCH_START + ((vestingEpoch() - 1) * VESTING_EPOCH_DURATION);
     }
 
-    function restartVesting() public returns (Vesting memory) {
+    function _restartVesting(uint240 claimed) internal returns (Vesting memory) {
         uint16 epoch = vestingEpoch();
         Vesting memory _vesting = vesting;
         if (_vesting.epoch < epoch) {
-            _vesting.amount = uint240(bold.balanceOf(address(this)));
+            _vesting.amount = claimed + _vesting.amount - uint240(_vesting.released); // roll over unclaimed amount
             _vesting.epoch = epoch;
             _vesting.released = 0;
             vesting = _vesting;
@@ -81,8 +81,7 @@ contract UniV4Donations is BaseInitiative, BaseHook {
     }
 
     function _donateToPool() internal returns (uint256) {
-        governance.claimForInitiative(address(this));
-        Vesting memory _vesting = restartVesting();
+        Vesting memory _vesting = _restartVesting(uint240(governance.claimForInitiative(address(this))));
         uint256 amount =
             (_vesting.amount * (block.timestamp - vestingEpochStart()) / VESTING_EPOCH_DURATION) - _vesting.released;
         if (amount != 0) {

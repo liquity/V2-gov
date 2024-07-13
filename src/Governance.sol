@@ -38,9 +38,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     uint256 public immutable REGISTRATION_THRESHOLD_FACTOR;
     /// @inheritdoc IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
+    /// @inheritdoc IGovernance
+    uint256 public immutable ALLOCATION_DELAY;
 
     /// @inheritdoc IGovernance
-    mapping(address => uint256) public sharesByUser;
+    mapping(address => ShareBalance) public sharesByUser;
 
     /// @inheritdoc IGovernance
     mapping(address => uint256) public initiativesRegistered;
@@ -84,6 +86,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         EPOCH_DURATION = _config.epochDuration;
         require(_config.epochVotingCutoff < _config.epochDuration, "Gov: epoch-voting-cutoff-gt-epoch-duration");
         EPOCH_VOTING_CUTOFF = _config.epochVotingCutoff;
+        ALLOCATION_DELAY = _config.allocationDelay;
         for (uint256 i = 0; i < _initiatives.length; i++) {
             initiativesRegistered[_initiatives[i]] = block.timestamp;
         }
@@ -100,7 +103,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     function _mintShares(uint256 _lqtyAmount) private returns (uint256) {
         uint256 shareAmount = _lqtyAmount * WAD / currentShareRate();
-        sharesByUser[msg.sender] += shareAmount;
+        ShareBalance memory sharesByUser_ = sharesByUser[msg.sender];
+        sharesByUser_.shares += uint240(shareAmount);
+        sharesByUser_.depositedAtEpoch = epoch();
+        sharesByUser[msg.sender] = sharesByUser_;
         return shareAmount;
     }
 
@@ -136,19 +142,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function withdrawLQTY(uint256 _shares) external returns (uint256) {
+    function withdrawLQTY(uint240 _shares) external returns (uint256) {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
-        uint256 shares = sharesByUser[msg.sender];
+        ShareBalance memory sharesByUser_ = sharesByUser[msg.sender];
         UserAllocation memory sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
 
         // check if user has enough unallocated shares
-        require(_shares <= shares - sharesAllocatedByUser_.shares, "Governance: insufficient-unallocated-shares");
+        require(
+            _shares <= sharesByUser_.shares - sharesAllocatedByUser_.shares,
+            "Governance: insufficient-unallocated-shares"
+        );
 
-        uint256 lqtyAmount = (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * _shares) / shares;
+        uint256 lqtyAmount =
+            (ILQTYStaking(userProxy.stakingV1()).stakes(address(userProxy)) * _shares) / sharesByUser_.shares;
         (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH) =
             userProxy.unstake(lqtyAmount, msg.sender, msg.sender);
 
-        sharesByUser[msg.sender] = shares - _shares;
+        sharesByUser_.shares -= _shares;
+        sharesByUser[msg.sender] = sharesByUser_;
 
         emit WithdrawLQTY(msg.sender, lqtyAmount, _shares, accruedLQTY, accruedLUSD, accruedETH);
 
@@ -252,7 +263,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         VoteSnapshot memory snapshot = _snapshotVotes(shareRate);
         require(
-            sharesToVotes(shareRate, sharesByUser[msg.sender]) >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
+            sharesToVotes(shareRate, sharesByUser[msg.sender].shares)
+                >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-shares"
         );
 
@@ -296,6 +308,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         uint256 votingThreshold = calculateVotingThreshold();
         UserAllocation memory sharesAllocatedByUser_ = sharesAllocatedByUser[msg.sender];
+        uint256 prevAllocatedShares = sharesAllocatedByUser_.shares;
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];
@@ -357,8 +370,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             try IInitiative(initiative).onAfterAllocateShares(msg.sender, deltaShares, deltaVetoShares) {} catch {}
         }
 
+        ShareBalance memory sharesByUser_ = sharesByUser[msg.sender];
+        if (sharesByUser_.depositedAtEpoch + ALLOCATION_DELAY >= epoch()) {
+            require(prevAllocatedShares >= sharesAllocatedByUser_.shares, "Governance: allocation-warm-up");
+        }
+
         require(
-            sharesAllocatedByUser_.shares == 0 || sharesAllocatedByUser_.shares <= sharesByUser[msg.sender],
+            sharesAllocatedByUser_.shares == 0 || sharesAllocatedByUser_.shares <= sharesByUser_.shares,
             "Governance: insufficient-or-unallocated-shares"
         );
 
