@@ -3,11 +3,14 @@ pragma solidity ^0.8.13;
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {PermitParams} from "./utils/Types.sol";
 
 contract UserProxy {
+    using SafeERC20 for IERC20;
+
     IERC20 public immutable lqty;
     IERC20 public immutable lusd;
 
@@ -26,13 +29,14 @@ contract UserProxy {
         _;
     }
 
-    function stake(address _user, uint256 _amount) public onlyStakingV2 {
-        lqty.transferFrom(_user, address(this), _amount);
+    function stake(address _from, uint256 _amount) public onlyStakingV2 {
+        lqty.transferFrom(_from, address(this), _amount);
+        lqty.approve(address(stakingV1), _amount);
         stakingV1.stake(_amount);
     }
 
-    function stakeViaPermit(address _user, uint256 _amount, PermitParams calldata _permitParams) public onlyStakingV2 {
-        IERC20Permit(address(lqty)).permit(
+    function stakeViaPermit(address _from, uint256 _amount, PermitParams calldata _permitParams) public onlyStakingV2 {
+        try IERC20Permit(address(lqty)).permit(
             _permitParams.owner,
             _permitParams.spender,
             _permitParams.value,
@@ -40,19 +44,23 @@ contract UserProxy {
             _permitParams.v,
             _permitParams.r,
             _permitParams.s
-        );
-        stake(_user, _amount);
+        ) {} catch {}
+        stake(_from, _amount);
     }
 
-    function unstake(address _user, uint256 _amount) public onlyStakingV2 {
+    function unstake(uint256 _amount, address _lqtyRecipient, address _lusdEthRecipient)
+        public
+        onlyStakingV2
+        returns (uint256 lqtyAmount, uint256 lusdAmount, uint256 ethAmount)
+    {
         stakingV1.unstake(_amount);
 
-        uint256 lqtyBalance = lqty.balanceOf(address(this));
-        if (lqtyBalance > 0) lqty.transfer(_user, lqtyBalance);
-        uint256 lusdBalance = lusd.balanceOf(address(this));
-        if (lusdBalance > 0) lusd.transfer(_user, lusdBalance);
-        uint256 ethBalance = address(this).balance;
-        if (ethBalance > 0) payable(_user).transfer(ethBalance);
+        lqtyAmount = lqty.balanceOf(address(this));
+        if (lqtyAmount > 0) lqty.transfer(_lqtyRecipient, lqtyAmount);
+        lusdAmount = lusd.balanceOf(address(this));
+        if (lusdAmount > 0) lusd.transfer(_lusdEthRecipient, lusdAmount);
+        ethAmount = address(this).balance;
+        if (ethAmount > 0) payable(_lusdEthRecipient).transfer(ethAmount);
     }
 
     receive() external payable {}
