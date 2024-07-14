@@ -14,10 +14,6 @@ import {UniV4Donations} from "../src/UniV4Donations.sol";
 import {Governance} from "../src/Governance.sol";
 import {BaseHook, Hooks} from "../src/utils/BaseHook.sol";
 
-interface ILQTY {
-    function domainSeparator() external view returns (bytes32);
-}
-
 contract UniV4DonationsImpl is UniV4Donations {
     constructor(
         address _governance,
@@ -50,7 +46,7 @@ contract UniV4DonationsImpl is UniV4Donations {
     function validateHookAddress(BaseHook _this) internal pure override {}
 }
 
-contract UniV4Test is Test, Deployers {
+contract UniV4DonationsTest is Test, Deployers {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
     IERC20 private constant usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);

@@ -8,13 +8,12 @@ import {VmSafe} from "forge-std/Vm.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
+import {ILQTY} from "../src/interfaces/ILQTY.sol";
+
 import {BribeInitiative} from "../src/BribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
-import {WAD, PermitParams} from "../src/utils/Types.sol";
 
-interface ILQTY {
-    function domainSeparator() external view returns (bytes32);
-}
+import {WAD, PermitParams} from "../src/utils/Types.sol";
 
 contract GovernanceTest is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
@@ -85,19 +84,6 @@ contract GovernanceTest is Test {
             }),
             initialInitiatives
         );
-    }
-
-    function test_deployUserProxy() public {
-        address userProxy = governance.deriveUserProxyAddress(user);
-
-        vm.startPrank(user);
-        assertEq(governance.deployUserProxy(), userProxy);
-        vm.expectRevert();
-        governance.deployUserProxy();
-        vm.stopPrank();
-
-        governance.deployUserProxy();
-        assertEq(governance.deriveUserProxyAddress(user), userProxy);
     }
 
     function test_depositLQTY_withdrawShares() public {

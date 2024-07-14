@@ -43,6 +43,7 @@ contract UserProxy is IUserProxy {
 
     /// @inheritdoc IUserProxy
     function stakeViaPermit(address _from, uint256 _amount, PermitParams calldata _permitParams) public onlyStakingV2 {
+        require(_from == _permitParams.owner, "UserProxy: owner-not-sender");
         try IERC20Permit(address(lqty)).permit(
             _permitParams.owner,
             _permitParams.spender,

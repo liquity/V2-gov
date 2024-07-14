@@ -4,16 +4,14 @@ pragma solidity ^0.8.13;
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
-import {MockStakingV1} from "./MockStakingV1.sol";
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
+
 import {Governance} from "../src/Governance.sol";
 import {BribeInitiative} from "../src/BribeInitiative.sol";
 
-interface ILQTY {
-    function domainSeparator() external view returns (bytes32);
-}
+import {MockStakingV1} from "./mocks/MockStakingV1.sol";
 
-contract BaseInitiativeTest is Test {
+contract BribeInitiativeTest is Test {
     MockERC20 private lqty;
     MockERC20 private lusd;
     address private stakingV1;
@@ -35,8 +33,6 @@ contract BaseInitiativeTest is Test {
     address[] private initialInitiatives;
 
     BribeInitiative private bribeInitiative;
-
-    // BribeProxy private bribeProxy;
 
     function setUp() public {
         lqty = deployMockERC20("Liquity", "LQTY", 18);
