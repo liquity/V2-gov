@@ -30,6 +30,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     /// Double linked list of shares allocated by a user at a given epoch
     mapping(address => DoubleLinkedList.List) internal shareAllocationByUserAtEpoch;
 
+    mapping(address => mapping(uint16 => bool)) public claimedBribeAtEpoch;
+
     constructor(address _governance, address _bold, address _bribeToken) {
         governance = IGovernance(_governance);
         bold = IERC20(_bold);
@@ -64,49 +66,54 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         emit DepositBribe(msg.sender, _boldAmount, _bribeTokenAmount, _epoch);
     }
 
+    function _claimBribe(
+        address _user,
+        uint16 _epoch,
+        uint16 _prevShareAllocationEpoch,
+        uint16 _prevTotalShareAllocationEpoch
+    ) internal returns (uint256 boldAmount, uint256 bribeTokenAmount) {
+        require(_epoch != governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
+        require(!claimedBribeAtEpoch[_user][_epoch], "BribeInitiative: already-claimed");
+
+        Bribe memory bribe = bribeByEpoch[_epoch];
+        require(bribe.boldAmount != 0 || bribe.bribeTokenAmount != 0, "BribeInitiative: no-bribe");
+
+        DoubleLinkedList.Item memory shareAllocation =
+            shareAllocationByUserAtEpoch[_user].getItem(_prevShareAllocationEpoch);
+        require(
+            shareAllocation.value != 0 && _prevShareAllocationEpoch <= _epoch
+                && (shareAllocation.next > _epoch || shareAllocation.next == 0),
+            "BribeInitiative: invalid-prev-share-allocation-epoch"
+        );
+        DoubleLinkedList.Item memory totalShareAllocation =
+            totalShareAllocationByEpoch.getItem(_prevTotalShareAllocationEpoch);
+        require(
+            totalShareAllocation.value != 0 && _prevTotalShareAllocationEpoch <= _epoch
+                && (totalShareAllocation.next > _epoch || totalShareAllocation.next == 0),
+            "BribeInitiative: invalid-prev-total-share-allocation-epoch"
+        );
+
+        boldAmount = bribe.boldAmount * shareAllocation.value / totalShareAllocation.value;
+        bribeTokenAmount = bribe.bribeTokenAmount * shareAllocation.value / totalShareAllocation.value;
+
+        claimedBribeAtEpoch[_user][_epoch] = true;
+    }
+
     /// @inheritdoc IBribeInitiative
-    function claimBribes(address _user, uint16 _untilEpoch)
-        external
-        returns (uint256 boldAmount, uint256 bribeTokenAmount)
-    {
-        require(_untilEpoch != governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
+    function claimBribes(
+        address _user,
+        uint16[] calldata _epochs,
+        uint16[] calldata _prevShareAllocationEpochs,
+        uint16[] calldata _prevTotalShareAllocationEpochs
+    ) external returns (uint256 boldAmount, uint256 bribeTokenAmount) {
+        require(_epochs.length == _prevShareAllocationEpochs.length, "BribeInitiative: invalid-length");
+        require(_epochs.length == _prevTotalShareAllocationEpochs.length, "BribeInitiative: invalid-length");
 
-        while (true) {
-            uint16 oldestEpoch = shareAllocationByUserAtEpoch[_user].getTail();
-            if (oldestEpoch == 0 || _untilEpoch < oldestEpoch) break;
-
-            DoubleLinkedList.Item memory oldestTotalShareAllocation = totalShareAllocationByEpoch.getItem(oldestEpoch);
-            DoubleLinkedList.Item memory oldestShareAllocation =
-                shareAllocationByUserAtEpoch[_user].getItem(oldestEpoch);
-
-            // claim bribes for epochs between oldest epoch and the second oldest epoch, or _untilEpoch if there's no second oldest epoch
-            uint16 secondOldestEpoch = (oldestShareAllocation.next != 0) ? oldestShareAllocation.next : _untilEpoch + 1;
-            for (uint16 epoch = oldestEpoch; epoch < secondOldestEpoch; epoch++) {
-                // if _untilEpoch is in between oldestEpoch and secondOldestEpoch,
-                if (epoch > _untilEpoch) {
-                    // copy the shareAllocation over to the epoch after _untilEpoch, since the shareAllocation is removed at the end
-                    shareAllocationByUserAtEpoch[_user].insert(
-                        epoch, oldestShareAllocation.value, oldestShareAllocation.next
-                    );
-                    // and if the totalShareAllocation doesn't exist, copy it over as well
-                    if (!totalShareAllocationByEpoch.contains(epoch)) {
-                        totalShareAllocationByEpoch.insert(
-                            epoch, oldestTotalShareAllocation.value, oldestTotalShareAllocation.next
-                        );
-                    }
-                    break;
-                }
-                Bribe memory bribe = bribeByEpoch[epoch];
-                if (bribe.boldAmount == 0 && bribe.bribeTokenAmount == 0) continue;
-
-                DoubleLinkedList.Item memory totalShareAllocation = totalShareAllocationByEpoch.getItem(epoch);
-                uint256 totalAllocatedShares =
-                    (totalShareAllocation.next != 0) ? totalShareAllocation.value : oldestTotalShareAllocation.value;
-                boldAmount += bribe.boldAmount * oldestShareAllocation.value / totalAllocatedShares;
-                bribeTokenAmount += bribe.bribeTokenAmount * oldestShareAllocation.value / totalAllocatedShares;
-            }
-
-            shareAllocationByUserAtEpoch[_user].remove(oldestEpoch);
+        for (uint256 i = 0; i < _epochs.length; i++) {
+            (uint256 boldAmount_, uint256 bribeTokenAmount_) =
+                _claimBribe(_user, _epochs[i], _prevShareAllocationEpochs[i], _prevTotalShareAllocationEpochs[i]);
+            boldAmount += boldAmount_;
+            bribeTokenAmount += bribeTokenAmount_;
         }
 
         if (boldAmount != 0) bold.safeTransfer(msg.sender, boldAmount);

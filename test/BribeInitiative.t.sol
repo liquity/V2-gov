@@ -104,24 +104,32 @@ contract BribeInitiativeTest is Test {
         governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
 
         // should be zero since user was not deposited at that time
-        (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(user, governance.epoch() - 1);
-        assertEq(boldAmount, 0);
-        assertEq(bribeTokenAmount, 0);
+        uint16[] memory epochs = new uint16[](1);
+        epochs[0] = governance.epoch() - 1;
+        uint16[] memory prevShareAllocationEpochs = new uint16[](1);
+        prevShareAllocationEpochs[0] = governance.epoch() - 1;
+        uint16[] memory prevTotalShareAllocationEpochs = new uint16[](1);
+        prevTotalShareAllocationEpochs[0] = governance.epoch() - 1;
+        vm.expectRevert();
+        (uint256 boldAmount, uint256 bribeTokenAmount) =
+            bribeInitiative.claimBribes(user, epochs, prevShareAllocationEpochs, prevTotalShareAllocationEpochs);
 
         vm.stopPrank();
 
         vm.startPrank(lusdHolder);
         lqty.approve(address(bribeInitiative), 1e18);
         lusd.approve(address(bribeInitiative), 1e18);
-        // console.log("bribed epoch: ", governance.epoch() + 1);
         bribeInitiative.depositBribe(1e18, 1e18, governance.epoch() + 1);
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
         vm.stopPrank();
 
         vm.startPrank(user);
-        // console.log("claim epoch: ", governance.epoch() - 1);
-        (boldAmount, bribeTokenAmount) = bribeInitiative.claimBribes(user, governance.epoch() - 1);
+        epochs[0] = governance.epoch() - 1;
+        prevShareAllocationEpochs[0] = governance.epoch() - 2;
+        prevTotalShareAllocationEpochs[0] = governance.epoch() - 2;
+        (boldAmount, bribeTokenAmount) =
+            bribeInitiative.claimBribes(user, epochs, prevShareAllocationEpochs, prevTotalShareAllocationEpochs);
         assertEq(boldAmount, 1e18);
         assertEq(bribeTokenAmount, 1e18);
         vm.stopPrank();

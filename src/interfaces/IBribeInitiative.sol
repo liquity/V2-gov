@@ -30,7 +30,10 @@ interface IBribeInitiative {
     /// @notice Deposit bribe tokens for a given epoch
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external;
     /// @notice Claim bribes for a user
-    function claimBribes(address _user, uint16 _untilEpoch)
-        external
-        returns (uint256 boldAmount, uint256 bribeTokenAmount);
+    function claimBribes(
+        address _user,
+        uint16[] calldata _epochs,
+        uint16[] calldata _prevShareAllocationEpochs,
+        uint16[] calldata _prevTotalShareAllocationEpochs
+    ) external returns (uint256 boldAmount, uint256 bribeTokenAmount);
 }
