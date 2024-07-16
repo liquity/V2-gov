@@ -401,7 +401,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             emit AllocateShares(msg.sender, initiative, deltaShares, deltaVetoShares, currentEpoch);
 
-            try IInitiative(initiative).onAfterAllocateShares(msg.sender, deltaShares, deltaVetoShares) {} catch {}
+            try IInitiative(initiative).onAfterAllocateShares(
+                msg.sender, sharesAllocatedByUserToInitiative_.shares, sharesAllocatedByUserToInitiative_.vetoShares
+            ) {} catch {}
         }
 
         ShareBalance memory sharesByUser_ = sharesByUser[msg.sender];

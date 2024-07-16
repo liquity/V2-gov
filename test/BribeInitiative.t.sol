@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
+import {console} from "forge-std/console.sol";
+
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
@@ -77,40 +79,59 @@ contract BribeInitiativeTest is Test {
 
     function test_claimBribes() public {
         vm.startPrank(user);
-
         address userProxy = governance.deployUserProxy();
         lqty.approve(address(userProxy), 1e18);
         assertEq(governance.depositLQTY(1e18), 1e18);
-
         vm.stopPrank();
 
         vm.warp(block.timestamp + 365 days);
 
         vm.startPrank(lusdHolder);
-
         lqty.approve(address(bribeInitiative), 1e18);
         lusd.approve(address(bribeInitiative), 1e18);
-        bribeInitiative.depositBribe(1e18, 1e18, governance.epoch());
-
+        bribeInitiative.depositBribe(1e18, 1e18, governance.epoch() + 1);
         vm.stopPrank();
 
         vm.startPrank(user);
 
+        vm.warp(block.timestamp + 365 days);
+
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
         int256[] memory deltaShares = new int256[](1);
+        deltaShares[0] = 1e18;
         int256[] memory deltaVetoShares = new int256[](1);
         governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
 
-        vm.warp(block.timestamp + 365 days);
+        // should be zero since user was not deposited at that time
+        uint16[] memory epochs = new uint16[](1);
+        epochs[0] = governance.epoch() - 1;
+        uint16[] memory prevShareAllocationEpochs = new uint16[](1);
+        prevShareAllocationEpochs[0] = governance.epoch() - 1;
+        uint16[] memory prevTotalShareAllocationEpochs = new uint16[](1);
+        prevTotalShareAllocationEpochs[0] = governance.epoch() - 1;
+        vm.expectRevert();
+        (uint256 boldAmount, uint256 bribeTokenAmount) =
+            bribeInitiative.claimBribes(user, epochs, prevShareAllocationEpochs, prevTotalShareAllocationEpochs);
 
-        initiatives = new address[](1);
-        initiatives[0] = address(bribeInitiative);
-        deltaShares = new int256[](1);
-        deltaShares[0] = 1e18;
-        deltaVetoShares = new int256[](1);
-        governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
+        vm.stopPrank();
 
+        vm.startPrank(lusdHolder);
+        lqty.approve(address(bribeInitiative), 1e18);
+        lusd.approve(address(bribeInitiative), 1e18);
+        bribeInitiative.depositBribe(1e18, 1e18, governance.epoch() + 1);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        epochs[0] = governance.epoch() - 1;
+        prevShareAllocationEpochs[0] = governance.epoch() - 2;
+        prevTotalShareAllocationEpochs[0] = governance.epoch() - 2;
+        (boldAmount, bribeTokenAmount) =
+            bribeInitiative.claimBribes(user, epochs, prevShareAllocationEpochs, prevTotalShareAllocationEpochs);
+        assertEq(boldAmount, 1e18);
+        assertEq(bribeTokenAmount, 1e18);
         vm.stopPrank();
     }
 }

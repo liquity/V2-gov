@@ -6,6 +6,9 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {IGovernance} from "./IGovernance.sol";
 
 interface IBribeInitiative {
+    event DepositBribe(address depositor, uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch);
+    event ClaimBribe(address user, uint16 epoch, uint256 boldAmount, uint256 bribeTokenAmount);
+
     /// @notice Address of the governance contract
     function governance() external view returns (IGovernance);
     /// @notice Address of the BOLD token
@@ -18,13 +21,23 @@ interface IBribeInitiative {
         uint128 bribeTokenAmount; // [scaled as 10 ** bribeToken.decimals()]
     }
 
-    /// @notice Epoch at which the user last allocated shares to the initiative
-    function allocatedAtEpoch(address) external view returns (uint16);
     /// @notice Amount of bribe tokens deposited for a given epoch
-    function bribeByEpoch(uint256) external view returns (uint128, uint128);
+    function bribeByEpoch(uint16 _epoch) external view returns (uint128, uint128);
+    /// @notice Check if a user has claimed bribes for a given epoch
+    function claimedBribeAtEpoch(address _user, uint16 _epoch) external view returns (bool);
+
+    /// @notice Total allocation of bribe tokens for a given epoch
+    function totalSharesAllocatedByEpoch(uint16 _epoch) external view returns (uint224);
+    /// @notice Shares allocated by a user at a given epoch
+    function sharesAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint224);
 
     /// @notice Deposit bribe tokens for a given epoch
-    function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint256 _epoch) external;
+    function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external;
     /// @notice Claim bribes for a user
-    function claimBribes(address _user) external returns (uint256, uint256);
+    function claimBribes(
+        address _user,
+        uint16[] calldata _epochs,
+        uint16[] calldata _prevShareAllocationEpochs,
+        uint16[] calldata _prevTotalShareAllocationEpochs
+    ) external returns (uint256 boldAmount, uint256 bribeTokenAmount);
 }
