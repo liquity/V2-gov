@@ -60,9 +60,9 @@ interface IGovernance {
     /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
     function VOTING_THRESHOLD_FACTOR() external view returns (uint256);
 
-    struct ShareBalance {
+    struct SharesAtEpoch {
         uint240 shares;
-        uint16 depositedAtEpoch;
+        uint16 atEpoch;
     }
 
     /// @notice Mapping of each user's share balance
