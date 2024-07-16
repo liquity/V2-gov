@@ -8,6 +8,16 @@ import {ILQTYStaking} from "../interfaces/ILQTYStaking.sol";
 import {PermitParams} from "../utils/Types.sol";
 
 interface IUserProxy {
+    event Stake(uint256 amount, address lqtyFrom);
+    event Unstake(
+        uint256 amount,
+        address lqtyRecipient,
+        address lusdEthRecipient,
+        uint256 lqtyAmount,
+        uint256 lusdAmount,
+        uint256 ethAmount
+    );
+
     /// @notice Address of the LQTY token
     function lqty() external view returns (IERC20);
     /// @notice Address of the LUSD token
@@ -18,9 +28,9 @@ interface IUserProxy {
     function stakingV2() external view returns (address);
 
     /// @notice Stakes a given amount of LQTY tokens in the V1 staking contract
-    function stake(address _from, uint256 _amount) external;
+    function stake(uint256 _amount, address _lqtyFrom) external;
     /// @notice Stakes a given amount of LQTY tokens in the V1 staking contract using a permit
-    function stakeViaPermit(address _from, uint256 _amount, PermitParams calldata _permitParams) external;
+    function stakeViaPermit(uint256 _amount, address _lqtyFrom, PermitParams calldata _permitParams) external;
     /// @notice Unstakes a given amount of LQTY tokens from the V1 staking contract and claims the accrued rewards
     function unstake(uint256 _amount, address _lqtyRecipient, address _lusdEthRecipient)
         external

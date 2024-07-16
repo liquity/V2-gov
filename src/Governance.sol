@@ -118,7 +118,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             deployUserProxy();
         }
 
-        UserProxy(payable(userProxyAddress)).stake(msg.sender, _lqtyAmount);
+        UserProxy(payable(userProxyAddress)).stake(_lqtyAmount, msg.sender);
         shares = _mintShares(_lqtyAmount);
 
         emit DepositLQTY(msg.sender, _lqtyAmount, shares);
@@ -135,7 +135,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             deployUserProxy();
         }
 
-        UserProxy(payable(userProxyAddress)).stakeViaPermit(msg.sender, _lqtyAmount, _permitParams);
+        UserProxy(payable(userProxyAddress)).stakeViaPermit(_lqtyAmount, msg.sender, _permitParams);
         shares = _mintShares(_lqtyAmount);
 
         emit DepositLQTY(msg.sender, _lqtyAmount, shares);

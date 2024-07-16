@@ -7,7 +7,6 @@ import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
     event DepositLQTY(address user, uint256 depositedLQTY, uint256 mintedShares);
-
     event WithdrawLQTY(
         address user,
         uint256 withdrawnLQTY,

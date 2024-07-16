@@ -35,15 +35,19 @@ contract UserProxy is IUserProxy {
     }
 
     /// @inheritdoc IUserProxy
-    function stake(address _from, uint256 _amount) public onlyStakingV2 {
-        lqty.transferFrom(_from, address(this), _amount);
+    function stake(uint256 _amount, address _lqtyFrom) public onlyStakingV2 {
+        lqty.transferFrom(_lqtyFrom, address(this), _amount);
         lqty.approve(address(stakingV1), _amount);
         stakingV1.stake(_amount);
+        emit Stake(_amount, _lqtyFrom);
     }
 
     /// @inheritdoc IUserProxy
-    function stakeViaPermit(address _from, uint256 _amount, PermitParams calldata _permitParams) public onlyStakingV2 {
-        require(_from == _permitParams.owner, "UserProxy: owner-not-sender");
+    function stakeViaPermit(uint256 _amount, address _lqtyFrom, PermitParams calldata _permitParams)
+        public
+        onlyStakingV2
+    {
+        require(_lqtyFrom == _permitParams.owner, "UserProxy: owner-not-sender");
         try IERC20Permit(address(lqty)).permit(
             _permitParams.owner,
             _permitParams.spender,
@@ -53,7 +57,7 @@ contract UserProxy is IUserProxy {
             _permitParams.r,
             _permitParams.s
         ) {} catch {}
-        stake(_from, _amount);
+        stake(_amount, _lqtyFrom);
     }
 
     /// @inheritdoc IUserProxy
@@ -73,6 +77,8 @@ contract UserProxy is IUserProxy {
             (bool success,) = payable(_lusdEthRecipient).call{value: ethAmount}("");
             success;
         }
+
+        emit Unstake(_amount, _lqtyRecipient, _lusdEthRecipient, lqtyAmount, lusdAmount, ethAmount);
     }
 
     receive() external payable {}

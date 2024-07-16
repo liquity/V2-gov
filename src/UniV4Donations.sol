@@ -19,6 +19,9 @@ contract UniV4Donations is BribeInitiative, BaseHook {
     using CurrencyLibrary for Currency;
     using PoolIdLibrary for PoolKey;
 
+    event DonateToPool(uint256 amount);
+    event RestartVesting(uint16 epoch, uint240 amount);
+
     uint256 public immutable VESTING_EPOCH_START;
     uint256 public immutable VESTING_EPOCH_DURATION;
 
@@ -76,6 +79,7 @@ contract UniV4Donations is BribeInitiative, BaseHook {
             _vesting.epoch = epoch;
             _vesting.released = 0;
             vesting = _vesting;
+            emit RestartVesting(epoch, _vesting.amount);
         }
         return _vesting;
     }
@@ -84,14 +88,20 @@ contract UniV4Donations is BribeInitiative, BaseHook {
         Vesting memory _vesting = _restartVesting(uint240(governance.claimForInitiative(address(this))));
         uint256 amount =
             (_vesting.amount * (block.timestamp - vestingEpochStart()) / VESTING_EPOCH_DURATION) - _vesting.released;
+
         if (amount != 0) {
-            manager.donate(poolKey(), amount, 0, bytes(""));
             PoolKey memory key = poolKey();
+
+            manager.donate(key, amount, 0, bytes(""));
             manager.sync(key.currency0);
             IERC20(Currency.unwrap(key.currency0)).safeTransfer(address(manager), amount);
             manager.settle(key.currency0);
+
             vesting.released += amount;
+
+            emit DonateToPool(amount);
         }
+
         return amount;
     }
 

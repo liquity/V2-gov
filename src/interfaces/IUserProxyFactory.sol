@@ -2,6 +2,8 @@
 pragma solidity ^0.8.13;
 
 interface IUserProxyFactory {
+    event DeployUserProxy(address indexed user, address indexed userProxy);
+
     /// @notice Address of the UserProxy implementation contract
     function userProxyImplementation() external view returns (address);
 

@@ -22,6 +22,10 @@ contract UserProxyFactory is IUserProxyFactory {
     /// @inheritdoc IUserProxyFactory
     function deployUserProxy() public returns (address) {
         // reverts if the user already has a proxy
-        return Clones.cloneDeterministic(userProxyImplementation, bytes32(uint256(uint160(msg.sender))));
+        address userProxy = Clones.cloneDeterministic(userProxyImplementation, bytes32(uint256(uint160(msg.sender))));
+
+        emit DeployUserProxy(msg.sender, userProxy);
+
+        return userProxy;
     }
 }
