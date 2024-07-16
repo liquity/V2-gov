@@ -25,12 +25,13 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     /// @inheritdoc IBribeInitiative
     mapping(uint16 => Bribe) public bribeByEpoch;
+    /// @inheritdoc IBribeInitiative
+    mapping(address => mapping(uint16 => bool)) public claimedBribeAtEpoch;
+
     /// Double linked list of the total shares allocated at a given epoch
     DoubleLinkedList.List internal totalShareAllocationByEpoch;
     /// Double linked list of shares allocated by a user at a given epoch
     mapping(address => DoubleLinkedList.List) internal shareAllocationByUserAtEpoch;
-
-    mapping(address => mapping(uint16 => bool)) public claimedBribeAtEpoch;
 
     constructor(address _governance, address _bold, address _bribeToken) {
         governance = IGovernance(_governance);
@@ -57,12 +58,15 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external {
         bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
         bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
+
         uint16 epoch = governance.epoch();
         require(_epoch > epoch, "BribeInitiative: only-future-epochs");
+
         Bribe memory bribe = bribeByEpoch[_epoch];
         bribe.boldAmount += _boldAmount;
         bribe.bribeTokenAmount += _bribeTokenAmount;
         bribeByEpoch[_epoch] = bribe;
+
         emit DepositBribe(msg.sender, _boldAmount, _bribeTokenAmount, _epoch);
     }
 
@@ -97,6 +101,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         bribeTokenAmount = bribe.bribeTokenAmount * shareAllocation.value / totalShareAllocation.value;
 
         claimedBribeAtEpoch[_user][_epoch] = true;
+
+        emit ClaimBribe(_user, _epoch, boldAmount, bribeTokenAmount);
     }
 
     /// @inheritdoc IBribeInitiative

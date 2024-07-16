@@ -7,6 +7,7 @@ import {IGovernance} from "./IGovernance.sol";
 
 interface IBribeInitiative {
     event DepositBribe(address depositor, uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch);
+    event ClaimBribe(address user, uint16 epoch, uint256 boldAmount, uint256 bribeTokenAmount);
 
     /// @notice Address of the governance contract
     function governance() external view returns (IGovernance);
@@ -22,6 +23,9 @@ interface IBribeInitiative {
 
     /// @notice Amount of bribe tokens deposited for a given epoch
     function bribeByEpoch(uint16 _epoch) external view returns (uint128, uint128);
+    /// @notice Check if a user has claimed bribes for a given epoch
+    function claimedBribeAtEpoch(address _user, uint16 _epoch) external view returns (bool);
+
     /// @notice Total allocation of bribe tokens for a given epoch
     function totalSharesAllocatedByEpoch(uint16 _epoch) external view returns (uint224);
     /// @notice Shares allocated by a user at a given epoch
