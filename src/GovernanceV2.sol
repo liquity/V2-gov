@@ -53,18 +53,15 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     /// @inheritdoc IGovernanceV2
     mapping(address => InitiativeVoteSnapshot) public votesForInitiativeSnapshot;
 
-    mapping(address => uint256) public averageStakedTimestamp;
-
-    mapping(address => uint256) public initiativeAverageStakedTimestamp;
-    mapping(address => uint256) public initiativeLQTYStaked;
-
     uint256 public globalAverageStakedTimestamp;
     uint256 public globalLQTYStaked;
 
     /// @inheritdoc IGovernanceV2
     mapping(address => uint256) public lqtyAllocatedByUser;
+    mapping(address => uint256) public averageStakedTimestampByUser;
     /// @inheritdoc IGovernanceV2
     mapping(address => AllocationAtEpoch) public lqtyAllocatedToInitiative;
+    mapping(address => uint256) public averageStakedTimestampByInitiative;
     // Shares (shares + vetoShares) allocated by user to initiatives
     mapping(address => mapping(address => Allocation)) public lqtyAllocatedByUserToInitiative;
 
@@ -101,11 +98,11 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     function _deposit(uint256 _newTotalStakedLQTY, uint256 _depositedLQTY) private returns (uint256) {
         uint256 currentTimestamp = block.timestamp;
 
-        uint256 averageStakedTimestamp_ = averageStakedTimestamp[msg.sender];
+        uint256 averageStakedTimestamp_ = averageStakedTimestampByUser[msg.sender];
         uint256 prevTotalStakedLQTY = _newTotalStakedLQTY - _depositedLQTY;
         averageStakedTimestamp_ = currentTimestamp
             - ((currentTimestamp - averageStakedTimestamp_) * prevTotalStakedLQTY * WAD) / _newTotalStakedLQTY;
-        averageStakedTimestamp[msg.sender] = uint64(averageStakedTimestamp_);
+        averageStakedTimestampByUser[msg.sender] = uint64(averageStakedTimestamp_);
 
         uint256 globalAverageStakedTimestamp_ = globalAverageStakedTimestamp;
         uint256 globalLQTYStaked_ = globalLQTYStaked;
@@ -194,7 +191,7 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
 
     // / @inheritdoc IGovernanceV2
     function userLQTYToVotes(uint256 _lqty) public view returns (uint256) {
-        uint256 averageAge = block.timestamp - averageStakedTimestamp[msg.sender];
+        uint256 averageAge = block.timestamp - averageStakedTimestampByUser[msg.sender];
         uint256 globalAverageAge = block.timestamp - globalAverageStakedTimestamp;
         uint256 globalVotingPower = globalAverageAge * globalLQTYStaked;
         uint256 votingPower = averageAge * _lqty / globalVotingPower;
@@ -202,7 +199,7 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     }
 
     function initiativeLQTYToVotes(uint256 _lqty, uint256 timestamp) public view returns (uint256) {
-        uint256 averageAge = timestamp - initiativeAverageStakedTimestamp[msg.sender];
+        uint256 averageAge = timestamp - averageStakedTimestampByInitiative[msg.sender];
         uint256 globalAverageAge = timestamp - globalAverageStakedTimestamp;
         uint256 globalVotingPower = globalAverageAge * globalLQTYStaked;
         uint256 votingPower = averageAge * _lqty / globalVotingPower;
