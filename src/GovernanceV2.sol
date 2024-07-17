@@ -53,23 +53,20 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     /// @inheritdoc IGovernanceV2
     mapping(address => InitiativeVoteSnapshot) public votesForInitiativeSnapshot;
 
-
     mapping(address => uint256) public averageStakedTimestamp;
-    
+
     mapping(address => uint256) public initiativeAverageStakedTimestamp;
     mapping(address => uint256) public initiativeLQTYStaked;
-    
+
     uint256 public globalAverageStakedTimestamp;
     uint256 public globalLQTYStaked;
-
-
 
     /// @inheritdoc IGovernanceV2
     mapping(address => uint256) public lqtyAllocatedByUser;
     /// @inheritdoc IGovernanceV2
-    mapping(address => ShareAllocationAtEpoch) public lqtyAllocatedToInitiative;
+    mapping(address => AllocationAtEpoch) public lqtyAllocatedToInitiative;
     // Shares (shares + vetoShares) allocated by user to initiatives
-    mapping(address => mapping(address => ShareAllocation)) public lqtyAllocatedByUserToInitiative;
+    mapping(address => mapping(address => Allocation)) public lqtyAllocatedByUserToInitiative;
 
     constructor(
         address _lqty,
@@ -105,21 +102,26 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
         uint256 currentTimestamp = block.timestamp;
 
         uint256 averageStakedTimestamp_ = averageStakedTimestamp[msg.sender];
-        uint256 prevTotalStakedLQTY = _newTotalStakedLQTY - _depositedLQTY;        
-        averageStakedTimestamp_ = currentTimestamp - ((currentTimestamp - averageStakedTimestamp_) * prevTotalStakedLQTY * WAD) / _newTotalStakedLQTY;
+        uint256 prevTotalStakedLQTY = _newTotalStakedLQTY - _depositedLQTY;
+        averageStakedTimestamp_ = currentTimestamp
+            - ((currentTimestamp - averageStakedTimestamp_) * prevTotalStakedLQTY * WAD) / _newTotalStakedLQTY;
         averageStakedTimestamp[msg.sender] = uint64(averageStakedTimestamp_);
 
         uint256 globalAverageStakedTimestamp_ = globalAverageStakedTimestamp;
         uint256 globalLQTYStaked_ = globalLQTYStaked;
-        globalAverageStakedTimestamp = (currentTimestamp - ((currentTimestamp - globalAverageStakedTimestamp_) * globalLQTYStaked * WAD) / (globalLQTYStaked + _depositedLQTY));
-        
+        globalAverageStakedTimestamp = (
+            currentTimestamp
+                - ((currentTimestamp - globalAverageStakedTimestamp_) * globalLQTYStaked * WAD)
+                    / (globalLQTYStaked + _depositedLQTY)
+        );
+
         globalLQTYStaked = globalLQTYStaked_ + _depositedLQTY;
 
         return averageStakedTimestamp_;
     }
 
-    function _withdraw(uint256 _withdrawmLQTY) private {
-        globalLQTYStaked -= _withdrawmLQTY;
+    function _withdraw(uint256 _withdrawnLQTY) private {
+        globalLQTYStaked -= _withdrawnLQTY;
     }
 
     /// @inheritdoc IGovernanceV2
@@ -138,9 +140,7 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     }
 
     /// @inheritdoc IGovernanceV2
-    function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams calldata _permitParams)
-        external
-    {
+    function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams calldata _permitParams) external {
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
         if (userProxyAddress.code.length == 0) {
@@ -158,11 +158,10 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     function withdrawLQTY(uint240 _lqtyAmount) external {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         uint256 lqtyStaked = userProxy.staked();
-        
+
         // check if user has enough unallocated lqty
         require(
-            _lqtyAmount <= lqtyStaked - lqtyAllocatedByUser[msg.sender],
-            "Governance: insufficient-unallocated-lqty"
+            _lqtyAmount <= lqtyStaked - lqtyAllocatedByUser[msg.sender], "Governance: insufficient-unallocated-lqty"
         );
 
         _withdraw(_lqtyAmount);
@@ -199,7 +198,7 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
         uint256 globalAverageAge = block.timestamp - globalAverageStakedTimestamp;
         uint256 globalVotingPower = globalAverageAge * globalLQTYStaked;
         uint256 votingPower = averageAge * _lqty / globalVotingPower;
-        return _lqty * votingPower; 
+        return _lqty * votingPower;
     }
 
     function initiativeLQTYToVotes(uint256 _lqty, uint256 timestamp) public view returns (uint256) {
@@ -254,9 +253,9 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
         InitiativeVoteSnapshot memory snapshot = votesForInitiativeSnapshot[_initiative];
         if (snapshot.forEpoch < currentEpoch - 1) {
             uint256 votingThreshold = calculateVotingThreshold();
-            ShareAllocationAtEpoch memory shareAllocation = lqtyAllocatedToInitiative[_initiative];
-            uint256 votes = initiativeLQTYToVotes(shareAllocation.shares, _snapshotTimestamp);
-            uint256 vetos = initiativeLQTYToVotes(shareAllocation.vetoShares, _snapshotTimestamp);
+            AllocationAtEpoch memory Allocation = lqtyAllocatedToInitiative[_initiative];
+            uint256 votes = initiativeLQTYToVotes(Allocation.voteLQTY, _snapshotTimestamp);
+            uint256 vetos = initiativeLQTYToVotes(Allocation.vetoLQTY, _snapshotTimestamp);
             // if the votes didn't meet the voting threshold then no votes qualify
             if (votes >= votingThreshold && votes >= vetos) {
                 snapshot.votes = uint240(votes);
@@ -287,9 +286,8 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         VoteSnapshot memory snapshot = _snapshotVotes();
         require(
-            userLQTYToVotes(userProxy.staked())
-                >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
-            "Governance: insufficient-shares"
+            userLQTYToVotes(userProxy.staked()) >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
+            "Governance: insufficient-votes"
         );
 
         initiativesRegistered[_initiative] = block.timestamp;
@@ -304,8 +302,8 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
         VoteSnapshot memory snapshot = _snapshotVotes();
         InitiativeVoteSnapshot memory votesForInitiativeSnapshot_ =
             _snapshotVotesForInitiative(_initiative, snapshot.timestamp);
-        ShareAllocationAtEpoch memory shareAllocation = lqtyAllocatedToInitiative[_initiative];
-        uint256 vetosForInitiative = initiativeLQTYToVotes(shareAllocation.vetoShares, snapshot.timestamp);
+        AllocationAtEpoch memory Allocation = lqtyAllocatedToInitiative[_initiative];
+        uint256 vetosForInitiative = initiativeLQTYToVotes(Allocation.vetoLQTY, snapshot.timestamp);
 
         require(
             (votesForInitiativeSnapshot_.votes == 0 && votesForInitiativeSnapshot_.forEpoch + 4 < epoch())
@@ -348,42 +346,51 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
                 "Governance: epoch-voting-cutoff"
             );
 
-            ShareAllocationAtEpoch memory lqtyAllocatedToInitiative_ = lqtyAllocatedToInitiative[initiative];
+            AllocationAtEpoch memory lqtyAllocatedToInitiative_ = lqtyAllocatedToInitiative[initiative];
 
             // Add or remove the initiatives shares count from the global qualifying shares count if the initiative
             // meets the voting threshold or not
-            uint256 votesForInitiative = initiativeLQTYToVotes(lqtyAllocatedToInitiative_.shares, block.timestamp);
+            uint256 votesForInitiative = initiativeLQTYToVotes(lqtyAllocatedToInitiative_.voteLQTY, block.timestamp);
             if (deltaLQTYVotes > 0) {
                 if (votesForInitiative >= votingThreshold) {
                     qualifyingLQTY += uint256(deltaLQTYVotes);
                 } else {
-                    if (votesForInitiative + initiativeLQTYToVotes(lqtyAllocatedToInitiative_.shares + uint256(deltaLQTYVotes), block.timestamp) >= votingThreshold) {
-                        qualifyingLQTY += lqtyAllocatedToInitiative_.shares + uint256(deltaLQTYVotes);
+                    if (
+                        votesForInitiative
+                            + initiativeLQTYToVotes(
+                                lqtyAllocatedToInitiative_.voteLQTY + uint256(deltaLQTYVotes), block.timestamp
+                            ) >= votingThreshold
+                    ) {
+                        qualifyingLQTY += lqtyAllocatedToInitiative_.voteLQTY + uint256(deltaLQTYVotes);
                     }
                 }
             } else if (deltaLQTYVotes < 0) {
                 if (votesForInitiative >= votingThreshold) {
-                    if (votesForInitiative - initiativeLQTYToVotes(lqtyAllocatedToInitiative_.shares - uint256(-deltaLQTYVotes), block.timestamp) >= votingThreshold) {
+                    if (
+                        votesForInitiative
+                            - initiativeLQTYToVotes(
+                                lqtyAllocatedToInitiative_.voteLQTY - uint256(-deltaLQTYVotes), block.timestamp
+                            ) >= votingThreshold
+                    ) {
                         qualifyingLQTY -= uint256(-deltaLQTYVotes);
                     } else {
-                        qualifyingLQTY -= lqtyAllocatedToInitiative_.shares;
+                        qualifyingLQTY -= lqtyAllocatedToInitiative_.voteLQTY;
                     }
                 }
             }
 
-            ShareAllocation memory lqtyAllocatedByUserToInitiative_ =
-                lqtyAllocatedByUserToInitiative[msg.sender][initiative];
+            Allocation memory lqtyAllocatedByUserToInitiative_ = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
 
             lqtyAllocatedByUser_ = add(lqtyAllocatedByUser_, deltaLQTYVotes);
-            lqtyAllocatedToInitiative_.shares = add(lqtyAllocatedToInitiative_.shares, deltaLQTYVotes);
-            lqtyAllocatedByUserToInitiative_.shares = add(lqtyAllocatedByUserToInitiative_.shares, deltaLQTYVotes);
+            lqtyAllocatedToInitiative_.voteLQTY = add(lqtyAllocatedToInitiative_.voteLQTY, deltaLQTYVotes);
+            lqtyAllocatedByUserToInitiative_.voteLQTY = add(lqtyAllocatedByUserToInitiative_.voteLQTY, deltaLQTYVotes);
 
             int256 deltaLQTYVetos = _deltaLQTYVetos[i];
             if (deltaLQTYVetos != 0) {
                 lqtyAllocatedByUser_ = add(lqtyAllocatedByUser_, deltaLQTYVetos);
-                lqtyAllocatedToInitiative_.vetoShares = add(lqtyAllocatedToInitiative_.vetoShares, deltaLQTYVetos);
-                lqtyAllocatedByUserToInitiative_.vetoShares =
-                    add(lqtyAllocatedByUserToInitiative_.vetoShares, deltaLQTYVetos);
+                lqtyAllocatedToInitiative_.vetoLQTY = add(lqtyAllocatedToInitiative_.vetoLQTY, deltaLQTYVetos);
+                lqtyAllocatedByUserToInitiative_.vetoLQTY =
+                    add(lqtyAllocatedByUserToInitiative_.vetoLQTY, deltaLQTYVetos);
             }
 
             lqtyAllocatedToInitiative_.atEpoch = currentEpoch;
@@ -391,15 +398,16 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
             lqtyAllocatedToInitiative[initiative] = lqtyAllocatedToInitiative_;
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = lqtyAllocatedByUserToInitiative_;
 
-            emit AllocateShares(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
+            emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 
             try IInitiative(initiative).onAfterAllocateShares(
-                msg.sender, lqtyAllocatedByUserToInitiative_.shares, lqtyAllocatedByUserToInitiative_.vetoShares
+                msg.sender, lqtyAllocatedByUserToInitiative_.voteLQTY, lqtyAllocatedByUserToInitiative_.vetoLQTY
             ) {} catch {}
         }
 
         require(
-            lqtyAllocatedByUser_ == 0 || lqtyAllocatedByUser_ <= UserProxy(payable (deriveUserProxyAddress(msg.sender))).staked(),
+            lqtyAllocatedByUser_ == 0
+                || lqtyAllocatedByUser_ <= UserProxy(payable(deriveUserProxyAddress(msg.sender))).staked(),
             "Governance: insufficient-or-unallocated-shares"
         );
 

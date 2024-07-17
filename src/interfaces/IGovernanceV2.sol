@@ -8,11 +8,7 @@ import {PermitParams} from "../utils/Types.sol";
 interface IGovernanceV2 {
     event DepositLQTY(address user, uint256 depositedLQTY);
     event WithdrawLQTY(
-        address user,
-        uint256 withdrawnLQTY,
-        uint256 accruedLQTY_,
-        uint256 accruedLUSD,
-        uint256 accruedETH
+        address user, uint256 withdrawnLQTY, uint256 accruedLQTY_, uint256 accruedLUSD, uint256 accruedETH
     );
 
     event SnapshotVotes(uint240 votes, uint16 forEpoch);
@@ -23,7 +19,7 @@ interface IGovernanceV2 {
 
     event UnregisterInitiative(address initiative, uint16 atEpoch);
 
-    event AllocateShares(address user, address initiative, int256 deltaShares, int256 deltaVetoShares, uint16 atEpoch);
+    event AllocateLQTY(address user, address initiative, int256 deltaShares, int256 deltaVetoShares, uint16 atEpoch);
 
     event ClaimForInitiative(address initiative, uint256 bold, uint256 forEpoch);
 
@@ -59,11 +55,6 @@ interface IGovernanceV2 {
     /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
     function VOTING_THRESHOLD_FACTOR() external view returns (uint256);
 
-    struct SharesAtEpoch {
-        uint240 shares;
-        uint16 atEpoch;
-    }
-
     /// @notice Initiatives registered, by address
     function initiativesRegistered(address) external view returns (uint256);
 
@@ -94,14 +85,14 @@ interface IGovernanceV2 {
     /// @notice Number of shares (shares + vetoShares) allocated by user
     function lqtyAllocatedByUser(address) external view returns (uint256);
 
-    struct ShareAllocation {
-        uint128 shares; // Shares allocated vouching for the initiative
-        uint128 vetoShares; // Shares vetoing the initiative
+    struct Allocation {
+        uint128 voteLQTY; // Shares allocated vouching for the initiative
+        uint128 vetoLQTY; // Shares vetoing the initiative
     }
 
-    struct ShareAllocationAtEpoch {
-        uint120 shares; // Shares allocated vouching for the initiative
-        uint120 vetoShares; // Shares vetoing the initiative
+    struct AllocationAtEpoch {
+        uint120 voteLQTY; // Shares allocated vouching for the initiative
+        uint120 vetoLQTY; // Shares vetoing the initiative
         uint16 atEpoch; // Epoch at which the allocation was last updated
     }
 
