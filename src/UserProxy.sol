@@ -81,5 +81,9 @@ contract UserProxy is IUserProxy {
         emit Unstake(_amount, _lqtyRecipient, _lusdEthRecipient, lqtyAmount, lusdAmount, ethAmount);
     }
 
+    function staked() external view returns (uint256) {
+        return stakingV1.stakes(msg.sender);
+    }
+
     receive() external payable {}
 }
