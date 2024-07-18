@@ -82,7 +82,7 @@ contract UserProxy is IUserProxy {
     }
 
     function staked() external view returns (uint256) {
-        return stakingV1.stakes(msg.sender);
+        return stakingV1.stakes(address(this));
     }
 
     receive() external payable {}
