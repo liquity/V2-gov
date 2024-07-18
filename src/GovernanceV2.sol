@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {console} from "forge-std/console.sol";
+
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
@@ -191,10 +193,15 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
 
     // / @inheritdoc IGovernanceV2
     function userLQTYToVotes(uint256 _lqty) public view returns (uint256) {
+        console.log("block.timestamp: ", block.timestamp);
         uint256 averageAge = block.timestamp - averageStakedTimestampByUser[msg.sender];
+        console.log("averageAge: ", averageAge);
         uint256 globalAverageAge = block.timestamp - globalAverageStakedTimestamp;
+        console.log("globalAverageAge: ", globalAverageAge);
         uint256 globalVotingPower = globalAverageAge * globalLQTYStaked;
+        console.log("globalVotingPower: ", globalVotingPower);
         uint256 votingPower = averageAge * _lqty / globalVotingPower;
+        console.log("votingPower: ", votingPower);
         return _lqty * votingPower;
     }
 
@@ -284,7 +291,7 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
         VoteSnapshot memory snapshot = _snapshotVotes();
         require(
             userLQTYToVotes(userProxy.staked()) >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
-            "Governance: insufficient-votes"
+            "Governance: insufficient-lqty"
         );
 
         initiativesRegistered[_initiative] = block.timestamp;

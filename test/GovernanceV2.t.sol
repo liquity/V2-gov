@@ -98,13 +98,17 @@ contract GovernanceV2Test is Test {
         governance.depositLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
 
+        lqty.approve(address(userProxy), 1e18);
+        governance.depositLQTY(1e18);
+        assertEq(UserProxy(payable(userProxy)).staked(), 2e18);
+
         // withdraw 0.5 half of shares
         vm.warp(block.timestamp + 86400 * 30);
         governance.withdrawLQTY(0.5e18);
-        assertEq(UserProxy(payable(userProxy)).staked(), 0.5e18);
+        assertEq(UserProxy(payable(userProxy)).staked(), 1.5e18);
 
         // withdraw remaining shares
-        governance.withdrawLQTY(0.5e18);
+        governance.withdrawLQTY(1.5e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 0);
 
         vm.stopPrank();
@@ -234,32 +238,32 @@ contract GovernanceV2Test is Test {
     //     assertEq(governance.calculateVotingThreshold(), 10000e18 * 0.04);
     // }
 
-    // function test_registerInitiative() public {
-    //     IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1, governance.currentShareRate());
-    //     vm.store(address(governance), bytes32(uint256(5)), bytes32(abi.encode(snapshot)));
-    //     (uint240 votes,,) = governance.votesSnapshot();
-    //     assertEq(votes, 1e18);
+    function test_registerInitiative_v2() public {
+        IGovernanceV2.VoteSnapshot memory snapshot = IGovernanceV2.VoteSnapshot(1e18, 1, block.timestamp);
+        vm.store(address(governance), bytes32(uint256(4)), bytes32(abi.encode(snapshot)));
+        (uint240 votes,,) = governance.votesSnapshot();
+        assertEq(votes, 1e18);
 
-    //     vm.expectRevert("ERC20: transfer amount exceeds balance");
-    //     governance.registerInitiative(baseInitiative3);
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        governance.registerInitiative(baseInitiative3);
 
-    //     vm.startPrank(lusdHolder);
-    //     lusd.transfer(address(this), 1e18);
-    //     vm.stopPrank();
+        vm.startPrank(lusdHolder);
+        lusd.transfer(address(this), 1e18);
+        vm.stopPrank();
 
-    //     lusd.approve(address(governance), 1e18);
+        lusd.approve(address(governance), 1e18);
 
-    //     vm.expectRevert("Governance: insufficient-shares");
-    //     governance.registerInitiative(baseInitiative3);
+        vm.expectRevert("Governance: insufficient-lqty");
+        governance.registerInitiative(baseInitiative3);
 
-    //     vm.store(address(governance), keccak256(abi.encode(address(this), 1)), bytes32(abi.encode(1e18)));
-    //     (uint240 shares,) = governance.sharesByUser(address(this));
-    //     assertEq(shares, 1e18);
-    //     vm.warp(block.timestamp + 365 days);
+        // vm.store(address(governance), keccak256(abi.encode(address(this), 1)), bytes32(abi.encode(1e18)));
+        // (uint240 shares,) = governance.sharesByUser(address(this));
+        // assertEq(shares, 1e18);
+        // vm.warp(block.timestamp + 365 days);
 
-    //     governance.registerInitiative(baseInitiative3);
-    //     assertEq(governance.initiativesRegistered(baseInitiative3), block.timestamp);
-    // }
+        // governance.registerInitiative(baseInitiative3);
+        // assertEq(governance.initiativesRegistered(baseInitiative3), block.timestamp);
+    }
 
     function test_allocateLQTY_v2() public {
         vm.startPrank(user);
@@ -287,29 +291,29 @@ contract GovernanceV2Test is Test {
 
         assertEq(governance.qualifyingLQTY(), 1e18);
         assertEq(governance.lqtyAllocatedByUser(user), 1e18);
-        // (uint120 sharesAllocated, uint120 vetoSharesAllocated, uint16 atEpoch) =
-        //     governance.sharesAllocatedToInitiative(baseInitiative1);
-        // assertEq(sharesAllocated, 1e18);
-        // assertEq(vetoSharesAllocated, 0);
-        // assertEq(atEpoch, governance.epoch());
-        // assertGt(atEpoch, 0);
+        (uint120 lqtyVotesAllocated, uint120 lqtyVetosAllocated, uint16 atEpoch) =
+            governance.lqtyAllocatedToInitiative(baseInitiative1);
+        assertEq(lqtyVotesAllocated, 1e18);
+        assertEq(lqtyVetosAllocated, 0);
+        assertEq(atEpoch, governance.epoch());
+        assertGt(atEpoch, 0);
 
-        // vm.expectRevert("Governance: insufficient-unallocated-shares");
-        // governance.withdrawLQTY(1e18);
+        vm.expectRevert("Governance: insufficient-unallocated-lqty");
+        governance.withdrawLQTY(1e18);
 
-        // vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsDuringCurrentEpoch() - 1);
+        vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsDuringCurrentEpoch() - 1);
 
-        // initiatives[0] = baseInitiative1;
-        // deltaShares[0] = 1e18;
-        // vm.expectRevert("Governance: epoch-voting-cutoff");
-        // governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
+        initiatives[0] = baseInitiative1;
+        deltaLQTYVotes[0] = 1e18;
+        vm.expectRevert("Governance: epoch-voting-cutoff");
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
-        // initiatives[0] = baseInitiative1;
-        // deltaShares[0] = -1e18;
-        // governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
+        initiatives[0] = baseInitiative1;
+        deltaLQTYVotes[0] = -1e18;
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
-        // assertEq(governance.qualifyingShares(), 0);
-        // assertEq(governance.sharesAllocatedByUser(user), 0);
+        assertEq(governance.qualifyingLQTY(), 0);
+        assertEq(governance.lqtyAllocatedByUser(user), 0);
 
         vm.stopPrank();
     }
