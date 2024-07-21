@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+import {console} from "forge-std/console.sol";
+
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -81,8 +83,9 @@ contract UserProxy is IUserProxy {
         emit Unstake(_amount, _lqtyRecipient, _lusdEthRecipient, lqtyAmount, lusdAmount, ethAmount);
     }
 
-    function staked() external view returns (uint256) {
-        return stakingV1.stakes(address(this));
+    /// @inheritdoc IUserProxy
+    function staked() external view returns (uint96) {
+        return uint96(stakingV1.stakes(address(this)));
     }
 
     receive() external payable {}

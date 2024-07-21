@@ -35,4 +35,6 @@ interface IUserProxy {
     function unstake(uint256 _amount, address _lqtyRecipient, address _lusdEthRecipient)
         external
         returns (uint256 lqtyAmount, uint256 lusdAmount, uint256 ethAmount);
+    /// @notice Returns the current amount LQTY staked by a user in the V1 staking contract
+    function staked() external view returns (uint96);
 }

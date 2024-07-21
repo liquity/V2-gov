@@ -19,7 +19,7 @@ interface IGovernanceV2 {
 
     event UnregisterInitiative(address initiative, uint16 atEpoch);
 
-    event AllocateLQTY(address user, address initiative, int256 deltaShares, int256 deltaVetoShares, uint16 atEpoch);
+    event AllocateLQTY(address user, address initiative, int256 deltaVoteLQTY, int256 deltaVetoLQTY, uint16 atEpoch);
 
     event ClaimForInitiative(address initiative, uint256 bold, uint256 forEpoch);
 
@@ -36,10 +36,10 @@ interface IGovernanceV2 {
 
     /// @notice Address of the BOLD token
     function bold() external view returns (IERC20);
-    /// @notice Reference timestamp used to derive the current share rate
-    function EPOCH_DURATION() external view returns (uint256);
-    /// @notice Duration of an epoch in seconds (e.g. 1 week)
+    /// @notice Reference timestamp ...
     function EPOCH_START() external view returns (uint256);
+    /// @notice Duration of an epoch in seconds (e.g. 1 week)
+    function EPOCH_DURATION() external view returns (uint256);
     /// @notice Voting period of an epoch in seconds (e.g. 6 days)
     function EPOCH_VOTING_CUTOFF() external view returns (uint256);
     /// @notice Minimum BOLD amount that can be claimed, if an initiative doesn't have enough votes to meet the
@@ -55,23 +55,13 @@ interface IGovernanceV2 {
     /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
     function VOTING_THRESHOLD_FACTOR() external view returns (uint256);
 
-    /// @notice Initiatives registered, by address
-    function initiativesRegistered(address) external view returns (uint256);
-
     /// @notice BOLD accrued since last epoch
     function boldAccrued() external view returns (uint256);
-
-    /// @notice Total number of shares allocated to initiatives that meet the voting threshold and are included
-    /// in vote counting
-    function qualifyingLQTY() external view returns (uint256);
-
-    /// @notice Number of votes at the last epoch
-    function votesSnapshot() external view returns (uint240 votes, uint16 forEpoch, uint256 shareRate);
 
     struct VoteSnapshot {
         uint240 votes;
         uint16 forEpoch;
-        uint256 timestamp;
+        uint256 timestamp; // TODO: calculate epoch start
     }
 
     struct InitiativeVoteSnapshot {
@@ -79,44 +69,78 @@ interface IGovernanceV2 {
         uint16 forEpoch;
     }
 
+    /// @notice Number of votes at the last epoch
+    function votesSnapshot() external view returns (uint240 votes, uint16 forEpoch, uint256 timestamp);
     /// @notice Number of votes received by an initiative at the last epoch
     function votesForInitiativeSnapshot(address) external view returns (uint240 votes, uint16 forEpoch);
 
-    /// @notice Number of shares (shares + vetoShares) allocated by user
-    function lqtyAllocatedByUser(address) external view returns (uint256);
-
     struct Allocation {
-        uint128 voteLQTY; // Shares allocated vouching for the initiative
-        uint128 vetoLQTY; // Shares vetoing the initiative
-    }
-
-    struct AllocationAtEpoch {
-        uint120 voteLQTY; // Shares allocated vouching for the initiative
-        uint120 vetoLQTY; // Shares vetoing the initiative
+        uint96 voteLQTY; // LQTY allocated vouching for the initiative
+        uint96 vetoLQTY; // LQTY vetoing the initiative
         uint16 atEpoch; // Epoch at which the allocation was last updated
     }
 
-    /// @notice Shares (shares + vetoShares) allocated to initiatives
-    function lqtyAllocatedToInitiative(address)
+    struct UserState {
+        uint96 allocatedLQTY; // LQTY allocated by the user
+        uint32 averageStakingTimestamp; // Average timestamp at which LQTY was staked by the user
+    }
+
+    struct InitiativeState {
+        uint96 voteLQTY; // LQTY allocated vouching for the initiative
+        uint96 vetoLQTY; // LQTY allocated vetoing the initiative
+        uint8 counted; // Whether votes were counted 'atEpoch' (included in 'globalAllocation.countedLQTY')
+        uint8 active; // Whether the initiative can receive allocations
+        uint16 atEpoch; // Epoch at which the allocation was last updated
+        uint32 averageStakingTimestamp; // Average timestamp at which LQTY was allocated to the initiative
+    }
+
+    struct GlobalState {
+        uint96 totalStakedLQTY; // Total LQTY staked
+        uint32 totalStakedLQTYAverageTimestamp; // Average timestamp at which LQTY was staked
+        uint96 countedVoteLQTY; // Total LQTY that is included in vote counting
+        uint32 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
+    }
+
+    /// @notice ...
+    function userStates(address) external view returns (uint96 allocatedLQTY, uint32 averageStakingTimestamp);
+    /// @notice ...
+    function initiativeStates(address)
         external
         view
-        returns (uint120 shares, uint120 vetoShares, uint16 atEpoch);
-    /// @notice Shares (shares + vetoShares) allocated by user to initiatives
+        returns (
+            uint96 voteLQTY,
+            uint96 vetoLQTY,
+            uint8 counted,
+            uint8 active,
+            uint16 atEpoch,
+            uint32 averageStakingTimestamp
+        );
+    /// @notice ...
+    function globalState()
+        external
+        view
+        returns (
+            uint96 totalStakedLQTY,
+            uint32 totalStakedLQTYAverageTimestamp,
+            uint96 countedVoteLQTY,
+            uint32 countedVoteLQTYAverageTimestamp
+        );
+    /// @notice ...
     function lqtyAllocatedByUserToInitiative(address, address)
         external
         view
-        returns (uint128 shares, uint128 vetoShares);
+        returns (uint96 voteLQTY, uint96 vetoLQTY, uint16 atEpoch);
 
     /*//////////////////////////////////////////////////////////////
                                 STAKING
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Deposits LQTY and mints shares based on the current share rate
-    function depositLQTY(uint256 _lqtyAmount) external;
-    /// @notice Deposits LQTY via Permit and mints shares based on the current share rate
-    function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams memory _permitParams) external;
-    /// @notice Withdraws LQRT by burning the shares and claim any accrued LUSD and ETH rewards from StakingV1
-    function withdrawLQTY(uint240 _lqtyAmount) external;
+    /// @notice Deposits LQTY
+    function depositLQTY(uint96 _lqtyAmount) external;
+    /// @notice Deposits LQTY via Permit
+    function depositLQTYViaPermit(uint96 _lqtyAmount, PermitParams memory _permitParams) external;
+    /// @notice Withdraws LQTY and claims any accrued LUSD and ETH rewards from StakingV1
+    function withdrawLQTY(uint96 _lqtyAmount) external;
     /// @notice Claims staking rewards from StakingV1 without unstaking
     function claimFromStakingV1(address _rewardRecipient) external;
 
@@ -127,12 +151,15 @@ interface IGovernanceV2 {
     /// @notice Returns the current epoch number
     function epoch() external view returns (uint16);
     /// @notice Returns the number of seconds that have gone by during current epoch
-    function secondsDuringCurrentEpoch() external view returns (uint256);
-    // /// @notice Voting power of a share linearly increases over time starting from 0 at time of share issuance
-    // function sharesToVotes(uint256 _shareRate, uint256 _shares) external pure returns (uint256);
+    function secondsDuringCurrentEpoch() external view returns (uint32);
+    /// @notice Returns the number of votes per LQTY for a user
+    function lqtyToVotes(uint96 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp)
+        external
+        pure
+        returns (uint240);
 
     /// @notice Voting threshold is the max. of either:
-    ///   - 4% of total shares allocated in the previous epoch
+    ///   - 4% of total LQTY allocated in the previous epoch
     ///   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
     function calculateVotingThreshold() external view returns (uint256);
 
@@ -147,11 +174,11 @@ interface IGovernanceV2 {
     // /// or if it received more vetos than votes and the number of vetos are greater than 3 times the voting threshold
     function unregisterInitiative(address _initiative) external;
 
-    /// @notice Allocates the user's shares to initiatives either as vote shares or veto shares
+    /// @notice Allocates the user's LQTY to initiatives
     function allocateLQTY(
         address[] memory _initiatives,
-        int256[] memory _deltaLQTYVotes,
-        int256[] memory _deltaLQTYVetos
+        int192[] memory _deltaLQTYVotes,
+        int192[] memory _deltaLQTYVetos
     ) external;
 
     /// @notice Splits accrued funds according to votes received between all initiatives

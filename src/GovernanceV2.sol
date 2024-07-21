@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import {console} from "forge-std/console.sol";
-
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
@@ -13,9 +11,9 @@ import {IInitiative} from "./interfaces/IInitiative.sol";
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 
-import {add, max} from "./utils/Math.sol";
+import {_add, max} from "./utils/Math.sol";
 import {Multicall} from "./utils/Multicall.sol";
-import {WAD, ONE_YEAR, PermitParams} from "./utils/Types.sol";
+import {WAD, PermitParams} from "./utils/Types.sol";
 
 /// @title Governance: Modular Initiative based Governance
 contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernanceV2 {
@@ -42,29 +40,20 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
 
     /// @inheritdoc IGovernanceV2
-    mapping(address => uint256) public initiativesRegistered;
-
-    /// @inheritdoc IGovernanceV2
     uint256 public boldAccrued;
-
-    /// @inheritdoc IGovernanceV2
-    uint256 public qualifyingLQTY;
 
     /// @inheritdoc IGovernanceV2
     VoteSnapshot public votesSnapshot;
     /// @inheritdoc IGovernanceV2
     mapping(address => InitiativeVoteSnapshot) public votesForInitiativeSnapshot;
 
-    uint256 public globalAverageStakedTimestamp;
-    uint256 public globalLQTYStaked;
-
     /// @inheritdoc IGovernanceV2
-    mapping(address => uint256) public lqtyAllocatedByUser;
-    mapping(address => uint256) public averageStakedTimestampByUser;
+    GlobalState public globalState;
     /// @inheritdoc IGovernanceV2
-    mapping(address => AllocationAtEpoch) public lqtyAllocatedToInitiative;
-    mapping(address => uint256) public averageStakedTimestampByInitiative;
-    // Shares (shares + vetoShares) allocated by user to initiatives
+    mapping(address => UserState) public userStates;
+    /// @inheritdoc IGovernanceV2
+    mapping(address => InitiativeState) public initiativeStates;
+    /// @inheritdoc IGovernanceV2
     mapping(address => mapping(address => Allocation)) public lqtyAllocatedByUserToInitiative;
 
     constructor(
@@ -89,81 +78,151 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
         require(_config.epochVotingCutoff < _config.epochDuration, "Gov: epoch-voting-cutoff-gt-epoch-duration");
         EPOCH_VOTING_CUTOFF = _config.epochVotingCutoff;
         for (uint256 i = 0; i < _initiatives.length; i++) {
-            initiativesRegistered[_initiatives[i]] = block.timestamp;
+            initiativeStates[_initiatives[i]] = InitiativeState(0, 0, 0, 0, epoch(), 0);
         }
+    }
+
+    function _averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) internal pure returns (uint32) {
+        if (_averageTimestamp == 0 || _currentTimestamp < _averageTimestamp) return 0;
+        return _currentTimestamp - _averageTimestamp;
+    }
+
+    function _calculateAverageTimestamp(
+        uint32 _prevOuterAverageTimestamp, // initiativeAllocations[_initiative].averageTimestamp
+        uint32 _newInnerAverageTimestamp, // userAllocations[_initiative].averageTimestamp post update // for userAverageTimestamp block.timestamp
+        uint96 _prevLQTYBalance,
+        uint96 _newLQTYBalance
+    ) internal view returns (uint32) {
+        // currentAge_ = block.timestamp - initiatives[_initiative].vote.timestamp
+        // votingAge_ = block.timestamp - deposit[_address].timestamp
+        // currentStake_ = initiatives[_initiative].vote.stake
+        // newAge_ = (currentAge_ * currentStake_ + votingAge_ * _stake) / (currentAge_ + votingAge_)
+
+        // return (_prevOuterAverageTimestamp * _newLQTYBalance + _newInnerAverageTimestamp * (_newLQTYBalance - _prevLQTYBalance))
+        //         / (_prevOuterAverageTimestamp + _newInnerAverageTimestamp);
+
+        // return (outerAverageAge * _newLQTYBalance + innerAverageAge * _newLQTYBalance - _prevLQTYBalance) / (outerAvergeAge + innerAverageAge);
+
+        // return currentTimestamp - ((currentTimestamp - _prevAverageTimestamp) * _prevLQTYBalance * WAD) / _newLQTYBalance;
+
+        uint32 prevOuterAverageAge = _averageAge(uint32(block.timestamp), _prevOuterAverageTimestamp);
+        uint32 newInnerAverageAge = _averageAge(uint32(block.timestamp), _newInnerAverageTimestamp);
+
+        uint96 newOuterAverageAge;
+        if (_prevLQTYBalance <= _newLQTYBalance) {
+            uint96 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
+            uint32 deltaAge = newInnerAverageAge; // prevOuterAverageAge - newInnerAverageAge;
+            if (_prevLQTYBalance + deltaLQTY == 0) {
+                newOuterAverageAge = 0;
+            } else {
+                newOuterAverageAge =
+                    (_prevLQTYBalance * prevOuterAverageAge + deltaLQTY * deltaAge) / (_prevLQTYBalance + deltaLQTY);
+            }
+        } else {
+            uint96 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
+            uint32 deltaAge = newInnerAverageAge; // newInnerAverageAge - prevOuterAverageAge;
+            if (deltaLQTY >= _prevLQTYBalance) {
+                newOuterAverageAge = 0;
+            } else {
+                newOuterAverageAge =
+                    (_prevLQTYBalance * prevOuterAverageAge - deltaLQTY * deltaAge) / (_prevLQTYBalance - deltaLQTY);
+            }
+        }
+
+        return uint32(block.timestamp - newOuterAverageAge);
     }
 
     /*//////////////////////////////////////////////////////////////
                                 STAKING
     //////////////////////////////////////////////////////////////*/
 
-    function _deposit(uint256 _newTotalStakedLQTY, uint256 _depositedLQTY) private returns (uint256) {
-        uint256 currentTimestamp = block.timestamp;
+    function _deposit(uint96 _lqtyAmount) private {
+        // uint256 currentTimestamp = block.timestamp;
 
-        uint256 averageStakedTimestamp_ = averageStakedTimestampByUser[msg.sender];
-        uint256 prevTotalStakedLQTY = _newTotalStakedLQTY - _depositedLQTY;
-        averageStakedTimestamp_ = currentTimestamp
-            - ((currentTimestamp - averageStakedTimestamp_) * prevTotalStakedLQTY * WAD) / _newTotalStakedLQTY;
-        averageStakedTimestampByUser[msg.sender] = uint64(averageStakedTimestamp_);
+        // uint256 averageStakingTimestamp_ = averageStakingTimestampByUser[msg.sender];
+        // uint256 prevTotalStakedLQTY = _newTotalStakedLQTY - _depositedLQTY;
+        // averageStakingTimestamp_ = currentTimestamp
+        //     - ((currentTimestamp - averageStakingTimestamp_) * prevTotalStakedLQTY * WAD) / _newTotalStakedLQTY;
+        // averageStakingTimestampByUser[msg.sender] = uint64(averageStakingTimestamp_);
 
-        uint256 globalAverageStakedTimestamp_ = globalAverageStakedTimestamp;
-        uint256 globalLQTYStaked_ = globalLQTYStaked;
-        globalAverageStakedTimestamp = (
-            currentTimestamp
-                - ((currentTimestamp - globalAverageStakedTimestamp_) * globalLQTYStaked * WAD)
-                    / (globalLQTYStaked + _depositedLQTY)
+        // uint256 globalAverageStakedTimestamp_ = globalAverageStakedTimestamp;
+        // uint256 globalLQTYStaked_ = globalLQTYStaked;
+        // globalAverageStakedTimestamp = (
+        //     currentTimestamp
+        //         - ((currentTimestamp - globalAverageStakedTimestamp_) * globalLQTYStaked * WAD)
+        //             / (globalLQTYStaked + _depositedLQTY)
+        // );
+
+        // globalLQTYStaked = globalLQTYStaked_ + _depositedLQTY;
+
+        UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
+        uint96 lqtyStaked = uint96(userProxy.staked());
+
+        // update the average staked timestamp for LQTY staked by the user
+        UserState memory userState = userStates[msg.sender];
+        userState.averageStakingTimestamp = _calculateAverageTimestamp(
+            userState.averageStakingTimestamp, uint32(block.timestamp), lqtyStaked, lqtyStaked + _lqtyAmount
         );
+        userStates[msg.sender] = userState;
 
-        globalLQTYStaked = globalLQTYStaked_ + _depositedLQTY;
-
-        return averageStakedTimestamp_;
-    }
-
-    function _withdraw(uint256 _withdrawnLQTY) private {
-        globalLQTYStaked -= _withdrawnLQTY;
+        // update the average staked timestamp for all LQTY staked
+        GlobalState memory state = globalState;
+        state.totalStakedLQTYAverageTimestamp = _calculateAverageTimestamp(
+            state.totalStakedLQTYAverageTimestamp,
+            uint32(block.timestamp),
+            state.totalStakedLQTY,
+            state.totalStakedLQTY + _lqtyAmount
+        );
+        state.totalStakedLQTY += _lqtyAmount;
+        globalState = state;
     }
 
     /// @inheritdoc IGovernanceV2
-    function depositLQTY(uint256 _lqtyAmount) external {
+    function depositLQTY(uint96 _lqtyAmount) external nonReentrant {
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
         if (userProxyAddress.code.length == 0) {
             deployUserProxy();
         }
+
+        _deposit(_lqtyAmount);
 
         UserProxy userProxy = UserProxy(payable(userProxyAddress));
         userProxy.stake(_lqtyAmount, msg.sender);
-        _deposit(userProxy.staked(), _lqtyAmount);
 
         emit DepositLQTY(msg.sender, _lqtyAmount);
     }
 
     /// @inheritdoc IGovernanceV2
-    function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams calldata _permitParams) external {
+    function depositLQTYViaPermit(uint96 _lqtyAmount, PermitParams calldata _permitParams) external nonReentrant {
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
         if (userProxyAddress.code.length == 0) {
             deployUserProxy();
         }
 
+        _deposit(_lqtyAmount);
+
         UserProxy userProxy = UserProxy(payable(userProxyAddress));
         userProxy.stakeViaPermit(_lqtyAmount, msg.sender, _permitParams);
-        _deposit(userProxy.staked(), _lqtyAmount);
 
         emit DepositLQTY(msg.sender, _lqtyAmount);
     }
 
     /// @inheritdoc IGovernanceV2
-    function withdrawLQTY(uint240 _lqtyAmount) external {
+    function withdrawLQTY(uint96 _lqtyAmount) external {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         uint256 lqtyStaked = userProxy.staked();
 
-        // check if user has enough unallocated lqty
-        require(
-            _lqtyAmount <= lqtyStaked - lqtyAllocatedByUser[msg.sender], "Governance: insufficient-unallocated-lqty"
-        );
+        UserState storage userState = userStates[msg.sender];
 
-        _withdraw(_lqtyAmount);
+        // check if user has enough unallocated lqty
+        require(_lqtyAmount <= lqtyStaked - userState.allocatedLQTY, "Governance: insufficient-unallocated-lqty");
+
+        // update the average staked timestamp for all LQTY staked
+        GlobalState memory state = globalState;
+        state.totalStakedLQTY -= _lqtyAmount;
+        globalState = state;
 
         // TODO: remove accruedLQTY
         (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH) =
@@ -187,36 +246,16 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     }
 
     /// @inheritdoc IGovernanceV2
-    function secondsDuringCurrentEpoch() public view returns (uint256) {
-        return (block.timestamp - EPOCH_START) % EPOCH_DURATION;
+    function secondsDuringCurrentEpoch() public view returns (uint32) {
+        return uint32((block.timestamp - EPOCH_START) % EPOCH_DURATION);
     }
 
-    // / @inheritdoc IGovernanceV2
-    function userLQTYToVotes(uint256 _lqty) public view returns (uint256) {
-        console.log("block.timestamp: ", block.timestamp);
-        uint256 averageAge = block.timestamp - averageStakedTimestampByUser[msg.sender];
-        console.log("averageAge: ", averageAge);
-        uint256 globalAverageAge = block.timestamp - globalAverageStakedTimestamp;
-        console.log("globalAverageAge: ", globalAverageAge);
-        uint256 globalVotingPower = globalAverageAge * globalLQTYStaked;
-        console.log("globalVotingPower: ", globalVotingPower);
-        uint256 votingPower = averageAge * _lqty / globalVotingPower;
-        console.log("votingPower: ", votingPower);
-        return _lqty * votingPower;
-    }
-
-    function initiativeLQTYToVotes(uint256 _lqty, uint256 timestamp) public view returns (uint256) {
-        uint256 averageAge = timestamp - averageStakedTimestampByInitiative[msg.sender];
-        uint256 globalAverageAge = timestamp - globalAverageStakedTimestamp;
-        uint256 globalVotingPower = globalAverageAge * globalLQTYStaked;
-        uint256 votingPower = averageAge * _lqty / globalVotingPower;
-        return _lqty * votingPower;
-    }
-
-    function globalLQTYToVotes(uint256 _lqty) public view returns (uint256) {
-        uint256 globalAverageAge = block.timestamp - globalAverageStakedTimestamp;
-        uint256 globalVotingPower = globalAverageAge * globalLQTYStaked;
-        return _lqty * globalVotingPower;
+    function lqtyToVotes(uint96 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp)
+        public
+        pure
+        returns (uint240)
+    {
+        return _lqtyAmount * _averageAge(uint32(_currentTimestamp), _averageTimestamp);
     }
 
     /// @inheritdoc IGovernanceV2
@@ -233,12 +272,13 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     }
 
     // Snapshots votes for the previous epoch and accrues funds for the current epoch
-    function _snapshotVotes() internal returns (VoteSnapshot memory snapshot) {
+    function _snapshotVotes() internal returns (VoteSnapshot memory snapshot, GlobalState memory state) {
         uint16 currentEpoch = epoch();
         snapshot = votesSnapshot;
+        state = globalState;
         if (snapshot.forEpoch < currentEpoch - 1) {
-            snapshot.timestamp = block.timestamp;
-            snapshot.votes = uint240(globalLQTYToVotes(qualifyingLQTY));
+            snapshot.timestamp = block.timestamp; // TODO: remove
+            snapshot.votes = lqtyToVotes(state.countedVoteLQTY, block.timestamp, state.countedVoteLQTYAverageTimestamp);
             snapshot.forEpoch = currentEpoch - 1;
             votesSnapshot = snapshot;
             uint256 boldBalance = bold.balanceOf(address(this));
@@ -251,24 +291,25 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     // if the received votes meet the voting threshold
     function _snapshotVotesForInitiative(address _initiative, uint256 _snapshotTimestamp)
         internal
-        returns (InitiativeVoteSnapshot memory)
+        returns (InitiativeVoteSnapshot memory initiativeSnapshot, InitiativeState memory initiativeState)
     {
         uint16 currentEpoch = epoch();
-        InitiativeVoteSnapshot memory snapshot = votesForInitiativeSnapshot[_initiative];
-        if (snapshot.forEpoch < currentEpoch - 1) {
+        initiativeSnapshot = votesForInitiativeSnapshot[_initiative];
+        initiativeState = initiativeStates[_initiative];
+        if (initiativeSnapshot.forEpoch < currentEpoch - 1) {
             uint256 votingThreshold = calculateVotingThreshold();
-            AllocationAtEpoch memory Allocation = lqtyAllocatedToInitiative[_initiative];
-            uint256 votes = initiativeLQTYToVotes(Allocation.voteLQTY, _snapshotTimestamp);
-            uint256 vetos = initiativeLQTYToVotes(Allocation.vetoLQTY, _snapshotTimestamp);
+            uint240 votes =
+                lqtyToVotes(initiativeState.voteLQTY, _snapshotTimestamp, initiativeState.averageStakingTimestamp);
+            uint240 vetos =
+                lqtyToVotes(initiativeState.vetoLQTY, _snapshotTimestamp, initiativeState.averageStakingTimestamp);
             // if the votes didn't meet the voting threshold then no votes qualify
             if (votes >= votingThreshold && votes >= vetos) {
-                snapshot.votes = uint240(votes);
+                initiativeSnapshot.votes = votes;
             }
-            snapshot.forEpoch = currentEpoch - 1;
-            votesForInitiativeSnapshot[_initiative] = snapshot;
-            emit SnapshotVotesForInitiative(_initiative, snapshot.votes, snapshot.forEpoch);
+            initiativeSnapshot.forEpoch = currentEpoch - 1;
+            votesForInitiativeSnapshot[_initiative] = initiativeSnapshot;
+            emit SnapshotVotesForInitiative(_initiative, initiativeSnapshot.votes, initiativeSnapshot.forEpoch);
         }
-        return snapshot;
     }
 
     /// @inheritdoc IGovernanceV2
@@ -276,8 +317,8 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
         external
         returns (VoteSnapshot memory voteSnapshot, InitiativeVoteSnapshot memory initiativeVoteSnapshot)
     {
-        voteSnapshot = _snapshotVotes();
-        initiativeVoteSnapshot = _snapshotVotesForInitiative(_initiative, voteSnapshot.timestamp);
+        (voteSnapshot,) = _snapshotVotes();
+        (initiativeVoteSnapshot,) = _snapshotVotesForInitiative(_initiative, voteSnapshot.timestamp);
     }
 
     /// @inheritdoc IGovernanceV2
@@ -285,16 +326,20 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
         bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
 
         require(_initiative != address(0), "Governance: zero-address");
-        require(initiativesRegistered[_initiative] == 0, "Governance: initiative-already-registered");
+        require(initiativeStates[_initiative].atEpoch == 0, "Governance: initiative-already-registered");
 
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
-        VoteSnapshot memory snapshot = _snapshotVotes();
+        (VoteSnapshot memory snapshot,) = _snapshotVotes();
+
+        UserState memory userState = userStates[msg.sender];
+
         require(
-            userLQTYToVotes(userProxy.staked()) >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
+            lqtyToVotes(userProxy.staked(), block.timestamp, userState.averageStakingTimestamp)
+                >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );
 
-        initiativesRegistered[_initiative] = block.timestamp;
+        initiativeStates[_initiative] = InitiativeState(0, 0, 0, 0, epoch(), 0);
 
         emit RegisterInitiative(_initiative, msg.sender, epoch());
 
@@ -303,20 +348,34 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
 
     /// @inheritdoc IGovernanceV2
     function unregisterInitiative(address _initiative) external {
-        VoteSnapshot memory snapshot = _snapshotVotes();
-        InitiativeVoteSnapshot memory votesForInitiativeSnapshot_ =
+        (VoteSnapshot memory snapshot, GlobalState memory state) = _snapshotVotes();
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
             _snapshotVotesForInitiative(_initiative, snapshot.timestamp);
-        AllocationAtEpoch memory Allocation = lqtyAllocatedToInitiative[_initiative];
-        uint256 vetosForInitiative = initiativeLQTYToVotes(Allocation.vetoLQTY, snapshot.timestamp);
+
+        uint256 vetosForInitiative =
+            lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestamp);
 
         require(
             (votesForInitiativeSnapshot_.votes == 0 && votesForInitiativeSnapshot_.forEpoch + 4 < epoch())
-                || vetosForInitiative > votesForInitiativeSnapshot_.votes
-                    && votesForInitiativeSnapshot_.votes > calculateVotingThreshold() * 3,
+                || (
+                    vetosForInitiative > votesForInitiativeSnapshot_.votes
+                        && vetosForInitiative > calculateVotingThreshold() * 3
+                ),
             "Governance: cannot-unregister-initiative"
         );
 
-        delete initiativesRegistered[_initiative];
+        if (initiativeState.counted == 1) {
+            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                state.countedVoteLQTYAverageTimestamp,
+                initiativeState.averageStakingTimestamp,
+                state.countedVoteLQTY,
+                state.countedVoteLQTY - initiativeState.voteLQTY
+            );
+            state.countedVoteLQTY -= initiativeState.voteLQTY;
+            globalState = state;
+        }
+
+        delete initiativeStates[_initiative];
 
         emit UnregisterInitiative(_initiative, epoch());
 
@@ -326,102 +385,110 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     /// @inheritdoc IGovernanceV2
     function allocateLQTY(
         address[] calldata _initiatives,
-        int256[] calldata _deltaLQTYVotes,
-        int256[] calldata _deltaLQTYVetos
+        int192[] calldata _deltaLQTYVotes,
+        int192[] calldata _deltaLQTYVetos
     ) external nonReentrant {
-        VoteSnapshot memory snapshot = _snapshotVotes();
+        (VoteSnapshot memory snapshot, GlobalState memory state) = _snapshotVotes();
 
         uint256 votingThreshold = calculateVotingThreshold();
-        uint256 lqtyAllocatedByUser_ = lqtyAllocatedByUser[msg.sender];
-
         uint16 currentEpoch = epoch();
+
+        UserState memory userState = userStates[msg.sender];
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];
-            require(
-                initiativesRegistered[initiative] + EPOCH_DURATION <= block.timestamp,
-                "Governance: initiative-not-active"
-            );
-            _snapshotVotesForInitiative(initiative, snapshot.timestamp);
+            int192 deltaLQTYVotes = _deltaLQTYVotes[i];
+            int192 deltaLQTYVetos = _deltaLQTYVetos[i];
 
-            int256 deltaLQTYVotes = _deltaLQTYVotes[i];
             require(
                 deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsDuringCurrentEpoch() <= EPOCH_VOTING_CUTOFF,
                 "Governance: epoch-voting-cutoff"
             );
 
-            AllocationAtEpoch memory lqtyAllocatedToInitiative_ = lqtyAllocatedToInitiative[initiative];
+            (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative, snapshot.timestamp);
+            require(
+                initiativeState.active == 1 || currentEpoch > initiativeState.atEpoch,
+                "Governance: initiative-not-active"
+            );
+            initiativeState.active = 1;
 
-            // Add or remove the initiatives shares count from the global qualifying shares count if the initiative
-            // meets the voting threshold or not
-            uint256 votesForInitiative = initiativeLQTYToVotes(lqtyAllocatedToInitiative_.voteLQTY, block.timestamp);
-            if (deltaLQTYVotes > 0) {
-                if (votesForInitiative >= votingThreshold) {
-                    qualifyingLQTY += uint256(deltaLQTYVotes);
-                } else {
-                    if (
-                        votesForInitiative
-                            + initiativeLQTYToVotes(
-                                lqtyAllocatedToInitiative_.voteLQTY + uint256(deltaLQTYVotes), block.timestamp
-                            ) >= votingThreshold
-                    ) {
-                        qualifyingLQTY += lqtyAllocatedToInitiative_.voteLQTY + uint256(deltaLQTYVotes);
-                    }
-                }
-            } else if (deltaLQTYVotes < 0) {
-                if (votesForInitiative >= votingThreshold) {
-                    if (
-                        votesForInitiative
-                            - initiativeLQTYToVotes(
-                                lqtyAllocatedToInitiative_.voteLQTY - uint256(-deltaLQTYVotes), block.timestamp
-                            ) >= votingThreshold
-                    ) {
-                        qualifyingLQTY -= uint256(-deltaLQTYVotes);
-                    } else {
-                        qualifyingLQTY -= lqtyAllocatedToInitiative_.voteLQTY;
-                    }
-                }
+            InitiativeState memory prevInitiativeState = InitiativeState(
+                initiativeState.voteLQTY,
+                initiativeState.vetoLQTY,
+                initiativeState.counted,
+                initiativeState.active,
+                initiativeState.atEpoch,
+                initiativeState.averageStakingTimestamp
+            );
+
+            userState.allocatedLQTY = _add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
+
+            initiativeState.averageStakingTimestamp = _calculateAverageTimestamp(
+                initiativeState.averageStakingTimestamp,
+                userState.averageStakingTimestamp,
+                initiativeState.voteLQTY + initiativeState.vetoLQTY,
+                _add(initiativeState.voteLQTY + initiativeState.vetoLQTY, deltaLQTYVotes + deltaLQTYVetos)
+            );
+
+            initiativeState.voteLQTY = _add(initiativeState.voteLQTY, deltaLQTYVotes);
+            initiativeState.vetoLQTY = _add(initiativeState.vetoLQTY, deltaLQTYVetos);
+
+            uint240 votesForInitiative = lqtyToVotes(
+                initiativeState.voteLQTY + initiativeState.vetoLQTY,
+                block.timestamp,
+                initiativeState.averageStakingTimestamp
+            );
+
+            initiativeState.counted = (votesForInitiative >= votingThreshold) ? 1 : 0;
+            initiativeState.atEpoch = currentEpoch;
+            initiativeStates[initiative] = initiativeState;
+
+            if (prevInitiativeState.counted == 1) {
+                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                    state.countedVoteLQTYAverageTimestamp,
+                    initiativeState.averageStakingTimestamp,
+                    state.countedVoteLQTY,
+                    state.countedVoteLQTY - prevInitiativeState.voteLQTY
+                );
+                state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
             }
 
-            Allocation memory lqtyAllocatedByUserToInitiative_ = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
-
-            lqtyAllocatedByUser_ = add(lqtyAllocatedByUser_, deltaLQTYVotes);
-            lqtyAllocatedToInitiative_.voteLQTY = add(lqtyAllocatedToInitiative_.voteLQTY, deltaLQTYVotes);
-            lqtyAllocatedByUserToInitiative_.voteLQTY = add(lqtyAllocatedByUserToInitiative_.voteLQTY, deltaLQTYVotes);
-
-            int256 deltaLQTYVetos = _deltaLQTYVetos[i];
-            if (deltaLQTYVetos != 0) {
-                lqtyAllocatedByUser_ = add(lqtyAllocatedByUser_, deltaLQTYVetos);
-                lqtyAllocatedToInitiative_.vetoLQTY = add(lqtyAllocatedToInitiative_.vetoLQTY, deltaLQTYVetos);
-                lqtyAllocatedByUserToInitiative_.vetoLQTY =
-                    add(lqtyAllocatedByUserToInitiative_.vetoLQTY, deltaLQTYVetos);
+            if (initiativeState.counted == 1) {
+                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                    state.countedVoteLQTYAverageTimestamp,
+                    initiativeState.averageStakingTimestamp,
+                    state.countedVoteLQTY,
+                    state.countedVoteLQTY + initiativeState.voteLQTY
+                );
+                state.countedVoteLQTY += initiativeState.voteLQTY;
             }
 
-            lqtyAllocatedToInitiative_.atEpoch = currentEpoch;
-
-            lqtyAllocatedToInitiative[initiative] = lqtyAllocatedToInitiative_;
-            lqtyAllocatedByUserToInitiative[msg.sender][initiative] = lqtyAllocatedByUserToInitiative_;
+            Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
+            allocation.voteLQTY = _add(allocation.voteLQTY, deltaLQTYVotes);
+            allocation.vetoLQTY = _add(allocation.vetoLQTY, deltaLQTYVetos);
+            allocation.atEpoch = currentEpoch;
+            lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
 
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 
-            try IInitiative(initiative).onAfterAllocateShares(
-                msg.sender, lqtyAllocatedByUserToInitiative_.voteLQTY, lqtyAllocatedByUserToInitiative_.vetoLQTY
-            ) {} catch {}
+            try IInitiative(initiative).onAfterAllocateShares(msg.sender, allocation.voteLQTY, allocation.vetoLQTY) {}
+                catch {}
         }
 
         require(
-            lqtyAllocatedByUser_ == 0
-                || lqtyAllocatedByUser_ <= UserProxy(payable(deriveUserProxyAddress(msg.sender))).staked(),
+            userState.allocatedLQTY == 0
+                || userState.allocatedLQTY <= UserProxy(payable(deriveUserProxyAddress(msg.sender))).staked(),
             "Governance: insufficient-or-unallocated-shares"
         );
 
-        lqtyAllocatedByUser[msg.sender] = lqtyAllocatedByUser_;
+        globalState = state;
+        userStates[msg.sender] = userState;
     }
 
     /// @inheritdoc IGovernanceV2
     function claimForInitiative(address _initiative) external returns (uint256) {
-        VoteSnapshot memory votesSnapshot_ = _snapshotVotes();
-        InitiativeVoteSnapshot memory votesForInitiativeSnapshot_ =
+        (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_,) =
             _snapshotVotesForInitiative(_initiative, votesSnapshot_.timestamp);
         if (votesForInitiativeSnapshot_.votes == 0) return 0;
 
