@@ -365,7 +365,7 @@ contract GovernanceV2Test is Test {
         vm.warp(block.timestamp + 365 days);
 
         vm.startPrank(user2);
-        
+
         address user2Proxy = governance.deployUserProxy();
 
         lqty.approve(address(user2Proxy), 1e18);
@@ -376,8 +376,8 @@ contract GovernanceV2Test is Test {
         (allocatedLQTY,) = governance.userStates(user2);
         assertEq(allocatedLQTY, 1e18);
 
-        (voteLQTY, vetoLQTY, counted, active, atEpoch, averageStakingTimestamp)
-            = governance.initiativeStates(baseInitiative1);
+        (voteLQTY, vetoLQTY, counted, active, atEpoch, averageStakingTimestamp) =
+            governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 2e18);
         assertEq(vetoLQTY, 0);
         assertEq(counted, 1);
@@ -405,8 +405,8 @@ contract GovernanceV2Test is Test {
         (,, countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 1e18);
 
-        (voteLQTY, vetoLQTY, counted, active, atEpoch, averageStakingTimestamp)
-            = governance.initiativeStates(baseInitiative1);
+        (voteLQTY, vetoLQTY, counted, active, atEpoch, averageStakingTimestamp) =
+            governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
         assertEq(counted, 1);
