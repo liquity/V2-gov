@@ -61,7 +61,6 @@ interface IGovernanceV2 {
     struct VoteSnapshot {
         uint240 votes;
         uint16 forEpoch;
-        uint256 timestamp; // TODO: calculate epoch start
     }
 
     struct InitiativeVoteSnapshot {
@@ -70,7 +69,7 @@ interface IGovernanceV2 {
     }
 
     /// @notice Number of votes at the last epoch
-    function votesSnapshot() external view returns (uint240 votes, uint16 forEpoch, uint256 timestamp);
+    function votesSnapshot() external view returns (uint240 votes, uint16 forEpoch);
     /// @notice Number of votes received by an initiative at the last epoch
     function votesForInitiativeSnapshot(address) external view returns (uint240 votes, uint16 forEpoch);
 
@@ -150,6 +149,8 @@ interface IGovernanceV2 {
 
     /// @notice Returns the current epoch number
     function epoch() external view returns (uint16);
+    /// @notice Returns the timestamp at which the current epoch started
+    function epochStart() external view returns (uint32);
     /// @notice Returns the number of seconds that have gone by during current epoch
     function secondsDuringCurrentEpoch() external view returns (uint32);
     /// @notice Returns the number of votes per LQTY for a user

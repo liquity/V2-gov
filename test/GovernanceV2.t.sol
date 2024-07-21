@@ -233,9 +233,9 @@ contract GovernanceV2Test is Test {
         );
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
-        IGovernanceV2.VoteSnapshot memory snapshot = IGovernanceV2.VoteSnapshot(1e18, 1, block.timestamp);
+        IGovernanceV2.VoteSnapshot memory snapshot = IGovernanceV2.VoteSnapshot(1e18, 1);
         vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encode(snapshot)));
-        (uint240 votes,,) = governance.votesSnapshot();
+        (uint240 votes,) = governance.votesSnapshot();
         assertEq(votes, 1e18);
 
         uint256 boldAccrued = 1000e18;
@@ -263,9 +263,9 @@ contract GovernanceV2Test is Test {
             initialInitiatives
         );
 
-        snapshot = IGovernanceV2.VoteSnapshot(10000e18, 1, block.timestamp);
+        snapshot = IGovernanceV2.VoteSnapshot(10000e18, 1);
         vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encode(snapshot)));
-        (votes,,) = governance.votesSnapshot();
+        (votes,) = governance.votesSnapshot();
         assertEq(votes, 10000e18);
 
         boldAccrued = 1000e18;
@@ -280,9 +280,9 @@ contract GovernanceV2Test is Test {
 
         address userProxy = governance.deployUserProxy();
 
-        IGovernanceV2.VoteSnapshot memory snapshot = IGovernanceV2.VoteSnapshot(1e18, 1, block.timestamp);
+        IGovernanceV2.VoteSnapshot memory snapshot = IGovernanceV2.VoteSnapshot(1e18, 1);
         vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encode(snapshot)));
-        (uint240 votes,,) = governance.votesSnapshot();
+        (uint240 votes,) = governance.votesSnapshot();
         assertEq(votes, 1e18);
 
         vm.expectRevert("ERC20: transfer amount exceeds balance");
