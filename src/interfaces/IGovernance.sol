@@ -3,6 +3,8 @@ pragma solidity ^0.8.13;
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
+import {ILQTYStaking} from "./ILQTYStaking.sol";
+
 import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
@@ -32,6 +34,10 @@ interface IGovernance {
         uint256 epochVotingCutoff;
     }
 
+    /// @notice Address of the LQTY StakingV1 contract
+    function stakingV1() external view returns (ILQTYStaking);
+    /// @notice Address of the LQTY token
+    function lqty() external view returns (IERC20);
     /// @notice Address of the BOLD token
     function bold() external view returns (IERC20);
     /// @notice Reference timestamp ...
@@ -94,8 +100,6 @@ interface IGovernance {
     }
 
     struct GlobalState {
-        uint96 totalStakedLQTY; // Total LQTY staked
-        uint32 totalStakedLQTYAverageTimestamp; // Average timestamp at which LQTY was staked
         uint96 countedVoteLQTY; // Total LQTY that is included in vote counting
         uint32 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
     }
@@ -115,15 +119,7 @@ interface IGovernance {
             uint32 averageStakingTimestamp
         );
     /// @notice Returns the global state
-    function globalState()
-        external
-        view
-        returns (
-            uint96 totalStakedLQTY,
-            uint32 totalStakedLQTYAverageTimestamp,
-            uint96 countedVoteLQTY,
-            uint32 countedVoteLQTYAverageTimestamp
-        );
+    function globalState() external view returns (uint96 countedVoteLQTY, uint32 countedVoteLQTYAverageTimestamp);
     /// @notice Returns the amount of voting and vetoing LQTY a user allocated to an initiative
     function lqtyAllocatedByUserToInitiative(address, address)
         external

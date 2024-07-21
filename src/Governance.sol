@@ -7,6 +7,7 @@ import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/Reentrancy
 
 import {IGovernance} from "./interfaces/IGovernance.sol";
 import {IInitiative} from "./interfaces/IInitiative.sol";
+import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
@@ -19,6 +20,9 @@ import {WAD, PermitParams} from "./utils/Types.sol";
 contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
     using SafeERC20 for IERC20;
 
+    /// @inheritdoc IGovernance
+    ILQTYStaking public immutable stakingV1;
+    /// @inheritdoc IGovernance
     IERC20 public immutable lqty;
     /// @inheritdoc IGovernance
     IERC20 public immutable bold;
@@ -66,6 +70,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         Configuration memory _config,
         address[] memory _initiatives
     ) UserProxyFactory(_lqty, _lusd, _stakingV1) {
+        stakingV1 = ILQTYStaking(_stakingV1);
         lqty = IERC20(_lqty);
         bold = IERC20(_bold);
         require(_config.minClaim <= _config.minAccrual, "Gov: min-claim-gt-min-accrual");
@@ -139,7 +144,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                                 STAKING
     //////////////////////////////////////////////////////////////*/
 
-    function _deposit(uint96 _lqtyAmount) private {
+    function _deposit(uint96 _lqtyAmount) private returns (UserProxy) {
         // uint256 currentTimestamp = block.timestamp;
 
         // uint256 averageStakingTimestamp_ = averageStakingTimestampByUser[msg.sender];
@@ -158,8 +163,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // globalLQTYStaked = globalLQTYStaked_ + _depositedLQTY;
 
-        UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
-        uint96 lqtyStaked = uint96(userProxy.staked());
+        address userProxyAddress = deriveUserProxyAddress(msg.sender);
+
+        if (userProxyAddress.code.length == 0) {
+            deployUserProxy();
+        }
+
+        UserProxy userProxy = UserProxy(payable(userProxyAddress));
+
+        uint96 lqtyStaked = uint96(stakingV1.stakes(userProxyAddress));
 
         // update the average staked timestamp for LQTY staked by the user
         UserState memory userState = userStates[msg.sender];
@@ -168,64 +180,32 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         );
         userStates[msg.sender] = userState;
 
-        // update the average staked timestamp for all LQTY staked
-        GlobalState memory state = globalState;
-        state.totalStakedLQTYAverageTimestamp = _calculateAverageTimestamp(
-            state.totalStakedLQTYAverageTimestamp,
-            uint32(block.timestamp),
-            state.totalStakedLQTY,
-            state.totalStakedLQTY + _lqtyAmount
-        );
-        state.totalStakedLQTY += _lqtyAmount;
-        globalState = state;
+        emit DepositLQTY(msg.sender, _lqtyAmount);
+
+        return userProxy;
     }
 
     /// @inheritdoc IGovernance
     function depositLQTY(uint96 _lqtyAmount) external nonReentrant {
-        address userProxyAddress = deriveUserProxyAddress(msg.sender);
-
-        if (userProxyAddress.code.length == 0) {
-            deployUserProxy();
-        }
-
-        _deposit(_lqtyAmount);
-
-        UserProxy userProxy = UserProxy(payable(userProxyAddress));
+        UserProxy userProxy = _deposit(_lqtyAmount);
         userProxy.stake(_lqtyAmount, msg.sender);
-
-        emit DepositLQTY(msg.sender, _lqtyAmount);
     }
 
     /// @inheritdoc IGovernance
     function depositLQTYViaPermit(uint96 _lqtyAmount, PermitParams calldata _permitParams) external nonReentrant {
-        address userProxyAddress = deriveUserProxyAddress(msg.sender);
-
-        if (userProxyAddress.code.length == 0) {
-            deployUserProxy();
-        }
-
-        _deposit(_lqtyAmount);
-
-        UserProxy userProxy = UserProxy(payable(userProxyAddress));
+        UserProxy userProxy = _deposit(_lqtyAmount);
         userProxy.stakeViaPermit(_lqtyAmount, msg.sender, _permitParams);
-
-        emit DepositLQTY(msg.sender, _lqtyAmount);
     }
 
     /// @inheritdoc IGovernance
     function withdrawLQTY(uint96 _lqtyAmount) external {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
-        uint256 lqtyStaked = userProxy.staked();
+        uint96 lqtyStaked = uint96(stakingV1.stakes(address(userProxy)));
 
         UserState storage userState = userStates[msg.sender];
 
         // check if user has enough unallocated lqty
         require(_lqtyAmount <= lqtyStaked - userState.allocatedLQTY, "Governance: insufficient-unallocated-lqty");
-
-        // update the average staked timestamp for all LQTY staked
-        GlobalState memory state = globalState;
-        state.totalStakedLQTY -= _lqtyAmount;
-        globalState = state;
 
         // TODO: remove accruedLQTY
         (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH) =
@@ -335,15 +315,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         require(_initiative != address(0), "Governance: zero-address");
         require(initiativeStates[_initiative].atEpoch == 0, "Governance: initiative-already-registered");
 
-        UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
+        address userProxyAddress = deriveUserProxyAddress(msg.sender);
         (VoteSnapshot memory snapshot,) = _snapshotVotes();
 
         UserState memory userState = userStates[msg.sender];
 
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
-        // than the registration threshold derived from the previous epoch's total global
+        // than the registration threshold derived from the previous epoch's total global votes
         require(
-            lqtyToVotes(userProxy.staked(), block.timestamp, userState.averageStakingTimestamp)
+            lqtyToVotes(uint96(stakingV1.stakes(userProxyAddress)), block.timestamp, userState.averageStakingTimestamp)
                 >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );
@@ -495,7 +475,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         require(
             userState.allocatedLQTY == 0
-                || userState.allocatedLQTY <= UserProxy(payable(deriveUserProxyAddress(msg.sender))).staked(),
+                || userState.allocatedLQTY <= uint96(stakingV1.stakes(deriveUserProxyAddress(msg.sender))),
             "Governance: insufficient-or-unallocated-shares"
         );
 

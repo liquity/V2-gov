@@ -106,9 +106,6 @@ contract GovernanceTest is Test {
         (uint96 allocatedLQTY, uint32 averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         assertEq(averageStakingTimestamp, block.timestamp);
-        (uint96 totalStakedLQTY, uint32 totalStakedLQTYAverageTimestamp,,) = governance.globalState();
-        assertEq(totalStakedLQTY, 1e18);
-        assertEq(totalStakedLQTYAverageTimestamp, block.timestamp);
 
         vm.warp(block.timestamp + timeIncrease);
 
@@ -118,9 +115,6 @@ contract GovernanceTest is Test {
         (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         assertEq(averageStakingTimestamp, block.timestamp - timeIncrease / 2);
-        (totalStakedLQTY, totalStakedLQTYAverageTimestamp,,) = governance.globalState();
-        assertEq(totalStakedLQTY, 2e18);
-        assertEq(totalStakedLQTYAverageTimestamp, block.timestamp - timeIncrease / 2);
 
         // withdraw 0.5 half of shares
         vm.warp(block.timestamp + timeIncrease);
@@ -129,9 +123,6 @@ contract GovernanceTest is Test {
         (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         assertEq(averageStakingTimestamp, (block.timestamp - timeIncrease) - timeIncrease / 2);
-        (totalStakedLQTY, totalStakedLQTYAverageTimestamp,,) = governance.globalState();
-        assertEq(totalStakedLQTY, 1e18);
-        assertEq(totalStakedLQTYAverageTimestamp, (block.timestamp - timeIncrease) - timeIncrease / 2);
 
         // withdraw remaining shares
         governance.withdrawLQTY(1e18);
@@ -139,9 +130,6 @@ contract GovernanceTest is Test {
         (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         assertEq(averageStakingTimestamp, (block.timestamp - timeIncrease) - timeIncrease / 2);
-        (totalStakedLQTY, totalStakedLQTYAverageTimestamp,,) = governance.globalState();
-        assertEq(totalStakedLQTY, 0);
-        assertEq(totalStakedLQTYAverageTimestamp, (block.timestamp - timeIncrease) - timeIncrease / 2);
 
         vm.stopPrank();
     }
@@ -199,9 +187,6 @@ contract GovernanceTest is Test {
         (uint96 allocatedLQTY, uint32 averageStakingTimestamp) = governance.userStates(wallet.addr);
         assertEq(allocatedLQTY, 0);
         assertEq(averageStakingTimestamp, block.timestamp);
-        (uint96 totalStakedLQTY, uint32 totalStakedLQTYAverageTimestamp,,) = governance.globalState();
-        assertEq(totalStakedLQTY, 1e18);
-        assertEq(totalStakedLQTYAverageTimestamp, block.timestamp);
     }
 
     function test_epoch() public {
@@ -326,8 +311,7 @@ contract GovernanceTest is Test {
 
         (uint96 allocatedLQTY, uint32 averageStakingTimestampUser) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
-        (uint96 totalStakedLQTY,, uint96 countedVoteLQTY,) = governance.globalState();
-        assertEq(totalStakedLQTY, 1e18);
+        (uint96 countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 0);
 
         address[] memory initiatives = new address[](1);
@@ -355,7 +339,7 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestamp, block.timestamp - 365 days);
         assertEq(averageStakingTimestamp, averageStakingTimestampUser);
 
-        (,, countedVoteLQTY,) = governance.globalState();
+        (countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 1e18);
 
         (voteLQTY, vetoLQTY, atEpoch) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
@@ -406,7 +390,7 @@ contract GovernanceTest is Test {
 
         (allocatedLQTY,) = governance.userStates(user2);
         assertEq(allocatedLQTY, 0);
-        (,, countedVoteLQTY,) = governance.globalState();
+        (countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 1e18);
 
         (voteLQTY, vetoLQTY, counted, active, atEpoch, averageStakingTimestamp) =
