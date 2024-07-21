@@ -251,10 +251,11 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
     }
 
     /// @inheritdoc IGovernanceV2
-    function secondsDuringCurrentEpoch() public view returns (uint32) {
+    function secondsWithinEpoch() public view returns (uint32) {
         return uint32((block.timestamp - EPOCH_START) % EPOCH_DURATION);
     }
 
+    /// @inheritdoc IGovernanceV2
     function lqtyToVotes(uint96 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp)
         public
         pure
@@ -302,8 +303,9 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
         initiativeState = initiativeStates[_initiative];
         if (initiativeSnapshot.forEpoch < currentEpoch - 1) {
             uint256 votingThreshold = calculateVotingThreshold();
-            uint240 votes = lqtyToVotes(initiativeState.voteLQTY, epochStart(), initiativeState.averageStakingTimestamp);
-            uint240 vetos = lqtyToVotes(initiativeState.vetoLQTY, epochStart(), initiativeState.averageStakingTimestamp);
+            uint32 start = epochStart();
+            uint240 votes = lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.averageStakingTimestamp);
+            uint240 vetos = lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestamp);
             // if the votes didn't meet the voting threshold then no votes qualify
             if (votes >= votingThreshold && votes >= vetos) {
                 initiativeSnapshot.votes = votes;
@@ -403,7 +405,7 @@ contract GovernanceV2 is Multicall, UserProxyFactory, ReentrancyGuard, IGovernan
             int192 deltaLQTYVetos = _deltaLQTYVetos[i];
 
             require(
-                deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsDuringCurrentEpoch() <= EPOCH_VOTING_CUTOFF,
+                deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsWithinEpoch() <= EPOCH_VOTING_CUTOFF,
                 "Governance: epoch-voting-cutoff"
             );
 

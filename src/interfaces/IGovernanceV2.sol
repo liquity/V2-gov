@@ -12,15 +12,12 @@ interface IGovernanceV2 {
     );
 
     event SnapshotVotes(uint240 votes, uint16 forEpoch);
-
     event SnapshotVotesForInitiative(address initiative, uint240 votes, uint16 forEpoch);
 
     event RegisterInitiative(address initiative, address registrant, uint16 atEpoch);
-
     event UnregisterInitiative(address initiative, uint16 atEpoch);
 
     event AllocateLQTY(address user, address initiative, int256 deltaVoteLQTY, int256 deltaVetoLQTY, uint16 atEpoch);
-
     event ClaimForInitiative(address initiative, uint256 bold, uint256 forEpoch);
 
     struct Configuration {
@@ -59,13 +56,13 @@ interface IGovernanceV2 {
     function boldAccrued() external view returns (uint256);
 
     struct VoteSnapshot {
-        uint240 votes;
-        uint16 forEpoch;
+        uint240 votes; // Votes at epoch transition
+        uint16 forEpoch; // Epoch for which the votes are counted
     }
 
     struct InitiativeVoteSnapshot {
-        uint240 votes;
-        uint16 forEpoch;
+        uint240 votes; // Votes at epoch transition
+        uint16 forEpoch; // Epoch for which the votes are counted
     }
 
     /// @notice Number of votes at the last epoch
@@ -100,9 +97,9 @@ interface IGovernanceV2 {
         uint32 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
     }
 
-    /// @notice ...
+    /// @notice Returns the user's state
     function userStates(address) external view returns (uint96 allocatedLQTY, uint32 averageStakingTimestamp);
-    /// @notice ...
+    /// @notice Returns the initiative's state
     function initiativeStates(address)
         external
         view
@@ -114,7 +111,7 @@ interface IGovernanceV2 {
             uint16 atEpoch,
             uint32 averageStakingTimestamp
         );
-    /// @notice ...
+    /// @notice Returns the global state
     function globalState()
         external
         view
@@ -124,7 +121,7 @@ interface IGovernanceV2 {
             uint96 countedVoteLQTY,
             uint32 countedVoteLQTYAverageTimestamp
         );
-    /// @notice ...
+    /// @notice Returns the amount of voting and vetoing LQTY a user allocated to an initiative
     function lqtyAllocatedByUserToInitiative(address, address)
         external
         view
@@ -151,8 +148,8 @@ interface IGovernanceV2 {
     function epoch() external view returns (uint16);
     /// @notice Returns the timestamp at which the current epoch started
     function epochStart() external view returns (uint32);
-    /// @notice Returns the number of seconds that have gone by during current epoch
-    function secondsDuringCurrentEpoch() external view returns (uint32);
+    /// @notice Returns the number of seconds that have gone by since the current epoch started
+    function secondsWithinEpoch() external view returns (uint32);
     /// @notice Returns the number of votes per LQTY for a user
     function lqtyToVotes(uint96 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp)
         external
@@ -160,7 +157,7 @@ interface IGovernanceV2 {
         returns (uint240);
 
     /// @notice Voting threshold is the max. of either:
-    ///   - 4% of total LQTY allocated in the previous epoch
+    ///   - 4% of the total voting LQTY in the previous epoch
     ///   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
     function calculateVotingThreshold() external view returns (uint256);
 

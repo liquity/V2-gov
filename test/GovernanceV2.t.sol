@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
+// import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
@@ -20,6 +21,7 @@ contract GovernanceV2Test is Test {
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
     address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
     address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
+    address private constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
 
     uint256 private constant REGISTRATION_FEE = 1e18;
@@ -318,7 +320,7 @@ contract GovernanceV2Test is Test {
         lqty.approve(address(userProxy), 1e18);
         governance.depositLQTY(1e18);
 
-        (uint96 allocatedLQTY,) = governance.userStates(user);
+        (uint96 allocatedLQTY, uint32 averageStakingTimestampUser) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         (uint96 totalStakedLQTY,, uint96 countedVoteLQTY,) = governance.globalState();
         assertEq(totalStakedLQTY, 1e18);
@@ -347,9 +349,9 @@ contract GovernanceV2Test is Test {
         assertEq(active, 1);
         assertEq(atEpoch, governance.epoch());
         assertEq(averageStakingTimestamp, block.timestamp - 365 days);
+        assertEq(averageStakingTimestamp, averageStakingTimestampUser);
 
-        uint32 countedVoteLQTYAverageTimestamp;
-        (,, countedVoteLQTY, countedVoteLQTYAverageTimestamp) = governance.globalState();
+        (,, countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 1e18);
 
         (voteLQTY, vetoLQTY, atEpoch) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
@@ -358,10 +360,36 @@ contract GovernanceV2Test is Test {
         assertEq(atEpoch, governance.epoch());
         assertGt(atEpoch, 0);
 
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 365 days);
+
+        vm.startPrank(user2);
+        
+        address user2Proxy = governance.deployUserProxy();
+
+        lqty.approve(address(user2Proxy), 1e18);
+        governance.depositLQTY(1e18);
+
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+        (allocatedLQTY,) = governance.userStates(user2);
+        assertEq(allocatedLQTY, 1e18);
+
+        (voteLQTY, vetoLQTY, counted, active, atEpoch, averageStakingTimestamp)
+            = governance.initiativeStates(baseInitiative1);
+        assertEq(voteLQTY, 2e18);
+        assertEq(vetoLQTY, 0);
+        assertEq(counted, 1);
+        assertEq(active, 1);
+        assertEq(atEpoch, governance.epoch());
+        assertEq(averageStakingTimestamp, block.timestamp - 365 days);
+        assertGt(averageStakingTimestamp, averageStakingTimestampUser);
+
         vm.expectRevert("Governance: insufficient-unallocated-lqty");
         governance.withdrawLQTY(1e18);
 
-        vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsDuringCurrentEpoch() - 1);
+        vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);
 
         initiatives[0] = baseInitiative1;
         deltaLQTYVotes[0] = 1e18;
@@ -372,10 +400,19 @@ contract GovernanceV2Test is Test {
         deltaLQTYVotes[0] = -1e18;
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
-        (allocatedLQTY,) = governance.userStates(user);
+        (allocatedLQTY,) = governance.userStates(user2);
         assertEq(allocatedLQTY, 0);
         (,, countedVoteLQTY,) = governance.globalState();
-        assertEq(countedVoteLQTY, 0);
+        assertEq(countedVoteLQTY, 1e18);
+
+        (voteLQTY, vetoLQTY, counted, active, atEpoch, averageStakingTimestamp)
+            = governance.initiativeStates(baseInitiative1);
+        assertEq(voteLQTY, 1e18);
+        assertEq(vetoLQTY, 0);
+        assertEq(counted, 1);
+        assertEq(active, 1);
+        assertEq(atEpoch, governance.epoch());
+        assertEq(averageStakingTimestamp, averageStakingTimestampUser);
 
         vm.stopPrank();
     }
