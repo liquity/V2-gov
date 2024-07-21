@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {console} from "forge-std/console.sol";
+// import {console} from "forge-std/console.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
@@ -81,7 +81,7 @@ contract BribeInitiativeTest is Test {
         vm.startPrank(user);
         address userProxy = governance.deployUserProxy();
         lqty.approve(address(userProxy), 1e18);
-        assertEq(governance.depositLQTY(1e18), 1e18);
+        governance.depositLQTY(1e18);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 365 days);
@@ -98,10 +98,10 @@ contract BribeInitiativeTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
-        int256[] memory deltaShares = new int256[](1);
-        deltaShares[0] = 1e18;
-        int256[] memory deltaVetoShares = new int256[](1);
-        governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
+        int192[] memory deltaVoteLQTY = new int192[](1);
+        deltaVoteLQTY[0] = 1e18;
+        int192[] memory deltaVetoLQTY = new int192[](1);
+        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
 
         // should be zero since user was not deposited at that time
         uint16[] memory epochs = new uint16[](1);
