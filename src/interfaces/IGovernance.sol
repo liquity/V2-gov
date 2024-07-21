@@ -23,6 +23,7 @@ interface IGovernance {
     struct Configuration {
         uint256 registrationFee;
         uint256 regstrationThresholdFactor;
+        uint256 unregstrationThresholdFactor;
         uint256 votingThresholdFactor;
         uint256 minClaim;
         uint256 minAccrual;
@@ -49,6 +50,8 @@ interface IGovernance {
     function REGISTRATION_FEE() external view returns (uint256);
     /// @notice Share of all votes that are necessary to register a new initiative
     function REGISTRATION_THRESHOLD_FACTOR() external view returns (uint256);
+    /// @notice Multiple of the voting threshold in vetos that are necessary to unregister an initiative
+    function UNREGISTRATION_THRESHOLD_FACTOR() external view returns (uint256);
     /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
     function VOTING_THRESHOLD_FACTOR() external view returns (uint256);
 

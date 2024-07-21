@@ -37,6 +37,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     uint256 public immutable REGISTRATION_THRESHOLD_FACTOR;
     /// @inheritdoc IGovernance
+    uint256 public immutable UNREGISTRATION_THRESHOLD_FACTOR;
+    /// @inheritdoc IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
 
     /// @inheritdoc IGovernance
@@ -69,6 +71,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         require(_config.minClaim <= _config.minAccrual, "Gov: min-claim-gt-min-accrual");
         REGISTRATION_FEE = _config.registrationFee;
         REGISTRATION_THRESHOLD_FACTOR = _config.regstrationThresholdFactor;
+        UNREGISTRATION_THRESHOLD_FACTOR = _config.unregstrationThresholdFactor;
         VOTING_THRESHOLD_FACTOR = _config.votingThresholdFactor;
         MIN_CLAIM = _config.minClaim;
         MIN_ACCRUAL = _config.minAccrual;
@@ -337,6 +340,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         UserState memory userState = userStates[msg.sender];
 
+        // an initiative can be registered if the registrant has more voting power (LQTY * age)
+        // than the registration threshold derived from the previous epoch's total global
         require(
             lqtyToVotes(userProxy.staked(), block.timestamp, userState.averageStakingTimestamp)
                 >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
@@ -359,15 +364,18 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint256 vetosForInitiative =
             lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestamp);
 
+        // an initiative can be unregistered if it has no votes and has been inactive for 4 epochs or if it has
+        // received more vetos than votes and the vetos are more than 3 times the voting threshold
         require(
             (votesForInitiativeSnapshot_.votes == 0 && votesForInitiativeSnapshot_.forEpoch + 4 < epoch())
                 || (
                     vetosForInitiative > votesForInitiativeSnapshot_.votes
-                        && vetosForInitiative > calculateVotingThreshold() * 3
+                        && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
                 ),
             "Governance: cannot-unregister-initiative"
         );
 
+        // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
         if (initiativeState.counted == 1) {
             state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
                 state.countedVoteLQTYAverageTimestamp,
@@ -404,11 +412,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             int192 deltaLQTYVotes = _deltaLQTYVotes[i];
             int192 deltaLQTYVetos = _deltaLQTYVetos[i];
 
+            // only allow vetoing post the voting cutoff
             require(
                 deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsWithinEpoch() <= EPOCH_VOTING_CUTOFF,
                 "Governance: epoch-voting-cutoff"
             );
 
+            // only allow allocations to initiatives that are active
+            // an initiative becomes active in the epoch after it is registered
             (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative);
             require(
                 initiativeState.active == 1 || currentEpoch > initiativeState.atEpoch,
@@ -416,6 +427,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             );
             initiativeState.active = 1;
 
+            // deep copy of the initiative's state before the allocation
             InitiativeState memory prevInitiativeState = InitiativeState(
                 initiativeState.voteLQTY,
                 initiativeState.vetoLQTY,
@@ -425,8 +437,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 initiativeState.averageStakingTimestamp
             );
 
-            userState.allocatedLQTY = _add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
-
+            // update the average staking timestamp for the initiative based on the user's average staking timestamp
             initiativeState.averageStakingTimestamp = _calculateAverageTimestamp(
                 initiativeState.averageStakingTimestamp,
                 userState.averageStakingTimestamp,
@@ -434,19 +445,20 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 _add(initiativeState.voteLQTY + initiativeState.vetoLQTY, deltaLQTYVotes + deltaLQTYVetos)
             );
 
+            // allocate the voting and vetoing LQTY to the initiative
             initiativeState.voteLQTY = _add(initiativeState.voteLQTY, deltaLQTYVotes);
             initiativeState.vetoLQTY = _add(initiativeState.vetoLQTY, deltaLQTYVetos);
 
-            uint240 votesForInitiative = lqtyToVotes(
-                initiativeState.voteLQTY + initiativeState.vetoLQTY,
-                block.timestamp,
-                initiativeState.averageStakingTimestamp
-            );
-
+            // determine if the initiative's allocated voting LQTY should be included in the vote count
+            uint240 votesForInitiative =
+                lqtyToVotes(initiativeState.voteLQTY, block.timestamp, initiativeState.averageStakingTimestamp);
             initiativeState.counted = (votesForInitiative >= votingThreshold) ? 1 : 0;
+
+            // update the initiative's state
             initiativeState.atEpoch = currentEpoch;
             initiativeStates[initiative] = initiativeState;
 
+            // update the average staking timestamp for all counted voting LQTY
             if (prevInitiativeState.counted == 1) {
                 state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
                     state.countedVoteLQTYAverageTimestamp,
@@ -456,7 +468,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 );
                 state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
             }
-
             if (initiativeState.counted == 1) {
                 state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
                     state.countedVoteLQTYAverageTimestamp,
@@ -467,11 +478,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 state.countedVoteLQTY += initiativeState.voteLQTY;
             }
 
+            // allocate the voting and vetoing LQTY to the initiative
             Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
             allocation.voteLQTY = _add(allocation.voteLQTY, deltaLQTYVotes);
             allocation.vetoLQTY = _add(allocation.vetoLQTY, deltaLQTYVetos);
             allocation.atEpoch = currentEpoch;
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
+
+            userState.allocatedLQTY = _add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
 
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 
