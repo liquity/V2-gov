@@ -6,7 +6,7 @@ pragma solidity ^0.8.13;
 /// and the tail is defined as the null item's prev pointer
 library DoubleLinkedList {
     struct Item {
-        uint224 value;
+        uint96 value;
         uint16 prev;
         uint16 next;
     }
@@ -53,7 +53,7 @@ library DoubleLinkedList {
     /// @param list Linked list which contains the item
     /// @param id Id of the item
     /// @return _ Value of the item
-    function getValue(List storage list, uint16 id) internal view returns (uint224) {
+    function getValue(List storage list, uint16 id) internal view returns (uint96) {
         return list.items[id].value;
     }
 
@@ -94,7 +94,7 @@ library DoubleLinkedList {
     /// @param id Id of the item to insert
     /// @param value Value of the item to insert
     /// @param next Id of the item which should follow item `id`
-    function insert(List storage list, uint16 id, uint224 value, uint16 next) internal {
+    function insert(List storage list, uint16 id, uint96 value, uint16 next) internal {
         if (contains(list, id)) revert ItemInList();
         if (next != 0 && !contains(list, next)) revert ItemNotInList();
         uint16 prev = list.items[next].prev;

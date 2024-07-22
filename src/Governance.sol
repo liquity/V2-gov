@@ -469,14 +469,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 
-            try IInitiative(initiative).onAfterAllocateShares(msg.sender, allocation.voteLQTY, allocation.vetoLQTY) {}
+            try IInitiative(initiative).onAfterAllocateLQTY(msg.sender, allocation.voteLQTY, allocation.vetoLQTY) {}
                 catch {}
         }
 
         require(
             userState.allocatedLQTY == 0
                 || userState.allocatedLQTY <= uint96(stakingV1.stakes(deriveUserProxyAddress(msg.sender))),
-            "Governance: insufficient-or-unallocated-shares"
+            "Governance: insufficient-or-unallocated-lqty"
         );
 
         globalState = state;

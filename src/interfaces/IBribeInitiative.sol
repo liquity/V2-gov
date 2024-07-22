@@ -26,10 +26,10 @@ interface IBribeInitiative {
     /// @notice Check if a user has claimed bribes for a given epoch
     function claimedBribeAtEpoch(address _user, uint16 _epoch) external view returns (bool);
 
-    /// @notice Total allocation of bribe tokens for a given epoch
-    function totalSharesAllocatedByEpoch(uint16 _epoch) external view returns (uint224);
-    /// @notice Shares allocated by a user at a given epoch
-    function sharesAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint224);
+    /// @notice Total LQTY allocated to the initiative at a given epoch
+    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint96);
+    /// @notice LQTY allocated by a user to the initiative at a given epoch
+    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint96);
 
     /// @notice Deposit bribe tokens for a given epoch
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external;
@@ -37,7 +37,7 @@ interface IBribeInitiative {
     function claimBribes(
         address _user,
         uint16[] calldata _epochs,
-        uint16[] calldata _prevShareAllocationEpochs,
-        uint16[] calldata _prevTotalShareAllocationEpochs
+        uint16[] calldata _prevLQTYAllocationEpochs,
+        uint16[] calldata _prevTotalLQTYAllocationEpochs
     ) external returns (uint256 boldAmount, uint256 bribeTokenAmount);
 }

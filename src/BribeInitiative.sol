@@ -26,10 +26,10 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     /// @inheritdoc IBribeInitiative
     mapping(address => mapping(uint16 => bool)) public claimedBribeAtEpoch;
 
-    /// Double linked list of the total shares allocated at a given epoch
-    DoubleLinkedList.List internal totalShareAllocationByEpoch;
-    /// Double linked list of shares allocated by a user at a given epoch
-    mapping(address => DoubleLinkedList.List) internal shareAllocationByUserAtEpoch;
+    /// Double linked list of the total LQTY allocated at a given epoch
+    DoubleLinkedList.List internal totalLQTYAllocationByEpoch;
+    /// Double linked list of LQTY allocated by a user at a given epoch
+    mapping(address => DoubleLinkedList.List) internal lqtyAllocationByUserAtEpoch;
 
     constructor(address _governance, address _bold, address _bribeToken) {
         governance = IGovernance(_governance);
@@ -43,13 +43,13 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IBribeInitiative
-    function totalSharesAllocatedByEpoch(uint16 _epoch) external view returns (uint224) {
-        return totalShareAllocationByEpoch.getValue(_epoch);
+    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint96) {
+        return totalLQTYAllocationByEpoch.getValue(_epoch);
     }
 
     /// @inheritdoc IBribeInitiative
-    function sharesAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint224) {
-        return shareAllocationByUserAtEpoch[_user].getValue(_epoch);
+    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint96) {
+        return lqtyAllocationByUserAtEpoch[_user].getValue(_epoch);
     }
 
     /// @inheritdoc IBribeInitiative
@@ -71,8 +71,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     function _claimBribe(
         address _user,
         uint16 _epoch,
-        uint16 _prevShareAllocationEpoch,
-        uint16 _prevTotalShareAllocationEpoch
+        uint16 _prevLQTYAllocationEpoch,
+        uint16 _prevTotalLQTYAllocationEpoch
     ) internal returns (uint256 boldAmount, uint256 bribeTokenAmount) {
         require(_epoch != governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
         require(!claimedBribeAtEpoch[_user][_epoch], "BribeInitiative: already-claimed");
@@ -80,23 +80,23 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         Bribe memory bribe = bribeByEpoch[_epoch];
         require(bribe.boldAmount != 0 || bribe.bribeTokenAmount != 0, "BribeInitiative: no-bribe");
 
-        DoubleLinkedList.Item memory shareAllocation =
-            shareAllocationByUserAtEpoch[_user].getItem(_prevShareAllocationEpoch);
+        DoubleLinkedList.Item memory lqtyAllocation =
+            lqtyAllocationByUserAtEpoch[_user].getItem(_prevLQTYAllocationEpoch);
         require(
-            shareAllocation.value != 0 && _prevShareAllocationEpoch <= _epoch
-                && (shareAllocation.next > _epoch || shareAllocation.next == 0),
-            "BribeInitiative: invalid-prev-share-allocation-epoch"
+            lqtyAllocation.value != 0 && _prevLQTYAllocationEpoch <= _epoch
+                && (lqtyAllocation.next > _epoch || lqtyAllocation.next == 0),
+            "BribeInitiative: invalid-prev-lqty-allocation-epoch"
         );
-        DoubleLinkedList.Item memory totalShareAllocation =
-            totalShareAllocationByEpoch.getItem(_prevTotalShareAllocationEpoch);
+        DoubleLinkedList.Item memory totalLQTYAllocation =
+            totalLQTYAllocationByEpoch.getItem(_prevTotalLQTYAllocationEpoch);
         require(
-            totalShareAllocation.value != 0 && _prevTotalShareAllocationEpoch <= _epoch
-                && (totalShareAllocation.next > _epoch || totalShareAllocation.next == 0),
-            "BribeInitiative: invalid-prev-total-share-allocation-epoch"
+            totalLQTYAllocation.value != 0 && _prevTotalLQTYAllocationEpoch <= _epoch
+                && (totalLQTYAllocation.next > _epoch || totalLQTYAllocation.next == 0),
+            "BribeInitiative: invalid-prev-total-lqty-allocation-epoch"
         );
 
-        boldAmount = bribe.boldAmount * shareAllocation.value / totalShareAllocation.value;
-        bribeTokenAmount = bribe.bribeTokenAmount * shareAllocation.value / totalShareAllocation.value;
+        boldAmount = bribe.boldAmount * lqtyAllocation.value / totalLQTYAllocation.value;
+        bribeTokenAmount = bribe.bribeTokenAmount * lqtyAllocation.value / totalLQTYAllocation.value;
 
         claimedBribeAtEpoch[_user][_epoch] = true;
 
@@ -107,15 +107,15 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     function claimBribes(
         address _user,
         uint16[] calldata _epochs,
-        uint16[] calldata _prevShareAllocationEpochs,
-        uint16[] calldata _prevTotalShareAllocationEpochs
+        uint16[] calldata _prevLQTYAllocationEpochs,
+        uint16[] calldata _prevTotalLQTYAllocationEpochs
     ) external returns (uint256 boldAmount, uint256 bribeTokenAmount) {
-        require(_epochs.length == _prevShareAllocationEpochs.length, "BribeInitiative: invalid-length");
-        require(_epochs.length == _prevTotalShareAllocationEpochs.length, "BribeInitiative: invalid-length");
+        require(_epochs.length == _prevLQTYAllocationEpochs.length, "BribeInitiative: invalid-length");
+        require(_epochs.length == _prevTotalLQTYAllocationEpochs.length, "BribeInitiative: invalid-length");
 
         for (uint256 i = 0; i < _epochs.length; i++) {
             (uint256 boldAmount_, uint256 bribeTokenAmount_) =
-                _claimBribe(_user, _epochs[i], _prevShareAllocationEpochs[i], _prevTotalShareAllocationEpochs[i]);
+                _claimBribe(_user, _epochs[i], _prevLQTYAllocationEpochs[i], _prevTotalLQTYAllocationEpochs[i]);
             boldAmount += boldAmount_;
             bribeTokenAmount += bribeTokenAmount_;
         }
@@ -131,33 +131,29 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     function onUnregisterInitiative() external virtual override onlyGovernance {}
 
     /// @inheritdoc IInitiative
-    function onAfterAllocateShares(address _user, uint128 _shares, uint128 _vetoShares)
-        external
-        virtual
-        onlyGovernance
-    {
+    function onAfterAllocateLQTY(address _user, uint96 _voteLQTY, uint96 _vetoLQTY) external virtual onlyGovernance {
         uint16 currentEpoch = governance.epoch();
         Bribe memory bribe = bribeByEpoch[currentEpoch];
-        uint256 mostRecentEpoch = shareAllocationByUserAtEpoch[_user].getHead();
+        uint256 mostRecentEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
 
         if (bribe.boldAmount != 0 || bribe.bribeTokenAmount != 0 || mostRecentEpoch == 0) {
-            if (mostRecentEpoch != currentEpoch && _vetoShares == 0) {
-                uint16 mostRecentEpoch_ = totalShareAllocationByEpoch.getHead();
+            if (mostRecentEpoch != currentEpoch && _vetoLQTY == 0) {
+                uint16 mostRecentEpoch_ = totalLQTYAllocationByEpoch.getHead();
                 if (mostRecentEpoch_ != currentEpoch) {
-                    totalShareAllocationByEpoch.insert(currentEpoch, _shares, 0);
+                    totalLQTYAllocationByEpoch.insert(currentEpoch, _voteLQTY, 0);
                 } else {
-                    totalShareAllocationByEpoch.items[currentEpoch].value += _shares;
+                    totalLQTYAllocationByEpoch.items[currentEpoch].value += _voteLQTY;
                 }
-                shareAllocationByUserAtEpoch[_user].insert(currentEpoch, _shares, 0);
+                lqtyAllocationByUserAtEpoch[_user].insert(currentEpoch, _voteLQTY, 0);
             } else {
-                DoubleLinkedList.Item memory shareAllocation = shareAllocationByUserAtEpoch[_user].getItem(currentEpoch);
-                if (_vetoShares == 0) {
-                    totalShareAllocationByEpoch.items[currentEpoch].value =
-                        totalShareAllocationByEpoch.items[currentEpoch].value + _shares - shareAllocation.value;
-                    shareAllocationByUserAtEpoch[_user].items[currentEpoch].value = _shares;
+                DoubleLinkedList.Item memory lqtyAllocation = lqtyAllocationByUserAtEpoch[_user].getItem(currentEpoch);
+                if (_vetoLQTY == 0) {
+                    totalLQTYAllocationByEpoch.items[currentEpoch].value =
+                        totalLQTYAllocationByEpoch.items[currentEpoch].value + _voteLQTY - lqtyAllocation.value;
+                    lqtyAllocationByUserAtEpoch[_user].items[currentEpoch].value = _voteLQTY;
                 } else {
-                    totalShareAllocationByEpoch.items[currentEpoch].value -= shareAllocation.value;
-                    shareAllocationByUserAtEpoch[_user].remove(currentEpoch);
+                    totalLQTYAllocationByEpoch.items[currentEpoch].value -= lqtyAllocation.value;
+                    lqtyAllocationByUserAtEpoch[_user].remove(currentEpoch);
                 }
             }
         }
