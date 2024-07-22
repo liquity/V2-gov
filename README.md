@@ -31,14 +31,13 @@ LQTY user who stakes LQTY via Governance.sol, and manages accounting and claimin
 be deployed either via the Governance.sol contract or directly, each instance of UserProxy is accessible by Governance.sol to
 allow for Liquity v2 staking and voting accounting to be managed accurately.
 
-Governance.sol uses an internal shares concept, this allows for the weight of a user's LQTY staked to increase in power over time
-on a linear basis. Upon deposit, a User's voting power will be equal to 0, and increases at a rate of 1000% of LQTY per year.
+A user's LQTY stake increases in voting power over time on a linear basis depending on the time it has been staked.
+Upon deposit, a User's voting power will be equal to 0.
 
 Users' LQTY stake can be increased and decreased over time, but each increased LQTY added will require power accrual from 0,
-and not assume the power of already deposited LQTY.
+and not assume the power of already deposited LQTY for the new staked LQTY.
 
-In order to unstake and withdraw LQTY, a User must deallocate a sufficient number of shares corresponding to the number of
-LQTY to remove.
+In order to unstake and withdraw LQTY, a User must first deallocate a sufficient number of LQTY from initiatives.
 
 ## Initiatives
 
@@ -57,8 +56,8 @@ how BOLD is to be used.
 
 ## Voting
 
-Users with LQTY staked in Governance.sol, can allocate shares in the epoch following the epoch in which they were deposited.
-Meaning a User should deposit LQTY, and then make allocation decisions at least one epoch later.
+Users with LQTY staked in Governance.sol, can allocate LQTY in the same epoch in which they were deposited. But the
+effective voting power at that point would be 0.
 
 Votes can take two forms, a vote for an Initiative or a veto vote. Initiatives which have received vetoes which are both:
 three times greater than the minimum qualifying threshold, and greater than the number of votes for will not be eligible for Claims and may

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {console} from "forge-std/console.sol";
+// import {console} from "forge-std/console.sol";
 
 import {Test} from "forge-std/Test.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
@@ -25,6 +25,7 @@ contract BribeInitiativeTest is Test {
 
     uint256 private constant REGISTRATION_FEE = 1e18;
     uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint256 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
     uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
     uint256 private constant MIN_CLAIM = 500e18;
     uint256 private constant MIN_ACCRUAL = 1000e18;
@@ -61,6 +62,7 @@ contract BribeInitiativeTest is Test {
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
                 regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                unregstrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
@@ -81,7 +83,7 @@ contract BribeInitiativeTest is Test {
         vm.startPrank(user);
         address userProxy = governance.deployUserProxy();
         lqty.approve(address(userProxy), 1e18);
-        assertEq(governance.depositLQTY(1e18), 1e18);
+        governance.depositLQTY(1e18);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 365 days);
@@ -98,10 +100,10 @@ contract BribeInitiativeTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
-        int256[] memory deltaShares = new int256[](1);
-        deltaShares[0] = 1e18;
-        int256[] memory deltaVetoShares = new int256[](1);
-        governance.allocateShares(initiatives, deltaShares, deltaVetoShares);
+        int192[] memory deltaVoteLQTY = new int192[](1);
+        deltaVoteLQTY[0] = 1e18;
+        int192[] memory deltaVetoLQTY = new int192[](1);
+        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
 
         // should be zero since user was not deposited at that time
         uint16[] memory epochs = new uint16[](1);
