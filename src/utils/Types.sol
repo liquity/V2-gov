@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.24;
 
 struct PermitParams {
     address owner;
@@ -12,4 +12,3 @@ struct PermitParams {
 }
 
 uint256 constant WAD = 1e18;
-uint256 constant ONE_YEAR = 31_536_000;

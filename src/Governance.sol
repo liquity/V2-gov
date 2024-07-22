@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.24;
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -12,7 +12,7 @@ import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 
-import {_add, max} from "./utils/Math.sol";
+import {add, max} from "./utils/Math.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 
@@ -422,12 +422,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 initiativeState.averageStakingTimestamp,
                 userState.averageStakingTimestamp,
                 initiativeState.voteLQTY + initiativeState.vetoLQTY,
-                _add(initiativeState.voteLQTY + initiativeState.vetoLQTY, deltaLQTYVotes + deltaLQTYVetos)
+                add(initiativeState.voteLQTY + initiativeState.vetoLQTY, deltaLQTYVotes + deltaLQTYVetos)
             );
 
             // allocate the voting and vetoing LQTY to the initiative
-            initiativeState.voteLQTY = _add(initiativeState.voteLQTY, deltaLQTYVotes);
-            initiativeState.vetoLQTY = _add(initiativeState.vetoLQTY, deltaLQTYVetos);
+            initiativeState.voteLQTY = add(initiativeState.voteLQTY, deltaLQTYVotes);
+            initiativeState.vetoLQTY = add(initiativeState.vetoLQTY, deltaLQTYVetos);
 
             // determine if the initiative's allocated voting LQTY should be included in the vote count
             uint240 votesForInitiative =
@@ -460,12 +460,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             // allocate the voting and vetoing LQTY to the initiative
             Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
-            allocation.voteLQTY = _add(allocation.voteLQTY, deltaLQTYVotes);
-            allocation.vetoLQTY = _add(allocation.vetoLQTY, deltaLQTYVetos);
+            allocation.voteLQTY = add(allocation.voteLQTY, deltaLQTYVotes);
+            allocation.vetoLQTY = add(allocation.vetoLQTY, deltaLQTYVetos);
             allocation.atEpoch = currentEpoch;
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
 
-            userState.allocatedLQTY = _add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
+            userState.allocatedLQTY = add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
 
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 

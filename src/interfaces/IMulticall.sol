@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
 
 /// Copied from: https://github.com/Uniswap/v3-periphery/blob/main/contracts/interfaces/IMulticall.sol
 /// @title Multicall interface

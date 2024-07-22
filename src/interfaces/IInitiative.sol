@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
 
 interface IInitiative {
     /// @notice Callback hook that is called by Governance after the initiative was successfully registered

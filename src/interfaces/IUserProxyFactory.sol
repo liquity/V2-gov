@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.24;
 
 interface IUserProxyFactory {
     event DeployUserProxy(address indexed user, address indexed userProxy);

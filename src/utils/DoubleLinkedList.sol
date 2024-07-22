@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.24;
 
 /// @title DoubleLinkedList
 /// @notice Implements a double linked list where the head is defined as the null item's next pointer
