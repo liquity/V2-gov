@@ -89,7 +89,7 @@ contract GovernanceTest is Test {
         );
     }
 
-    function test_depositLQTY_withdrawShares_v2() public {
+    function test_depositLQTY_withdrawLQTY() public {
         uint256 timeIncrease = 86400 * 30;
         vm.warp(block.timestamp + timeIncrease);
 
@@ -115,7 +115,7 @@ contract GovernanceTest is Test {
         assertEq(allocatedLQTY, 0);
         assertEq(averageStakingTimestamp, block.timestamp - timeIncrease / 2);
 
-        // withdraw 0.5 half of shares
+        // withdraw 0.5 half of LQTY
         vm.warp(block.timestamp + timeIncrease);
         governance.withdrawLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
@@ -123,7 +123,7 @@ contract GovernanceTest is Test {
         assertEq(allocatedLQTY, 0);
         assertEq(averageStakingTimestamp, (block.timestamp - timeIncrease) - timeIncrease / 2);
 
-        // withdraw remaining shares
+        // withdraw remaining LQTY
         governance.withdrawLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 0);
         (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
@@ -133,7 +133,7 @@ contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
-    function test_depositLQTYViaPermit_v2() public {
+    function test_depositLQTYViaPermit() public {
         uint256 timeIncrease = 86400 * 30;
         vm.warp(block.timestamp + timeIncrease);
 
@@ -265,7 +265,7 @@ contract GovernanceTest is Test {
         assertEq(governance.calculateVotingThreshold(), 10000e18 * 0.04);
     }
 
-    function test_registerInitiative_v2() public {
+    function test_registerInitiative() public {
         vm.startPrank(user);
 
         address userProxy = governance.deployUserProxy();
@@ -300,7 +300,7 @@ contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
-    function test_allocateLQTY_v2() public {
+    function test_allocateLQTY() public {
         vm.startPrank(user);
 
         address userProxy = governance.deployUserProxy();
