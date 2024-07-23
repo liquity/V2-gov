@@ -26,6 +26,7 @@ contract GovernanceTest is Test {
     uint256 private constant REGISTRATION_FEE = 1e18;
     uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
     uint256 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint256 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
     uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
     uint256 private constant MIN_CLAIM = 500e18;
     uint256 private constant MIN_ACCRUAL = 1000e18;
@@ -77,7 +78,8 @@ contract GovernanceTest is Test {
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
                 regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregstrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
@@ -210,7 +212,8 @@ contract GovernanceTest is Test {
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
                 regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregstrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
@@ -242,7 +245,8 @@ contract GovernanceTest is Test {
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
                 regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregstrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: 10e18,
                 minAccrual: 10e18,

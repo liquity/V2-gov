@@ -43,6 +43,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     uint256 public immutable UNREGISTRATION_THRESHOLD_FACTOR;
     /// @inheritdoc IGovernance
+    uint256 public immutable UNREGISTRATION_AFTER_EPOCHS;
+    /// @inheritdoc IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
 
     /// @inheritdoc IGovernance
@@ -78,7 +80,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         require(_config.minClaim <= _config.minAccrual, "Gov: min-claim-gt-min-accrual");
         REGISTRATION_FEE = _config.registrationFee;
         REGISTRATION_THRESHOLD_FACTOR = _config.regstrationThresholdFactor;
-        UNREGISTRATION_THRESHOLD_FACTOR = _config.unregstrationThresholdFactor;
+        UNREGISTRATION_THRESHOLD_FACTOR = _config.unregistrationThresholdFactor;
+        UNREGISTRATION_AFTER_EPOCHS = _config.unregistrationAfterEpochs;
         VOTING_THRESHOLD_FACTOR = _config.votingThresholdFactor;
         MIN_CLAIM = _config.minClaim;
         MIN_ACCRUAL = _config.minAccrual;
@@ -322,10 +325,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint256 vetosForInitiative =
             lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestampVetoLQTY);
 
-        // an initiative can be unregistered if it has no votes and has been inactive for 4 epochs or if it has
-        // received more vetos than votes and the vetos are more than 3 times the voting threshold
+        // an initiative can be unregistered if it has no votes and has been inactive for 'UNREGISTRATION_AFTER_EPOCHS'
+        // epochs or if it has received more vetos than votes and the vetos are more than
+        // 'UNREGISTRATION_THRESHOLD_FACTOR' times the voting threshold
         require(
-            (votesForInitiativeSnapshot_.votes == 0 && votesForInitiativeSnapshot_.forEpoch + 4 < epoch())
+            (
+                votesForInitiativeSnapshot_.votes == 0
+                    && votesForInitiativeSnapshot_.forEpoch + UNREGISTRATION_AFTER_EPOCHS < epoch()
+            )
                 || (
                     vetosForInitiative > votesForInitiativeSnapshot_.votes
                         && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
