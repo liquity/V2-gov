@@ -113,16 +113,18 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             if (_newLQTYBalance == 0) {
                 return 0;
             } else {
-                newOuterAverageAge =
-                    (_prevLQTYBalance * prevOuterAverageAge + deltaLQTY * newInnerAverageAge) / _newLQTYBalance;
+                uint240 votes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge)
+                    + uint240(deltaLQTY) * uint240(newInnerAverageAge);
+                newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
             }
         } else {
             uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
             if (_newLQTYBalance == 0) {
                 return 0;
             } else {
-                newOuterAverageAge =
-                    (_prevLQTYBalance * prevOuterAverageAge - deltaLQTY * newInnerAverageAge) / _newLQTYBalance;
+                uint240 votes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge)
+                    - uint240(deltaLQTY) * uint240(newInnerAverageAge);
+                newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
             }
         }
 
@@ -215,7 +217,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         pure
         returns (uint240)
     {
-        return _lqtyAmount * _averageAge(uint32(_currentTimestamp), _averageTimestamp);
+        return uint240(_lqtyAmount) * _averageAge(uint32(_currentTimestamp), _averageTimestamp);
     }
 
     /// @inheritdoc IGovernance
