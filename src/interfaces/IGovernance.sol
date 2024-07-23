@@ -25,7 +25,8 @@ interface IGovernance {
     struct Configuration {
         uint256 registrationFee;
         uint256 regstrationThresholdFactor;
-        uint256 unregstrationThresholdFactor;
+        uint256 unregistrationThresholdFactor;
+        uint256 unregistrationAfterEpochs;
         uint256 votingThresholdFactor;
         uint256 minClaim;
         uint256 minAccrual;
@@ -69,6 +70,9 @@ interface IGovernance {
     /// @notice Multiple of the voting threshold in vetos that are necessary to unregister an initiative
     /// @return unregistrationThresholdFactor Unregistration threshold factor
     function UNREGISTRATION_THRESHOLD_FACTOR() external view returns (uint256 unregistrationThresholdFactor);
+    /// @notice Number of epochs an initiative has to be inactive before it can be unregistered
+    /// @return unregistrationAfterEpochs Number of epochs
+    function UNREGISTRATION_AFTER_EPOCHS() external view returns (uint256 unregistrationAfterEpochs);
     /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
     /// @return votingThresholdFactor Voting threshold factor
     function VOTING_THRESHOLD_FACTOR() external view returns (uint256 votingThresholdFactor);
@@ -113,7 +117,7 @@ interface IGovernance {
         uint88 vetoLQTY; // LQTY allocated vetoing the initiative
         uint32 averageStakingTimestampVoteLQTY; // Average staking timestamp of the voting LQTY for the initiative
         uint32 averageStakingTimestampVetoLQTY; // Average staking timestamp of the vetoing LQTY for the initiative
-        uint16 counted; // Whether votes should be counted in the next snapshot (included in 'globalAllocation.countedLQTY')
+        uint16 counted; // Whether votes should be counted in the next snapshot (in 'globalAllocation.countedLQTY')
     }
 
     struct GlobalState {
@@ -132,7 +136,7 @@ interface IGovernance {
     /// @return vetoLQTY LQTY allocated vetoing the initiative
     /// @return averageStakingTimestampVoteLQTY // Average staking timestamp of the voting LQTY for the initiative
     /// @return averageStakingTimestampVetoLQTY // Average staking timestamp of the vetoing LQTY for the initiative
-    /// @return counted // Whether votes should be counted in the next snapshot (included in 'globalAllocation.countedLQTY')
+    /// @return counted // Whether votes should be counted in the next snapshot (in 'globalAllocation.countedLQTY')
     function initiativeStates(address _initiative)
         external
         view
