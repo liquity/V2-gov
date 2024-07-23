@@ -38,12 +38,12 @@ interface IBribeInitiative {
     /// @notice Total LQTY allocated to the initiative at a given epoch
     /// @param _epoch Epoch at which the LQTY was allocated
     /// @return totalLQTYAllocated Total LQTY allocated
-    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint96 totalLQTYAllocated);
+    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint88 totalLQTYAllocated);
     /// @notice LQTY allocated by a user to the initiative at a given epoch
     /// @param _user Address of the user
     /// @param _epoch Epoch at which the LQTY was allocated by the user
     /// @return lqtyAllocated LQTY allocated by the user
-    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint96 lqtyAllocated);
+    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint88 lqtyAllocated);
 
     /// @notice Deposit bribe tokens for a given epoch
     /// @dev The caller has to approve this contract to spend the BOLD and bribe tokens.

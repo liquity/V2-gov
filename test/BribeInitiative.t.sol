@@ -98,9 +98,9 @@ contract BribeInitiativeTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
-        int192[] memory deltaVoteLQTY = new int192[](1);
+        int176[] memory deltaVoteLQTY = new int176[](1);
         deltaVoteLQTY[0] = 1e18;
-        int192[] memory deltaVetoLQTY = new int192[](1);
+        int176[] memory deltaVetoLQTY = new int176[](1);
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
 
         // should be zero since user was not deposited at that time

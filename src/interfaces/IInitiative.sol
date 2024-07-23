@@ -12,7 +12,7 @@ interface IInitiative {
     /// @param _user Address of the user that updated their LQTY allocation
     /// @param _voteLQTY Allocated voting LQTY
     /// @param _vetoLQTY Allocated vetoing LQTY
-    function onAfterAllocateLQTY(address _user, uint96 _voteLQTY, uint96 _vetoLQTY) external;
+    function onAfterAllocateLQTY(address _user, uint88 _voteLQTY, uint88 _vetoLQTY) external;
 
     /// @notice Callback hook that is called by Governance after the claim for the last epoch was distributed
     /// to the initiative

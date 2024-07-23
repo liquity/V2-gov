@@ -102,7 +102,7 @@ contract GovernanceTest is Test {
         lqty.approve(address(userProxy), 1e18);
         governance.depositLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
-        (uint96 allocatedLQTY, uint32 averageStakingTimestamp) = governance.userStates(user);
+        (uint88 allocatedLQTY, uint32 averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         assertEq(averageStakingTimestamp, block.timestamp);
 
@@ -183,7 +183,7 @@ contract GovernanceTest is Test {
         // deploy and deposit 1 LQTY
         governance.depositLQTYViaPermit(1e18, permitParams);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
-        (uint96 allocatedLQTY, uint32 averageStakingTimestamp) = governance.userStates(wallet.addr);
+        (uint88 allocatedLQTY, uint32 averageStakingTimestamp) = governance.userStates(wallet.addr);
         assertEq(allocatedLQTY, 0);
         assertEq(averageStakingTimestamp, block.timestamp);
     }
@@ -294,7 +294,7 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + 365 days);
 
         governance.registerInitiative(baseInitiative3);
-        (,,,, uint16 atEpoch,) = governance.initiativeStates(baseInitiative3);
+        uint16 atEpoch = governance.registeredInitiatives(baseInitiative3);
         assertEq(atEpoch, governance.epoch());
 
         vm.stopPrank();
@@ -308,16 +308,16 @@ contract GovernanceTest is Test {
         lqty.approve(address(userProxy), 1e18);
         governance.depositLQTY(1e18);
 
-        (uint96 allocatedLQTY, uint32 averageStakingTimestampUser) = governance.userStates(user);
+        (uint88 allocatedLQTY, uint32 averageStakingTimestampUser) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
-        (uint96 countedVoteLQTY,) = governance.globalState();
+        (uint88 countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 0);
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
-        int192[] memory deltaLQTYVotes = new int192[](1);
+        int176[] memory deltaLQTYVotes = new int176[](1);
         deltaLQTYVotes[0] = 1e18;
-        int192[] memory deltaLQTYVetos = new int192[](1);
+        int176[] memory deltaLQTYVetos = new int176[](1);
 
         vm.expectRevert("Governance: initiative-not-active");
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
@@ -328,19 +328,24 @@ contract GovernanceTest is Test {
         (allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1e18);
 
-        (uint96 voteLQTY, uint96 vetoLQTY, uint8 counted, uint8 active, uint16 atEpoch, uint32 averageStakingTimestamp)
-        = governance.initiativeStates(baseInitiative1);
+        (
+            uint88 voteLQTY,
+            uint88 vetoLQTY,
+            uint32 averageStakingTimestampVoteLQTY,
+            uint32 averageStakingTimestampVetoLQTY,
+            uint16 counted
+        ) = governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
+        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - 365 days);
+        assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
+        assertEq(averageStakingTimestampVetoLQTY, 0);
         assertEq(counted, 1);
-        assertEq(active, 1);
-        assertEq(atEpoch, governance.epoch());
-        assertEq(averageStakingTimestamp, block.timestamp - 365 days);
-        assertEq(averageStakingTimestamp, averageStakingTimestampUser);
 
         (countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 1e18);
 
+        uint16 atEpoch;
         (voteLQTY, vetoLQTY, atEpoch) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
@@ -366,15 +371,14 @@ contract GovernanceTest is Test {
         (allocatedLQTY,) = governance.userStates(user2);
         assertEq(allocatedLQTY, 1e18);
 
-        (voteLQTY, vetoLQTY, counted, active, atEpoch, averageStakingTimestamp) =
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted) =
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 2e18);
         assertEq(vetoLQTY, 0);
+        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - 365 days);
+        assertGt(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
+        assertEq(averageStakingTimestampVetoLQTY, 0);
         assertEq(counted, 1);
-        assertEq(active, 1);
-        assertEq(atEpoch, governance.epoch());
-        assertEq(averageStakingTimestamp, block.timestamp - 365 days);
-        assertGt(averageStakingTimestamp, averageStakingTimestampUser);
 
         vm.expectRevert("Governance: insufficient-unallocated-lqty");
         governance.withdrawLQTY(1e18);
@@ -395,14 +399,13 @@ contract GovernanceTest is Test {
         (countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 1e18);
 
-        (voteLQTY, vetoLQTY, counted, active, atEpoch, averageStakingTimestamp) =
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted) =
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
+        assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
+        assertEq(averageStakingTimestampVetoLQTY, 0);
         assertEq(counted, 1);
-        assertEq(active, 1);
-        assertEq(atEpoch, governance.epoch());
-        assertEq(averageStakingTimestamp, averageStakingTimestampUser);
 
         vm.stopPrank();
     }
@@ -429,12 +432,12 @@ contract GovernanceTest is Test {
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
-        int192[] memory deltaVoteLQTY = new int192[](2);
+        int176[] memory deltaVoteLQTY = new int176[](2);
         deltaVoteLQTY[0] = 500e18;
         deltaVoteLQTY[1] = 500e18;
-        int192[] memory deltaVetoLQTY = new int192[](2);
+        int176[] memory deltaVetoLQTY = new int176[](2);
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        (uint96 allocatedLQTY,) = governance.userStates(user);
+        (uint88 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1000e18);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
@@ -484,7 +487,7 @@ contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + 365 days);
 
-        uint96 lqtyAmount = 1000e18;
+        uint88 lqtyAmount = 1000e18;
         uint256 lqtyBalance = lqty.balanceOf(user);
 
         lqty.approve(address(governance.deriveUserProxyAddress(user)), lqtyAmount);
@@ -492,27 +495,27 @@ contract GovernanceTest is Test {
         bytes[] memory data = new bytes[](7);
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
-        int192[] memory deltaVoteLQTY = new int192[](1);
-        deltaVoteLQTY[0] = int192(uint192(lqtyAmount));
-        int192[] memory deltaVetoLQTY = new int192[](1);
+        int176[] memory deltaVoteLQTY = new int176[](1);
+        deltaVoteLQTY[0] = int176(uint176(lqtyAmount));
+        int176[] memory deltaVetoLQTY = new int176[](1);
 
-        int192[] memory deltaVoteLQTY_ = new int192[](1);
-        deltaVoteLQTY_[0] = -int192(uint192(lqtyAmount));
+        int176[] memory deltaVoteLQTY_ = new int176[](1);
+        deltaVoteLQTY_[0] = -int176(uint176(lqtyAmount));
 
         data[0] = abi.encodeWithSignature("deployUserProxy()");
-        data[1] = abi.encodeWithSignature("depositLQTY(uint96)", lqtyAmount);
+        data[1] = abi.encodeWithSignature("depositLQTY(uint88)", lqtyAmount);
         data[2] = abi.encodeWithSignature(
-            "allocateLQTY(address[],int192[],int192[])", initiatives, deltaVoteLQTY, deltaVetoLQTY
+            "allocateLQTY(address[],int176[],int176[])", initiatives, deltaVoteLQTY, deltaVetoLQTY
         );
         data[3] = abi.encodeWithSignature("userStates(address)", user);
         data[4] = abi.encodeWithSignature("snapshotVotesForInitiative(address)", baseInitiative1);
         data[5] = abi.encodeWithSignature(
-            "allocateLQTY(address[],int192[],int192[])", initiatives, deltaVoteLQTY_, deltaVetoLQTY
+            "allocateLQTY(address[],int176[],int176[])", initiatives, deltaVoteLQTY_, deltaVetoLQTY
         );
-        data[6] = abi.encodeWithSignature("withdrawLQTY(uint96)", lqtyAmount);
+        data[6] = abi.encodeWithSignature("withdrawLQTY(uint88)", lqtyAmount);
         bytes[] memory response = governance.multicall(data);
 
-        (uint96 allocatedLQTY,) = abi.decode(response[3], (uint96, uint32));
+        (uint88 allocatedLQTY,) = abi.decode(response[3], (uint88, uint32));
         assertEq(allocatedLQTY, lqtyAmount);
         (IGovernance.VoteSnapshot memory votes, IGovernance.InitiativeVoteSnapshot memory votesForInitiative) =
             abi.decode(response[4], (IGovernance.VoteSnapshot, IGovernance.InitiativeVoteSnapshot));

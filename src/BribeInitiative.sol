@@ -43,12 +43,12 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IBribeInitiative
-    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint96) {
+    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint88) {
         return totalLQTYAllocationByEpoch.getValue(_epoch);
     }
 
     /// @inheritdoc IBribeInitiative
-    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint96) {
+    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint88) {
         return lqtyAllocationByUserAtEpoch[_user].getValue(_epoch);
     }
 
@@ -128,7 +128,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     function onUnregisterInitiative() external virtual override onlyGovernance {}
 
     /// @inheritdoc IInitiative
-    function onAfterAllocateLQTY(address _user, uint96 _voteLQTY, uint96 _vetoLQTY) external virtual onlyGovernance {
+    function onAfterAllocateLQTY(address _user, uint88 _voteLQTY, uint88 _vetoLQTY) external virtual onlyGovernance {
         uint16 currentEpoch = governance.epoch();
         Bribe memory bribe = bribeByEpoch[currentEpoch];
         uint256 mostRecentEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
