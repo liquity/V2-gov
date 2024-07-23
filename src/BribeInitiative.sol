@@ -104,18 +104,15 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IBribeInitiative
-    function claimBribes(
-        address _user,
-        uint16[] calldata _epochs,
-        uint16[] calldata _prevLQTYAllocationEpochs,
-        uint16[] calldata _prevTotalLQTYAllocationEpochs
-    ) external returns (uint256 boldAmount, uint256 bribeTokenAmount) {
-        require(_epochs.length == _prevLQTYAllocationEpochs.length, "BribeInitiative: invalid-length");
-        require(_epochs.length == _prevTotalLQTYAllocationEpochs.length, "BribeInitiative: invalid-length");
-
-        for (uint256 i = 0; i < _epochs.length; i++) {
-            (uint256 boldAmount_, uint256 bribeTokenAmount_) =
-                _claimBribe(_user, _epochs[i], _prevLQTYAllocationEpochs[i], _prevTotalLQTYAllocationEpochs[i]);
+    function claimBribes(address _user, ClaimData[] calldata _claimData)
+        external
+        returns (uint256 boldAmount, uint256 bribeTokenAmount)
+    {
+        for (uint256 i = 0; i < _claimData.length; i++) {
+            ClaimData memory claimData = _claimData[i];
+            (uint256 boldAmount_, uint256 bribeTokenAmount_) = _claimBribe(
+                _user, claimData.epoch, claimData.prevLQTYAllocationEpoch, claimData.prevTotalLQTYAllocationEpoch
+            );
             boldAmount += boldAmount_;
             bribeTokenAmount += bribeTokenAmount_;
         }

@@ -104,15 +104,12 @@ contract BribeInitiativeTest is Test {
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
 
         // should be zero since user was not deposited at that time
-        uint16[] memory epochs = new uint16[](1);
-        epochs[0] = governance.epoch() - 1;
-        uint16[] memory prevShareAllocationEpochs = new uint16[](1);
-        prevShareAllocationEpochs[0] = governance.epoch() - 1;
-        uint16[] memory prevTotalShareAllocationEpochs = new uint16[](1);
-        prevTotalShareAllocationEpochs[0] = governance.epoch() - 1;
+        BribeInitiative.ClaimData[] memory epochs = new BribeInitiative.ClaimData[](1);
+        epochs[0].epoch = governance.epoch() - 1;
+        epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 1;
+        epochs[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 1;
         vm.expectRevert();
-        (uint256 boldAmount, uint256 bribeTokenAmount) =
-            bribeInitiative.claimBribes(user, epochs, prevShareAllocationEpochs, prevTotalShareAllocationEpochs);
+        (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(user, epochs);
 
         vm.stopPrank();
 
@@ -125,11 +122,10 @@ contract BribeInitiativeTest is Test {
         vm.stopPrank();
 
         vm.startPrank(user);
-        epochs[0] = governance.epoch() - 1;
-        prevShareAllocationEpochs[0] = governance.epoch() - 2;
-        prevTotalShareAllocationEpochs[0] = governance.epoch() - 2;
-        (boldAmount, bribeTokenAmount) =
-            bribeInitiative.claimBribes(user, epochs, prevShareAllocationEpochs, prevTotalShareAllocationEpochs);
+        epochs[0].epoch = governance.epoch() - 1;
+        epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 2;
+        epochs[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 2;
+        (boldAmount, bribeTokenAmount) = bribeInitiative.claimBribes(user, epochs);
         assertEq(boldAmount, 1e18);
         assertEq(bribeTokenAmount, 1e18);
         vm.stopPrank();

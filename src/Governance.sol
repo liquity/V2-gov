@@ -96,23 +96,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     function _calculateAverageTimestamp(
-        uint32 _prevOuterAverageTimestamp, // initiativeAllocations[_initiative].averageTimestamp
-        uint32 _newInnerAverageTimestamp, // userAllocations[_initiative].averageTimestamp post update // for userAverageTimestamp block.timestamp
+        uint32 _prevOuterAverageTimestamp,
+        uint32 _newInnerAverageTimestamp,
         uint96 _prevLQTYBalance,
         uint96 _newLQTYBalance
     ) internal view returns (uint32) {
-        // currentAge_ = block.timestamp - initiatives[_initiative].vote.timestamp
-        // votingAge_ = block.timestamp - deposit[_address].timestamp
-        // currentStake_ = initiatives[_initiative].vote.stake
-        // newAge_ = (currentAge_ * currentStake_ + votingAge_ * _stake) / (currentAge_ + votingAge_)
-
-        // return (_prevOuterAverageTimestamp * _newLQTYBalance + _newInnerAverageTimestamp * (_newLQTYBalance - _prevLQTYBalance))
-        //         / (_prevOuterAverageTimestamp + _newInnerAverageTimestamp);
-
-        // return (outerAverageAge * _newLQTYBalance + innerAverageAge * _newLQTYBalance - _prevLQTYBalance) / (outerAvergeAge + innerAverageAge);
-
-        // return currentTimestamp - ((currentTimestamp - _prevAverageTimestamp) * _prevLQTYBalance * WAD) / _newLQTYBalance;
-
         uint32 prevOuterAverageAge = _averageAge(uint32(block.timestamp), _prevOuterAverageTimestamp);
         uint32 newInnerAverageAge = _averageAge(uint32(block.timestamp), _newInnerAverageTimestamp);
 
@@ -145,24 +133,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     //////////////////////////////////////////////////////////////*/
 
     function _deposit(uint96 _lqtyAmount) private returns (UserProxy) {
-        // uint256 currentTimestamp = block.timestamp;
-
-        // uint256 averageStakingTimestamp_ = averageStakingTimestampByUser[msg.sender];
-        // uint256 prevTotalStakedLQTY = _newTotalStakedLQTY - _depositedLQTY;
-        // averageStakingTimestamp_ = currentTimestamp
-        //     - ((currentTimestamp - averageStakingTimestamp_) * prevTotalStakedLQTY * WAD) / _newTotalStakedLQTY;
-        // averageStakingTimestampByUser[msg.sender] = uint64(averageStakingTimestamp_);
-
-        // uint256 globalAverageStakedTimestamp_ = globalAverageStakedTimestamp;
-        // uint256 globalLQTYStaked_ = globalLQTYStaked;
-        // globalAverageStakedTimestamp = (
-        //     currentTimestamp
-        //         - ((currentTimestamp - globalAverageStakedTimestamp_) * globalLQTYStaked * WAD)
-        //             / (globalLQTYStaked + _depositedLQTY)
-        // );
-
-        // globalLQTYStaked = globalLQTYStaked_ + _depositedLQTY;
-
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
         if (userProxyAddress.code.length == 0) {
