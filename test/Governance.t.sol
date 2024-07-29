@@ -16,7 +16,6 @@ import {UserProxy} from "../src/UserProxy.sol";
 import {PermitParams} from "../src/utils/Types.sol";
 
 contract GovernanceInternal is Governance {
-
     constructor(
         address _lqty,
         address _lusd,
@@ -27,7 +26,7 @@ contract GovernanceInternal is Governance {
     ) Governance(_lqty, _lusd, _stakingV1, _bold, _config, _initiatives) {}
 
     function averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) external pure returns (uint32) {
-        return _averageAge(_currentTimestamp, _averageTimestamp);    
+        return _averageAge(_currentTimestamp, _averageTimestamp);
     }
 
     function calculateAverageTimestamp(
@@ -37,10 +36,7 @@ contract GovernanceInternal is Governance {
         uint88 _newLQTYBalance
     ) external view returns (uint32) {
         return _calculateAverageTimestamp(
-            _prevOuterAverageTimestamp,
-            _newInnerAverageTimestamp,
-            _prevLQTYBalance,
-            _newLQTYBalance
+            _prevOuterAverageTimestamp, _newInnerAverageTimestamp, _prevLQTYBalance, _newLQTYBalance
         );
     }
 }
@@ -151,25 +147,19 @@ contract GovernanceTest is Test {
         }
     }
 
-    // function test_calculateAverageTimestamp(
-    //     uint32 _prevOuterAverageTimestamp,
-    //     uint32 _newInnerAverageTimestamp,
-    //     uint88 _prevLQTYBalance,
-    //     uint88 _newLQTYBalance
-    // ) public {
-    function test_calculateAverageTimestamp() public {
+    function test_calculateAverageTimestamp(
+        uint32 _prevOuterAverageTimestamp,
+        uint32 _newInnerAverageTimestamp,
+        uint88 _prevLQTYBalance,
+        uint88 _newLQTYBalance
+    ) public {
+        uint32 highestTimestamp = (_prevOuterAverageTimestamp > _newInnerAverageTimestamp)
+            ? _prevOuterAverageTimestamp
+            : _newInnerAverageTimestamp;
+        if (highestTimestamp > block.timestamp) vm.warp(highestTimestamp);
         governanceInternal.calculateAverageTimestamp(
-            29810,
-            3776,
-            4315780228416578434,
-            501299593
+            _prevOuterAverageTimestamp, _newInnerAverageTimestamp, _prevLQTYBalance, _newLQTYBalance
         );
-        // governanceInternal.calculateAverageTimestamp(
-        //     _prevOuterAverageTimestamp,
-        //     _newInnerAverageTimestamp,
-        //     _prevLQTYBalance,
-        //     _newLQTYBalance
-        // );
     }
 
     function test_depositLQTY_withdrawLQTY() public {
@@ -271,6 +261,26 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestamp, block.timestamp);
     }
 
+    function test_claimFromStakingV1() public {
+        uint256 timeIncrease = 86400 * 30;
+        vm.warp(block.timestamp + timeIncrease);
+
+        vm.startPrank(user);
+
+        // check address
+        address userProxy = governance.deriveUserProxyAddress(user);
+
+        // deploy and deposit 1 LQTY
+        lqty.approve(address(userProxy), 1e18);
+        governance.depositLQTY(1e18);
+        assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
+
+        vm.warp(block.timestamp + timeIncrease);
+
+        governance.claimFromStakingV1(user);
+        assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
+    }
+
     function test_epoch() public {
         assertEq(governance.epoch(), 1);
 
@@ -282,6 +292,28 @@ contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + 3653 days - 7 days);
         assertEq(governance.epoch(), 522); // number of weeks + 1
+    }
+
+    function test_epochStart() public {
+        assertEq(governance.epochStart(), block.timestamp);
+        vm.warp(block.timestamp + 1);
+        assertEq(governance.epochStart(), block.timestamp - 1);
+    }
+
+    function test_secondsWithinEpoch() public {
+        assertEq(governance.secondsWithinEpoch(), 0);
+        vm.warp(block.timestamp + 1);
+        assertEq(governance.secondsWithinEpoch(), 1);
+        vm.warp(block.timestamp + EPOCH_DURATION - 1);
+        assertEq(governance.secondsWithinEpoch(), 0);
+        vm.warp(block.timestamp + EPOCH_DURATION);
+        assertEq(governance.secondsWithinEpoch(), 0);
+        vm.warp(block.timestamp + 1);
+        assertEq(governance.secondsWithinEpoch(), 1);
+    }
+
+    function test_lqtyToVotes(uint88 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp) public {
+        governance.lqtyToVotes(_lqtyAmount, _currentTimestamp, _averageTimestamp);
     }
 
     function test_calculateVotingThreshold() public {
@@ -384,6 +416,10 @@ contract GovernanceTest is Test {
 
         vm.stopPrank();
     }
+
+    // function test_unregisterInitiative() public {}
+
+    // function test_snapshotVotesForInitiative() public {}
 
     function test_allocateLQTY() public {
         vm.startPrank(user);

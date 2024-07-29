@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {console} from "forge-std/console.sol";
+// import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -118,27 +118,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             if (_newLQTYBalance == 0) {
                 return 0;
             } else {
-                uint240 votes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge)
-                    + uint240(deltaLQTY) * uint240(newInnerAverageAge);
-                newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
+                uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
+                uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
+                uint240 votes = prevVotes + newVotes;
+                newOuterAverageAge = (_newLQTYBalance == 0) ? 0 : uint32(votes / uint240(_newLQTYBalance));
             }
         } else {
             uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
             if (_newLQTYBalance == 0) {
                 return 0;
             } else {
-                // console.log("A");
-                // console.log(_prevLQTYBalance);
-                // console.log(prevOuterAverageAge);
-                // console.log(deltaLQTY);
-                // console.log(newInnerAverageAge);
-                // console.log(_newLQTYBalance);
-                uint240 votes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge)
-                    - uint240(deltaLQTY) * uint240(newInnerAverageAge);
-                newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
+                uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
+                uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
+                uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
+                newOuterAverageAge = (_newLQTYBalance == 0) ? 0 : uint32(votes / uint240(_newLQTYBalance));
             }
         }
 
+        if (newOuterAverageAge > block.timestamp) return 0;
         return uint32(block.timestamp - newOuterAverageAge);
     }
 
@@ -199,8 +196,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function claimFromStakingV1(address _rewardRecipient) external {
-        UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(0, _rewardRecipient, _rewardRecipient);
+    function claimFromStakingV1(address _rewardRecipient)
+        external
+        returns (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH)
+    {
+        return UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(0, _rewardRecipient, _rewardRecipient);
     }
 
     /*//////////////////////////////////////////////////////////////

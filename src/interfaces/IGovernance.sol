@@ -184,7 +184,12 @@ interface IGovernance {
     function withdrawLQTY(uint88 _lqtyAmount) external;
     /// @notice Claims staking rewards from StakingV1 without unstaking
     /// @param _rewardRecipient Address that will receive the rewards
-    function claimFromStakingV1(address _rewardRecipient) external;
+    /// @return accruedLQTY Amount of LQTY accrued
+    /// @return accruedLUSD Amount of LUSD accrued
+    /// @return accruedETH Amount of ETH accrued
+    function claimFromStakingV1(address _rewardRecipient)
+        external
+        returns (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH);
 
     /*//////////////////////////////////////////////////////////////
                                  VOTING
