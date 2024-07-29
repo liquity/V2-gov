@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {console} from "forge-std/console.sol";
+
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
@@ -125,6 +127,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             if (_newLQTYBalance == 0) {
                 return 0;
             } else {
+                // console.log("A");
+                // console.log(_prevLQTYBalance);
+                // console.log(prevOuterAverageAge);
+                // console.log(deltaLQTY);
+                // console.log(newInnerAverageAge);
+                // console.log(_newLQTYBalance);
                 uint240 votes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge)
                     - uint240(deltaLQTY) * uint240(newInnerAverageAge);
                 newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));

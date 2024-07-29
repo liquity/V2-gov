@@ -15,6 +15,36 @@ import {UserProxy} from "../src/UserProxy.sol";
 
 import {PermitParams} from "../src/utils/Types.sol";
 
+contract GovernanceInternal is Governance {
+
+    constructor(
+        address _lqty,
+        address _lusd,
+        address _stakingV1,
+        address _bold,
+        Configuration memory _config,
+        address[] memory _initiatives
+    ) Governance(_lqty, _lusd, _stakingV1, _bold, _config, _initiatives) {}
+
+    function averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) external pure returns (uint32) {
+        return _averageAge(_currentTimestamp, _averageTimestamp);    
+    }
+
+    function calculateAverageTimestamp(
+        uint32 _prevOuterAverageTimestamp,
+        uint32 _newInnerAverageTimestamp,
+        uint88 _prevLQTYBalance,
+        uint88 _newLQTYBalance
+    ) external view returns (uint32) {
+        return _calculateAverageTimestamp(
+            _prevOuterAverageTimestamp,
+            _newInnerAverageTimestamp,
+            _prevLQTYBalance,
+            _newLQTYBalance
+        );
+    }
+}
+
 contract GovernanceTest is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
@@ -34,6 +64,7 @@ contract GovernanceTest is Test {
     uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
+    GovernanceInternal private governanceInternal;
     address[] private initialInitiatives;
 
     address private baseInitiative2;
@@ -89,6 +120,56 @@ contract GovernanceTest is Test {
             }),
             initialInitiatives
         );
+
+        governanceInternal = new GovernanceInternal(
+            address(lqty),
+            address(lusd),
+            stakingV1,
+            address(lusd),
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: block.timestamp,
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
+        );
+    }
+
+    function test_averageAge(uint32 _currentTimestamp, uint32 _timestamp) public {
+        uint32 averageAge = governanceInternal.averageAge(_currentTimestamp, _timestamp);
+        if (_timestamp == 0 || _currentTimestamp < _timestamp) {
+            assertEq(averageAge, 0);
+        } else {
+            assertEq(averageAge, _currentTimestamp - _timestamp);
+        }
+    }
+
+    // function test_calculateAverageTimestamp(
+    //     uint32 _prevOuterAverageTimestamp,
+    //     uint32 _newInnerAverageTimestamp,
+    //     uint88 _prevLQTYBalance,
+    //     uint88 _newLQTYBalance
+    // ) public {
+    function test_calculateAverageTimestamp() public {
+        governanceInternal.calculateAverageTimestamp(
+            29810,
+            3776,
+            4315780228416578434,
+            501299593
+        );
+        // governanceInternal.calculateAverageTimestamp(
+        //     _prevOuterAverageTimestamp,
+        //     _newInnerAverageTimestamp,
+        //     _prevLQTYBalance,
+        //     _newLQTYBalance
+        // );
     }
 
     function test_depositLQTY_withdrawLQTY() public {
