@@ -101,7 +101,10 @@ interface IGovernance {
     /// @return votes Number of votes
     /// @return forEpoch Epoch for which the votes are counted
     /// @return lastCountedEpoch Epoch at which which the votes where counted last in the global snapshot
-    function votesForInitiativeSnapshot(address _initiative) external view returns (uint224 votes, uint16 forEpoch, uint16 lastCountedEpoch);
+    function votesForInitiativeSnapshot(address _initiative)
+        external
+        view
+        returns (uint224 votes, uint16 forEpoch, uint16 lastCountedEpoch);
 
     struct Allocation {
         uint88 voteLQTY; // LQTY allocated vouching for the initiative

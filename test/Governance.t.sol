@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
-import {console} from "forge-std/console.sol";
+// import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
@@ -340,7 +340,11 @@ contract GovernanceTest is Test {
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
-        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes))));
+        vm.store(
+            address(governance),
+            bytes32(uint256(2)),
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+        );
         (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(votes, 1e18);
         assertEq(forEpoch, 1);
@@ -373,7 +377,11 @@ contract GovernanceTest is Test {
         );
 
         snapshot = IGovernance.VoteSnapshot(10000e18, 1);
-        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes))));
+        vm.store(
+            address(governance),
+            bytes32(uint256(2)),
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+        );
         (votes, forEpoch) = governance.votesSnapshot();
         assertEq(votes, 10000e18);
         assertEq(forEpoch, 1);
@@ -391,7 +399,11 @@ contract GovernanceTest is Test {
         address userProxy = governance.deployUserProxy();
 
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
-        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes))));
+        vm.store(
+            address(governance),
+            bytes32(uint256(2)),
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+        );
         (uint240 votes,) = governance.votesSnapshot();
         assertEq(votes, 1e18);
 
@@ -426,10 +438,16 @@ contract GovernanceTest is Test {
         address userProxy = governance.deployUserProxy();
 
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
-        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes))));
+        vm.store(
+            address(governance),
+            bytes32(uint256(2)),
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+        );
         (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(votes, 1e18);
         assertEq(forEpoch, 1);
+
+        vm.stopPrank();
 
         vm.startPrank(lusdHolder);
         lusd.transfer(user, 1e18);
@@ -449,20 +467,96 @@ contract GovernanceTest is Test {
         uint16 atEpoch = governance.registeredInitiatives(baseInitiative3);
         assertEq(atEpoch, governance.epoch());
 
-        // voting threshold
-
         snapshot = IGovernance.VoteSnapshot(1e18, governance.epoch() - 1);
-        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes))));
+        vm.store(
+            address(governance),
+            bytes32(uint256(2)),
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+        );
         (votes, forEpoch) = governance.votesSnapshot();
         assertEq(votes, 1e18);
         assertEq(forEpoch, governance.epoch() - 1);
 
-        IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot = IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0);
-        vm.store(address(governance), keccak256(abi.encode(baseInitiative3, uint256(3))), bytes32(abi.encodePacked(uint16(initiativeSnapshot.lastCountedEpoch), uint16(initiativeSnapshot.forEpoch), uint240(initiativeSnapshot.votes))));
-        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch) = governance.votesForInitiativeSnapshot(baseInitiative3);
+        IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot =
+            IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0);
+        vm.store(
+            address(governance),
+            keccak256(abi.encode(baseInitiative3, uint256(3))),
+            bytes32(
+                abi.encodePacked(
+                    uint16(initiativeSnapshot.lastCountedEpoch),
+                    uint16(initiativeSnapshot.forEpoch),
+                    uint224(initiativeSnapshot.votes)
+                )
+            )
+        );
+        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch) =
+            governance.votesForInitiativeSnapshot(baseInitiative3);
         assertEq(votes_, 0);
         assertEq(forEpoch_, governance.epoch() - 1);
         assertEq(lastCountedEpoch, 0);
+
+        governance.unregisterInitiative(baseInitiative3);
+
+        vm.stopPrank();
+
+        vm.startPrank(lusdHolder);
+        lusd.transfer(user, 1e18);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+
+        lusd.approve(address(governance), 1e18);
+
+        governance.registerInitiative(baseInitiative3);
+        atEpoch = governance.registeredInitiatives(baseInitiative3);
+        assertEq(atEpoch, governance.epoch());
+
+        initiativeSnapshot = IGovernance.InitiativeVoteSnapshot(1, governance.epoch() - 1, governance.epoch() - 1);
+        vm.store(
+            address(governance),
+            keccak256(abi.encode(baseInitiative3, uint256(3))),
+            bytes32(
+                abi.encodePacked(
+                    uint16(initiativeSnapshot.lastCountedEpoch),
+                    uint16(initiativeSnapshot.forEpoch),
+                    uint224(initiativeSnapshot.votes)
+                )
+            )
+        );
+        (votes_, forEpoch_, lastCountedEpoch) = governance.votesForInitiativeSnapshot(baseInitiative3);
+        assertEq(votes_, 1);
+        assertEq(forEpoch_, governance.epoch() - 1);
+        assertEq(lastCountedEpoch, governance.epoch() - 1);
+
+        IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState(
+            1, 10e18, uint32(block.timestamp - 365 days), uint32(block.timestamp - 365 days), 0
+        );
+        vm.store(
+            address(governance),
+            keccak256(abi.encode(baseInitiative3, uint256(6))),
+            bytes32(
+                abi.encodePacked(
+                    uint16(initiativeState.counted),
+                    uint32(initiativeState.averageStakingTimestampVetoLQTY),
+                    uint32(initiativeState.averageStakingTimestampVoteLQTY),
+                    uint88(initiativeState.vetoLQTY),
+                    uint88(initiativeState.voteLQTY)
+                )
+            )
+        );
+        (
+            uint88 voteLQTY,
+            uint88 vetoLQTY,
+            uint32 averageStakingTimestampVoteLQTY,
+            uint32 averageStakingTimestampVetoLQTY,
+            uint16 counted
+        ) = governance.initiativeStates(baseInitiative3);
+        assertEq(voteLQTY, 1);
+        assertEq(vetoLQTY, 10e18);
+        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - 365 days);
+        assertEq(averageStakingTimestampVetoLQTY, block.timestamp - 365 days);
+        assertEq(counted, 0);
 
         governance.unregisterInitiative(baseInitiative3);
 
@@ -577,8 +671,6 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
         assertEq(counted, 1);
-
-        // console.logBytes32(vm.load(address(governance), bytes32(uint256(2))));
 
         vm.stopPrank();
     }
