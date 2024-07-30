@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-// import {console} from "forge-std/console.sol";
+import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -277,7 +277,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
             // if the votes didn't meet the voting threshold then no votes qualify
             if (votes >= votingThreshold && votes >= vetos) {
-                initiativeSnapshot.votes = votes;
+                initiativeSnapshot.votes = uint224(votes);
+                initiativeSnapshot.lastCountedEpoch = currentEpoch - 1;
+            } else {
+                initiativeSnapshot.votes = 0;
             }
             initiativeSnapshot.forEpoch = currentEpoch - 1;
             votesForInitiativeSnapshot[_initiative] = initiativeSnapshot;
@@ -338,8 +341,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // 'UNREGISTRATION_THRESHOLD_FACTOR' times the voting threshold
         require(
             (
-                votesForInitiativeSnapshot_.votes == 0
-                    && votesForInitiativeSnapshot_.forEpoch + UNREGISTRATION_AFTER_EPOCHS < epoch()
+                votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < epoch()
             )
                 || (
                     vetosForInitiative > votesForInitiativeSnapshot_.votes
