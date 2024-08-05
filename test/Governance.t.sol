@@ -50,15 +50,15 @@ contract GovernanceTest is Test {
     address private constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
 
-    uint256 private constant REGISTRATION_FEE = 1e18;
-    uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
-    uint256 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint256 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
-    uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint256 private constant MIN_CLAIM = 500e18;
-    uint256 private constant MIN_ACCRUAL = 1000e18;
-    uint256 private constant EPOCH_DURATION = 604800;
-    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint128 private constant REGISTRATION_FEE = 1e18;
+    uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
+    uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint88 private constant MIN_CLAIM = 500e18;
+    uint88 private constant MIN_ACCRUAL = 1000e18;
+    uint32 private constant EPOCH_DURATION = 604800;
+    uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
     GovernanceInternal private governanceInternal;
@@ -111,7 +111,7 @@ contract GovernanceTest is Test {
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
-                epochStart: block.timestamp,
+                epochStart: uint32(block.timestamp),
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
@@ -131,7 +131,7 @@ contract GovernanceTest is Test {
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
-                epochStart: block.timestamp,
+                epochStart: uint32(block.timestamp),
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
@@ -139,6 +139,7 @@ contract GovernanceTest is Test {
         );
     }
 
+    // should not revert under any input
     function test_averageAge(uint32 _currentTimestamp, uint32 _timestamp) public {
         uint32 averageAge = governanceInternal.averageAge(_currentTimestamp, _timestamp);
         if (_timestamp == 0 || _currentTimestamp < _timestamp) {
@@ -148,6 +149,7 @@ contract GovernanceTest is Test {
         }
     }
 
+    // should not revert under any input
     function test_calculateAverageTimestamp(
         uint32 _prevOuterAverageTimestamp,
         uint32 _newInnerAverageTimestamp,
@@ -169,15 +171,28 @@ contract GovernanceTest is Test {
 
         vm.startPrank(user);
 
-        // check address
-        address userProxy = governance.deriveUserProxyAddress(user);
+        // should revert with a 0 amount
+        vm.expectRevert("Governance: zero-lqty-amount");
+        governance.depositLQTY(0);
 
-        // deploy and deposit 1 LQTY
+        // should revert if the `_lqtyAmount` > `lqty.allowance(msg.sender, userProxy)`
+        vm.expectRevert("ERC20: transfer amount exceeds allowance");
+        governance.depositLQTY(1e18);
+
+        // should revert if the `_lqtyAmount` > `lqty.balanceOf(msg.sender)`
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        governance.depositLQTY(type(uint88).max);
+
+        // should not revert if the user doesn't have a UserProxy deployed yet
+        address userProxy = governance.deriveUserProxyAddress(user);
         lqty.approve(address(userProxy), 1e18);
+        // vm.expectEmit("DepositLQTY", abi.encode(user, 1e18));
+        // deploy and deposit 1 LQTY
         governance.depositLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
         (uint88 allocatedLQTY, uint32 averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
+        // first deposit should have an averageStakingTimestamp if block.timestamp
         assertEq(averageStakingTimestamp, block.timestamp);
 
         vm.warp(block.timestamp + timeIncrease);
@@ -187,10 +202,22 @@ contract GovernanceTest is Test {
         assertEq(UserProxy(payable(userProxy)).staked(), 2e18);
         (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
+        // subsequent deposits should have a stake weighted average
         assertEq(averageStakingTimestamp, block.timestamp - timeIncrease / 2);
 
         // withdraw 0.5 half of LQTY
         vm.warp(block.timestamp + timeIncrease);
+
+        vm.startPrank(address(this));
+        vm.expectRevert("Governance: user-proxy-not-deployed");
+        governance.withdrawLQTY(1e18);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+
+        vm.expectRevert("Governance: insufficient-unallocated-lqty");
+        governance.withdrawLQTY(type(uint88).max);
+
         governance.withdrawLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
         (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
@@ -252,7 +279,21 @@ contract GovernanceTest is Test {
 
         permitParams.v = v;
         permitParams.r = r;
+
+        vm.expectRevert("ERC20: transfer amount exceeds allowance");
+        governance.depositLQTYViaPermit(1e18, permitParams);
+
         permitParams.s = s;
+
+        vm.startPrank(address(this));
+        vm.expectRevert("UserProxy: owner-not-sender");
+        governance.depositLQTYViaPermit(1e18, permitParams);
+        vm.stopPrank();
+
+        vm.startPrank(wallet.addr);
+
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        governance.depositLQTYViaPermit(type(uint88).max, permitParams);
 
         // deploy and deposit 1 LQTY
         governance.depositLQTYViaPermit(1e18, permitParams);
@@ -265,6 +306,9 @@ contract GovernanceTest is Test {
     function test_claimFromStakingV1() public {
         uint256 timeIncrease = 86400 * 30;
         vm.warp(block.timestamp + timeIncrease);
+
+        vm.expectRevert("Governance: user-proxy-not-deployed");
+        governance.claimFromStakingV1(address(this));
 
         vm.startPrank(user);
 
@@ -282,6 +326,7 @@ contract GovernanceTest is Test {
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
     }
 
+    // should return the correct epoch for a given block.timestamp
     function test_epoch() public {
         assertEq(governance.epoch(), 1);
 
@@ -295,12 +340,26 @@ contract GovernanceTest is Test {
         assertEq(governance.epoch(), 522); // number of weeks + 1
     }
 
+    // should not revert under any block.timestamp >= EPOCH_START
+    function test_epoch_fuzz(uint32 _timestamp) public {
+        vm.warp(_timestamp);
+        governance.epoch();
+    }
+
+    // should return the correct epoch start timestamp for a given block.timestamp
     function test_epochStart() public {
         assertEq(governance.epochStart(), block.timestamp);
         vm.warp(block.timestamp + 1);
         assertEq(governance.epochStart(), block.timestamp - 1);
     }
 
+    // should not revert under any block.timestamp >= EPOCH_START
+    function test_epochStart_fuzz(uint32 _timestamp) public {
+        vm.warp(_timestamp);
+        governance.epochStart();
+    }
+
+    // should return the correct number of seconds elapsed within an epoch for a given block.timestamp
     function test_secondsWithinEpoch() public {
         assertEq(governance.secondsWithinEpoch(), 0);
         vm.warp(block.timestamp + 1);
@@ -313,6 +372,13 @@ contract GovernanceTest is Test {
         assertEq(governance.secondsWithinEpoch(), 1);
     }
 
+    // should not revert under any block.timestamp
+    function test_secondsWithinEpoch_fuzz(uint32 _timestamp) public {
+        vm.warp(_timestamp);
+        governance.secondsWithinEpoch();
+    }
+
+    // should not revert under any input
     function test_lqtyToVotes(uint88 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp) public {
         governance.lqtyToVotes(_lqtyAmount, _currentTimestamp, _averageTimestamp);
     }
@@ -331,12 +397,15 @@ contract GovernanceTest is Test {
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
-                epochStart: block.timestamp,
+                epochStart: uint32(block.timestamp),
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
             initialInitiatives
         );
+
+        // is 0 when the previous epochs votes are 0
+        assertEq(governance.calculateVotingThreshold(), 0);
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
@@ -369,7 +438,7 @@ contract GovernanceTest is Test {
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: 10e18,
                 minAccrual: 10e18,
-                epochStart: block.timestamp,
+                epochStart: uint32(block.timestamp),
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
@@ -391,6 +460,50 @@ contract GovernanceTest is Test {
         assertEq(governance.boldAccrued(), 1000e18);
 
         assertEq(governance.calculateVotingThreshold(), 10000e18 * 0.04);
+    }
+
+    // should not revert under any state
+    function test_calculateVotingThreshold_fuzz(
+        uint128 _votes,
+        uint16 _forEpoch,
+        uint88 _boldAccrued,
+        uint128 _votingThresholdFactor,
+        uint88 _minClaim
+    ) public {
+        governance = new Governance(
+            address(lqty),
+            address(lusd),
+            address(stakingV1),
+            address(lusd),
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+                votingThresholdFactor: _votingThresholdFactor,
+                minClaim: _minClaim,
+                minAccrual: type(uint88).max,
+                epochStart: uint32(block.timestamp),
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
+        );
+
+        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(_votes, _forEpoch);
+        vm.store(
+            address(governance),
+            bytes32(uint256(2)),
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+        );
+        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
+        assertEq(votes, _votes);
+        assertEq(forEpoch, _forEpoch);
+
+        vm.store(address(governance), bytes32(uint256(1)), bytes32(abi.encode(_boldAccrued)));
+        assertEq(governance.boldAccrued(), _boldAccrued);
+
+        governance.calculateVotingThreshold();
     }
 
     function test_registerInitiative() public {

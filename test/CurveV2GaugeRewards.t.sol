@@ -25,15 +25,15 @@ contract CurveV2GaugeRewardsTest is Test {
     ICurveStableswapFactoryNG private constant curveFactory =
         ICurveStableswapFactoryNG(address(0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf));
 
-    uint256 private constant REGISTRATION_FEE = 1e18;
-    uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
-    uint256 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint256 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
-    uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint256 private constant MIN_CLAIM = 500e18;
-    uint256 private constant MIN_ACCRUAL = 1000e18;
-    uint256 private constant EPOCH_DURATION = 604800;
-    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint128 private constant REGISTRATION_FEE = 1e18;
+    uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
+    uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint88 private constant MIN_CLAIM = 500e18;
+    uint88 private constant MIN_ACCRUAL = 1000e18;
+    uint32 private constant EPOCH_DURATION = 604800;
+    uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -90,7 +90,7 @@ contract CurveV2GaugeRewardsTest is Test {
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
-                epochStart: block.timestamp,
+                epochStart: uint32(block.timestamp),
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),

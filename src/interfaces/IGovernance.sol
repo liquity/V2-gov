@@ -23,16 +23,16 @@ interface IGovernance {
     event ClaimForInitiative(address initiative, uint256 bold, uint256 forEpoch);
 
     struct Configuration {
-        uint256 registrationFee;
-        uint256 regstrationThresholdFactor;
-        uint256 unregistrationThresholdFactor;
-        uint256 unregistrationAfterEpochs;
-        uint256 votingThresholdFactor;
-        uint256 minClaim;
-        uint256 minAccrual;
-        uint256 epochStart;
-        uint256 epochDuration;
-        uint256 epochVotingCutoff;
+        uint128 registrationFee;
+        uint128 regstrationThresholdFactor;
+        uint128 unregistrationThresholdFactor;
+        uint16 unregistrationAfterEpochs;
+        uint128 votingThresholdFactor;
+        uint88 minClaim;
+        uint88 minAccrual;
+        uint32 epochStart;
+        uint32 epochDuration;
+        uint32 epochVotingCutoff;
     }
 
     /// @notice Address of the LQTY StakingV1 contract

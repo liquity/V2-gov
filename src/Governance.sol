@@ -142,6 +142,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     //////////////////////////////////////////////////////////////*/
 
     function _deposit(uint88 _lqtyAmount) private returns (UserProxy) {
+        require(_lqtyAmount > 0, "Governance: zero-lqty-amount");
+
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
         if (userProxyAddress.code.length == 0) {
@@ -179,6 +181,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     function withdrawLQTY(uint88 _lqtyAmount) external {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
+        require(address(userProxy).code.length != 0, "Governance: user-proxy-not-deployed");
+
         uint88 lqtyStaked = uint88(stakingV1.stakes(address(userProxy)));
 
         UserState storage userState = userStates[msg.sender];
@@ -198,7 +202,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         external
         returns (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH)
     {
-        return UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(0, _rewardRecipient, _rewardRecipient);
+        address payable userProxyAddress = payable(deriveUserProxyAddress(msg.sender));
+        require(userProxyAddress.code.length != 0, "Governance: user-proxy-not-deployed");
+        return UserProxy(userProxyAddress).unstake(0, _rewardRecipient, _rewardRecipient);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -207,16 +213,20 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function epoch() public view returns (uint16) {
+        if (block.timestamp < EPOCH_START) return 0;
         return uint16(((block.timestamp - EPOCH_START) / EPOCH_DURATION) + 1);
     }
 
     /// @inheritdoc IGovernance
     function epochStart() public view returns (uint32) {
-        return uint32(EPOCH_START + (epoch() - 1) * EPOCH_DURATION);
+        uint16 currentEpoch = epoch();
+        if (currentEpoch == 0) return 0;
+        return uint32(EPOCH_START + (currentEpoch - 1) * EPOCH_DURATION);
     }
 
     /// @inheritdoc IGovernance
     function secondsWithinEpoch() public view returns (uint32) {
+        if (block.timestamp < EPOCH_START) return 0;
         return uint32((block.timestamp - EPOCH_START) % EPOCH_DURATION);
     }
 
