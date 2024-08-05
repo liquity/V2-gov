@@ -729,6 +729,7 @@ contract GovernanceTest is Test {
         deltaLQTYVotes[0] = 1e18;
         int176[] memory deltaLQTYVetos = new int176[](1);
 
+        // should revert if the initiative has been registered in the current epoch
         vm.expectRevert("Governance: initiative-not-active");
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
@@ -745,22 +746,32 @@ contract GovernanceTest is Test {
             uint32 averageStakingTimestampVetoLQTY,
             uint16 counted
         ) = governance.initiativeStates(baseInitiative1);
+        // should update the `voteLQTY` and `vetoLQTY` variables
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
+        // should update the average staking timestamp for the initiative based on the average staking timestamp of the user's
+        // voting and vetoing LQTY
         assertEq(averageStakingTimestampVoteLQTY, block.timestamp - 365 days);
         assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
+        // should remove or add the initiatives voting LQTY from the counter
         assertEq(counted, 1);
-
         (countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 1e18);
 
         uint16 atEpoch;
         (voteLQTY, vetoLQTY, atEpoch) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
+        // should update the allocation mapping from user to initiative
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
         assertEq(atEpoch, governance.epoch());
         assertGt(atEpoch, 0);
+
+        // should snapshot the global and initiatives votes if there hasn't been a snapshot in the current epoch yet
+        (, uint16 forEpoch) = governance.votesSnapshot();
+        assertEq(forEpoch, governance.epoch() - 1);
+        (, forEpoch, ) = governance.votesForInitiativeSnapshot(baseInitiative1);
+        assertEq(forEpoch, governance.epoch() - 1);
 
         vm.stopPrank();
 
@@ -778,6 +789,7 @@ contract GovernanceTest is Test {
 
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
+        // should update the user's allocated LQTY balance
         (allocatedLQTY,) = governance.userStates(user2);
         assertEq(allocatedLQTY, 1e18);
 
@@ -790,6 +802,7 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestampVetoLQTY, 0);
         assertEq(counted, 1);
 
+        // should revert if the user doesn't have enough unallocated LQTY available
         vm.expectRevert("Governance: insufficient-unallocated-lqty");
         governance.withdrawLQTY(1e18);
 
@@ -797,6 +810,7 @@ contract GovernanceTest is Test {
 
         initiatives[0] = baseInitiative1;
         deltaLQTYVotes[0] = 1e18;
+        // should only allow for unallocating votes or allocating vetos after the epoch voting cutoff
         vm.expectRevert("Governance: epoch-voting-cutoff");
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
@@ -852,10 +866,10 @@ contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
+        // should compute the claim and transfer it to the initiative
         assertEq(governance.claimForInitiative(baseInitiative1), 5000e18);
         governance.claimForInitiative(baseInitiative1);
         assertEq(governance.claimForInitiative(baseInitiative1), 0);
-
         assertEq(lusd.balanceOf(baseInitiative1), 5000e18);
 
         assertEq(governance.claimForInitiative(baseInitiative2), 5000e18);
@@ -880,6 +894,7 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
         assertEq(governance.claimForInitiative(baseInitiative1), 10000e18);
+        // should not allow double claiming
         assertEq(governance.claimForInitiative(baseInitiative1), 0);
 
         assertEq(lusd.balanceOf(baseInitiative1), 15000e18);
