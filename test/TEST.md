@@ -1,0 +1,92 @@
+
+Governance:
+- _averageAge()
+  - should not revert under any input
+- _calculateAverageTimestamp()
+  - should not revert under any input
+- _deposit()
+  - should revert with a 0 amount
+  - should not revert if the user doesn't have a UserProxy deployed yet
+  - should update `userState.averageStakingTimestamp`
+    - first deposit should have an averageStakingTimestamp if block.timestamp
+    - subsequent deposits should have a stake weighted average
+  - should emit DepositLQTY event
+- depositLQTY()
+  - should revert if the `_lqtyAmount` > `lqty.allowance(msg.sender, userProxy)`
+  - should revert if the `_lqtyAmount` > `lqty.balanceOf(msg.sender)`
+  - should stake `_lqtyAmount` of LQTY in via UserProxy
+- depositLQTYViaPermit()
+  - should revert if the permit params are invalid
+    - should not allow for msg.sender to submit a permit from a third party
+  - should revert if the `_lqtyAmount` > `lqty.balanceOf(msg.sender)`
+  - should stake `_lqtyAmount` of LQTY in via UserProxy
+- withdrawLQTY()
+  - should revert if the user doesn't have a UserProxy
+  - should revert if the user's unallocated shares are less than the `_lqtyAmount`
+  - should revert if `_lqtyAmount` > stakes(userProxy)
+  - should unstake `_lqtyAmount` and claim accrued LUSD and ETH
+  - should emit WithdrawLQTY event
+- claimFromStakingV1()
+  - should revert if the user doesn't have a UserProxy
+  - should claim accrued LUSD and ETH and send them to `_rewardRecipient`
+- epoch()
+  - should not revert under any block.timestamp
+  - should return the correct epoch for a given block.timestamp
+- epochStart()
+  - should not revert under any block.timestamp
+  - should return the correct epoch start timestamp for a given block.timestamp
+- secondsWithinEpoch()
+  - should not revert under any block.timestamp
+  - should return the correct number of seconds elapsed within an epoch for a given block.timestamp
+- lqtyToVotes()
+  - should not revert under any input
+- calculateVotingThreshold()
+  - should return a votingThreshold that's either
+    - high enough such that MIN_CLAIM is met
+    - 4% of the votes from the previous epoch
+    - is 0 when the previous epochs votes are 0
+  - should not revert under any state
+- _snapshotVotes()
+  - should skip the snapshot if the previous epoch was already snapshotted
+  - should snapshot
+    - counted votes for the previous epoch by calculating them from the counted LQTY and the average timestamp
+    - current BOLD balance if it meets the MIN_ACCRUAL amount
+  - should update forEpoch to the previous epoch
+  - should emit the SnapshotVotes event
+- _snapshotVotesForInitiative()
+  - should skip the snapshot if the previous epoch was already snapshotted
+  - should only count the votes if the voting threshold is met and the vetos don't exceed the votes
+  - should emit the SnapshotVotesForInitiative event
+- registerInitiative()
+  - should revert if `_initiative` is zero
+  - should revert if the initiative was already registered
+  - should revert if the registrant doesn't have enough voting power
+  - should emit the RegisterInitiative event
+  - should call the `onRegisterInitiative` callback on the initiative and ignore if the call reverts
+- unregisterInitiative()
+  - should revert if the initiative isn't registered
+  - should revert if the initiative is still active or the vetos don't meet the threshold
+  - should update the average timestamp for counted lqty if the initiative has been counted in
+  - should delete the initiative state and the registration timestamp
+  - should emit the UnregisterInitiative event
+  - should call the `onUnregisterInitiative` hook on the initiative and ignore if the call reverts
+- allocateLQTY()
+  - should revert if the call gets reentered
+  - should only allow for unallocating votes or allocating vetos after the epoch voting cutoff
+  - should revert if the initiative has been registered in the current epoch
+  - should snapshot the global and initiatives votes if there hasn't been a snapshot in the current epoch yet
+  - should update the average staking timestamp for the initiative based on the average staking timestamp of the user's
+    voting and vetoing LQTY
+  - should update the `voteLQTY` and `vetoLQTY` variables
+  - should remove or add the initiatives voting LQTY from the counter
+  - should update the allocation mapping from user to initiative
+  - should update the user's allocated LQTY balance
+  - should emit the AllocateLQTY event for each initiative
+  - should call the `onAllocateLQTY` hook for each initiative and ignore if the call reverts
+  - should revert if the user doesn't have enough unallocated LQTY available
+- claimForInitiative()
+  - should snapshot the global and initiatives votes if there hasn't been a snapshot in the current epoch yet
+  - should compute the claim and transfer it to the initiative
+  - should not allow double claiming
+  - should emit the ClaimForInitiative event
+  - should call the onClaimForInitiative hook on the initiative and ignore if the call reverts
