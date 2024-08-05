@@ -61,6 +61,8 @@ Governance:
   - should revert if `_initiative` is zero
   - should revert if the initiative was already registered
   - should revert if the registrant doesn't have enough voting power
+  - should revert if the `REGISTRATION_FEE` > `lqty.allowance(msg.sender, governance)`
+  - should revert if the `REGISTRATION_FEE` > `lqty.balanceOf(msg.sender)`
   - should emit the RegisterInitiative event
   - should call the `onRegisterInitiative` callback on the initiative and ignore if the call reverts
 - unregisterInitiative()

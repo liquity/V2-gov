@@ -520,27 +520,41 @@ contract GovernanceTest is Test {
         (uint240 votes,) = governance.votesSnapshot();
         assertEq(votes, 1e18);
 
+        // should revert if the `REGISTRATION_FEE` > `lqty.balanceOf(msg.sender)`
         vm.expectRevert("ERC20: transfer amount exceeds balance");
         governance.registerInitiative(baseInitiative3);
 
         vm.startPrank(lusdHolder);
-        lusd.transfer(user, 1e18);
+        lusd.transfer(user, 2e18);
         vm.stopPrank();
 
         vm.startPrank(user);
 
-        lusd.approve(address(governance), 1e18);
+        lusd.approve(address(governance), 2e18);
 
+        // should revert if the registrant doesn't have enough voting power
         vm.expectRevert("Governance: insufficient-lqty");
         governance.registerInitiative(baseInitiative3);
+
+        // should revert if the `REGISTRATION_FEE` > `lqty.allowance(msg.sender, governance)`
+        vm.expectRevert("ERC20: transfer amount exceeds allowance");
+        governance.depositLQTY(1e18);
 
         lqty.approve(address(userProxy), 1e18);
         governance.depositLQTY(1e18);
         vm.warp(block.timestamp + 365 days);
 
+        // should revert if `_initiative` is zero
+        vm.expectRevert("Governance: zero-address");
+        governance.registerInitiative(address(0));
+
         governance.registerInitiative(baseInitiative3);
         uint16 atEpoch = governance.registeredInitiatives(baseInitiative3);
         assertEq(atEpoch, governance.epoch());
+
+        // should revert if the initiative was already registered
+        vm.expectRevert("Governance: initiative-already-registered");
+        governance.registerInitiative(baseInitiative3);
 
         vm.stopPrank();
     }
@@ -573,12 +587,17 @@ contract GovernanceTest is Test {
         governance.depositLQTY(1e18);
         vm.warp(block.timestamp + 365 days);
 
+        // should revert if the initiative isn't registered
         vm.expectRevert("Governance: initiative-not-registered");
         governance.unregisterInitiative(baseInitiative3);
 
         governance.registerInitiative(baseInitiative3);
         uint16 atEpoch = governance.registeredInitiatives(baseInitiative3);
         assertEq(atEpoch, governance.epoch());
+
+        // should revert if the initiative is still active or the vetos don't meet the threshold
+        vm.expectRevert("Governance: cannot-unregister-initiative");
+        governance.unregisterInitiative(baseInitiative3);
 
         snapshot = IGovernance.VoteSnapshot(1e18, governance.epoch() - 1);
         vm.store(
@@ -658,6 +677,8 @@ contract GovernanceTest is Test {
                 )
             )
         );
+
+        // should update the average timestamp for counted lqty if the initiative has been counted in
         (
             uint88 voteLQTY,
             uint88 vetoLQTY,
@@ -672,6 +693,17 @@ contract GovernanceTest is Test {
         assertEq(counted, 0);
 
         governance.unregisterInitiative(baseInitiative3);
+
+        assertEq(governance.registeredInitiatives(baseInitiative3), 0);
+
+        // should delete the initiative state and the registration timestamp
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted) =
+            governance.initiativeStates(baseInitiative3);
+        assertEq(voteLQTY, 0);
+        assertEq(vetoLQTY, 0);
+        assertEq(averageStakingTimestampVoteLQTY, 0);
+        assertEq(averageStakingTimestampVetoLQTY, 0);
+        assertEq(counted, 0);
 
         vm.stopPrank();
     }
