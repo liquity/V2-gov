@@ -69,7 +69,7 @@ contract GovernanceTest is Test {
     address private baseInitiative1;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"));
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
 
         baseInitiative1 = address(
             new BribeInitiative(

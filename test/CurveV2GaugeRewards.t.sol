@@ -3,6 +3,8 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 
+import {console} from "forge-std/console.sol";
+
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
@@ -42,7 +44,7 @@ contract CurveV2GaugeRewardsTest is Test {
     CurveV2GaugeRewards private curveV2GaugeRewards;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"));
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
 
         address[] memory _coins = new address[](2);
         _coins[0] = address(lusd);

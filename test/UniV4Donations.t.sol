@@ -73,7 +73,7 @@ contract UniV4DonationsTest is Test, Deployers {
     int24 constant MAX_TICK_SPACING = 32767;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"));
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
 
         manager = new PoolManager(500000);
         modifyLiquidityRouter = new PoolModifyLiquidityTest(manager);

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {console} from "forge-std/console.sol";
+
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -131,27 +133,59 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     function onAfterAllocateLQTY(address _user, uint88 _voteLQTY, uint88 _vetoLQTY) external virtual onlyGovernance {
         uint16 currentEpoch = governance.epoch();
         Bribe memory bribe = bribeByEpoch[currentEpoch];
-        uint256 mostRecentEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
+        uint16 mostRecentEpoch = lqtyAllocationByUserAtEpoch[_user].getTail();
 
-        if (bribe.boldAmount != 0 || bribe.bribeTokenAmount != 0 || mostRecentEpoch == 0) {
-            if (mostRecentEpoch != currentEpoch && _vetoLQTY == 0) {
-                uint16 mostRecentEpoch_ = totalLQTYAllocationByEpoch.getHead();
-                if (mostRecentEpoch_ != currentEpoch) {
-                    totalLQTYAllocationByEpoch.insert(currentEpoch, _voteLQTY, 0);
+        if (currentEpoch == 0) return;
+
+        // if (bribe.boldAmount == 0 || bribe.bribeTokenAmount == 0) {
+        //     return;
+        // }
+
+        // if this is the first user allocation in the epoch, then insert a new item into the user allocation DLL
+        if (mostRecentEpoch != currentEpoch) {
+            uint88 prevVoteLQTY =
+                lqtyAllocationByUserAtEpoch[_user].items[lqtyAllocationByUserAtEpoch[_user].getPrev(currentEpoch)].value;
+            uint88 newVoteLQTY = (_vetoLQTY == 0) ? _voteLQTY : 0;
+            // if this is the first allocation in the epoch, then insert a new item into the total allocation DLL
+            if (totalLQTYAllocationByEpoch.getTail() != currentEpoch) {
+                uint88 prevTotalLQTYAllocation =
+                    totalLQTYAllocationByEpoch.items[totalLQTYAllocationByEpoch.getPrev(currentEpoch)].value;
+                if (_vetoLQTY == 0) {
+                    totalLQTYAllocationByEpoch.insert(
+                        currentEpoch, prevTotalLQTYAllocation + newVoteLQTY - prevVoteLQTY, 0
+                    );
                 } else {
-                    totalLQTYAllocationByEpoch.items[currentEpoch].value += _voteLQTY;
+                    // if the prev user allocation was counted in, then remove the prev user allocation from the
+                    // total allocation
+                    if (prevVoteLQTY != 0) {
+                        totalLQTYAllocationByEpoch.insert(currentEpoch, prevTotalLQTYAllocation - prevVoteLQTY, 0);
+                    } else {
+                        totalLQTYAllocationByEpoch.insert(currentEpoch, prevTotalLQTYAllocation, 0);
+                    }
                 }
-                lqtyAllocationByUserAtEpoch[_user].insert(currentEpoch, _voteLQTY, 0);
             } else {
-                DoubleLinkedList.Item memory lqtyAllocation = lqtyAllocationByUserAtEpoch[_user].getItem(currentEpoch);
                 if (_vetoLQTY == 0) {
                     totalLQTYAllocationByEpoch.items[currentEpoch].value =
-                        totalLQTYAllocationByEpoch.items[currentEpoch].value + _voteLQTY - lqtyAllocation.value;
-                    lqtyAllocationByUserAtEpoch[_user].items[currentEpoch].value = _voteLQTY;
-                } else {
-                    totalLQTYAllocationByEpoch.items[currentEpoch].value -= lqtyAllocation.value;
-                    lqtyAllocationByUserAtEpoch[_user].remove(currentEpoch);
+                        totalLQTYAllocationByEpoch.items[currentEpoch].value + newVoteLQTY - prevVoteLQTY;
+                } else if (prevVoteLQTY != 0) {
+                    totalLQTYAllocationByEpoch.items[currentEpoch].value =
+                        totalLQTYAllocationByEpoch.items[currentEpoch].value - prevVoteLQTY;
                 }
+            }
+            // insert a new item into the user allocation DLL
+            lqtyAllocationByUserAtEpoch[_user].insert(currentEpoch, newVoteLQTY, 0);
+        } else {
+            DoubleLinkedList.Item memory lqtyAllocation = lqtyAllocationByUserAtEpoch[_user].getItem(currentEpoch);
+            if (_vetoLQTY == 0) {
+                // update the allocation for the current epoch by adding the new allocation and subtracting
+                // the previous one
+                totalLQTYAllocationByEpoch.items[currentEpoch].value =
+                    totalLQTYAllocationByEpoch.items[currentEpoch].value + _voteLQTY - lqtyAllocation.value;
+                lqtyAllocationByUserAtEpoch[_user].items[currentEpoch].value = _voteLQTY;
+            } else {
+                // if the user vetoed the initiative remove the allocation from the DLLs
+                totalLQTYAllocationByEpoch.items[currentEpoch].value -= lqtyAllocation.value;
+                lqtyAllocationByUserAtEpoch[_user].remove(currentEpoch);
             }
         }
     }

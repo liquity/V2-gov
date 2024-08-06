@@ -24,7 +24,7 @@ contract UserProxyTest is Test {
     UserProxy private userProxy;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"));
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
 
         userProxyFactory = new UserProxyFactory(address(lqty), address(lusd), stakingV1);
         userProxy = UserProxy(payable(userProxyFactory.deployUserProxy()));
