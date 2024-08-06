@@ -190,18 +190,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // check if user has enough unallocated lqty
         require(_lqtyAmount <= lqtyStaked - userState.allocatedLQTY, "Governance: insufficient-unallocated-lqty");
 
-        // TODO: remove accruedLQTY
-        (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH) =
-            userProxy.unstake(_lqtyAmount, msg.sender, msg.sender);
+        (uint256 accruedLUSD, uint256 accruedETH) = userProxy.unstake(_lqtyAmount, msg.sender, msg.sender);
 
-        emit WithdrawLQTY(msg.sender, _lqtyAmount, accruedLQTY, accruedLUSD, accruedETH);
+        emit WithdrawLQTY(msg.sender, _lqtyAmount, accruedLUSD, accruedETH);
     }
 
     /// @inheritdoc IGovernance
-    function claimFromStakingV1(address _rewardRecipient)
-        external
-        returns (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH)
-    {
+    function claimFromStakingV1(address _rewardRecipient) external returns (uint256 accruedLUSD, uint256 accruedETH) {
         address payable userProxyAddress = payable(deriveUserProxyAddress(msg.sender));
         require(userProxyAddress.code.length != 0, "Governance: user-proxy-not-deployed");
         return UserProxy(userProxyAddress).unstake(0, _rewardRecipient, _rewardRecipient);

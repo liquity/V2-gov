@@ -64,11 +64,11 @@ contract UserProxy is IUserProxy {
     function unstake(uint256 _amount, address _lqtyRecipient, address _lusdEthRecipient)
         public
         onlyStakingV2
-        returns (uint256 lqtyAmount, uint256 lusdAmount, uint256 ethAmount)
+        returns (uint256 lusdAmount, uint256 ethAmount)
     {
         stakingV1.unstake(_amount);
 
-        lqtyAmount = lqty.balanceOf(address(this));
+        uint256 lqtyAmount = lqty.balanceOf(address(this));
         if (lqtyAmount > 0) lqty.safeTransfer(_lqtyRecipient, lqtyAmount);
         lusdAmount = lusd.balanceOf(address(this));
         if (lusdAmount > 0) lusd.safeTransfer(_lusdEthRecipient, lusdAmount);
@@ -78,7 +78,7 @@ contract UserProxy is IUserProxy {
             success;
         }
 
-        emit Unstake(_amount, _lqtyRecipient, _lusdEthRecipient, lqtyAmount, lusdAmount, ethAmount);
+        emit Unstake(_amount, _lqtyRecipient, _lusdEthRecipient, lusdAmount, ethAmount);
     }
 
     /// @inheritdoc IUserProxy

@@ -661,8 +661,22 @@ contract GovernanceTest is Test {
         assertEq(forEpoch_, governance.epoch() - 1);
         assertEq(lastCountedEpoch, governance.epoch() - 1);
 
+        IGovernance.GlobalState memory globalState = IGovernance.GlobalState(type(uint88).max, uint32(block.timestamp));
+        vm.store(
+            address(governance),
+            bytes32(uint256(4)),
+            bytes32(
+                abi.encodePacked(
+                    uint136(0), uint32(globalState.countedVoteLQTYAverageTimestamp), uint88(globalState.countedVoteLQTY)
+                )
+            )
+        );
+        (uint88 countedVoteLQTY, uint32 countedVoteLQTYAverageTimestamp) = governance.globalState();
+        assertEq(countedVoteLQTY, type(uint88).max);
+        assertEq(countedVoteLQTYAverageTimestamp, block.timestamp);
+
         IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState(
-            1, 10e18, uint32(block.timestamp - 365 days), uint32(block.timestamp - 365 days), 0
+            1, 10e18, uint32(block.timestamp - 365 days), uint32(block.timestamp - 365 days), 1
         );
         vm.store(
             address(governance),
@@ -690,7 +704,7 @@ contract GovernanceTest is Test {
         assertEq(vetoLQTY, 10e18);
         assertEq(averageStakingTimestampVoteLQTY, block.timestamp - 365 days);
         assertEq(averageStakingTimestampVetoLQTY, block.timestamp - 365 days);
-        assertEq(counted, 0);
+        assertEq(counted, 1);
 
         governance.unregisterInitiative(baseInitiative3);
 
@@ -770,7 +784,7 @@ contract GovernanceTest is Test {
         // should snapshot the global and initiatives votes if there hasn't been a snapshot in the current epoch yet
         (, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(forEpoch, governance.epoch() - 1);
-        (, forEpoch, ) = governance.votesForInitiativeSnapshot(baseInitiative1);
+        (, forEpoch,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(forEpoch, governance.epoch() - 1);
 
         vm.stopPrank();
