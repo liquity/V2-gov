@@ -127,6 +127,7 @@ contract BribeInitiativeTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
         vm.stopPrank();
 
+        // should be non zero since user was deposited at that time
         vm.startPrank(user);
         epochs[0].epoch = governance.epoch() - 1;
         epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 2;
@@ -144,12 +145,5 @@ contract BribeInitiativeTest is Test {
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 0);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
         vm.stopPrank();
-
-        // vm.startPrank(lusdHolder);
-        // lqty.approve(address(bribeInitiative), 1e18);
-        // lusd.approve(address(bribeInitiative), 1e18);
-        // bribeInitiative.depositBribe(1e18, 1e18, governance.epoch() + 1);
-        // vm.warp(block.timestamp + governance.EPOCH_DURATION());
-        // vm.stopPrank();
     }
 }

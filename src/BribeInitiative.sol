@@ -137,9 +137,24 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
         if (currentEpoch == 0) return;
 
-        // if (bribe.boldAmount == 0 || bribe.bribeTokenAmount == 0) {
-        //     return;
-        // }
+        // new epoch:
+        //   no veto to no veto: insert new user allocation, add and sub from total allocation
+        // prevVoteLQTY == 0 && _vetoLQTY == 0
+
+        //   no veto to veto: insert new 0 user allocation, sub from total allocation
+        // (prevVoteLQTY == 0 || prevVoteLQTY != 0) && _vetoLQTY != 0
+
+        //   veto to no veto: insert new user allocation, add to total allocation
+        // prevVoteLQTY == 0 && _vetoLQTY == 0
+
+        //   veto to veto: insert new 0 user allocation, do nothing to total allocation
+        // prevVoteLQTY == 0 && _vetoLQTY != 0
+
+        // same epoch:
+        //   no veto to no veto: update user allocation, add and sub from total allocation
+        //   no veto to veto: set 0 user allocation, sub from total allocation
+        //   veto to no veto: update user allocation, add to total allocation
+        //   veto to veto: set 0 user allocation, do nothing to total allocation
 
         // if this is the first user allocation in the epoch, then insert a new item into the user allocation DLL
         if (mostRecentEpoch != currentEpoch) {
@@ -175,17 +190,18 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             // insert a new item into the user allocation DLL
             lqtyAllocationByUserAtEpoch[_user].insert(currentEpoch, newVoteLQTY, 0);
         } else {
-            DoubleLinkedList.Item memory lqtyAllocation = lqtyAllocationByUserAtEpoch[_user].getItem(currentEpoch);
+            uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].getItem(currentEpoch).value;
             if (_vetoLQTY == 0) {
                 // update the allocation for the current epoch by adding the new allocation and subtracting
                 // the previous one
                 totalLQTYAllocationByEpoch.items[currentEpoch].value =
-                    totalLQTYAllocationByEpoch.items[currentEpoch].value + _voteLQTY - lqtyAllocation.value;
+                    totalLQTYAllocationByEpoch.items[currentEpoch].value + _voteLQTY - prevVoteLQTY;
                 lqtyAllocationByUserAtEpoch[_user].items[currentEpoch].value = _voteLQTY;
             } else {
-                // if the user vetoed the initiative remove the allocation from the DLLs
-                totalLQTYAllocationByEpoch.items[currentEpoch].value -= lqtyAllocation.value;
-                lqtyAllocationByUserAtEpoch[_user].remove(currentEpoch);
+                // if the user vetoed the initiative subtract the allocation from the DLLs
+                totalLQTYAllocationByEpoch.items[currentEpoch].value =
+                    totalLQTYAllocationByEpoch.items[currentEpoch].value - prevVoteLQTY;
+                lqtyAllocationByUserAtEpoch[_user].items[currentEpoch].value = 0;
             }
         }
     }
