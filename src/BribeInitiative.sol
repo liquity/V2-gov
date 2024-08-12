@@ -139,7 +139,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
         // new epoch:
         //   no veto to no veto: insert new user allocation, add and sub from total allocation
-        // prevVoteLQTY == 0 && _vetoLQTY == 0
+        // (prevVoteLQTY == 0 || prevVoteLQTY != 0) && _vetoLQTY == 0
 
         //   no veto to veto: insert new 0 user allocation, sub from total allocation
         // (prevVoteLQTY == 0 || prevVoteLQTY != 0) && _vetoLQTY != 0
@@ -165,6 +165,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             if (totalLQTYAllocationByEpoch.getTail() != currentEpoch) {
                 uint88 prevTotalLQTYAllocation =
                     totalLQTYAllocationByEpoch.items[totalLQTYAllocationByEpoch.getPrev(currentEpoch)].value;
+                // no veto to no veto
                 if (_vetoLQTY == 0) {
                     totalLQTYAllocationByEpoch.insert(
                         currentEpoch, prevTotalLQTYAllocation + newVoteLQTY - prevVoteLQTY, 0
@@ -172,16 +173,20 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
                 } else {
                     // if the prev user allocation was counted in, then remove the prev user allocation from the
                     // total allocation
+                    // no veto to veto
                     if (prevVoteLQTY != 0) {
                         totalLQTYAllocationByEpoch.insert(currentEpoch, prevTotalLQTYAllocation - prevVoteLQTY, 0);
+                    // veto to veto
                     } else {
                         totalLQTYAllocationByEpoch.insert(currentEpoch, prevTotalLQTYAllocation, 0);
                     }
                 }
             } else {
+                // no veto to no veto
                 if (_vetoLQTY == 0) {
                     totalLQTYAllocationByEpoch.items[currentEpoch].value =
                         totalLQTYAllocationByEpoch.items[currentEpoch].value + newVoteLQTY - prevVoteLQTY;
+                // no veto to veto
                 } else if (prevVoteLQTY != 0) {
                     totalLQTYAllocationByEpoch.items[currentEpoch].value =
                         totalLQTYAllocationByEpoch.items[currentEpoch].value - prevVoteLQTY;
@@ -191,12 +196,14 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             lqtyAllocationByUserAtEpoch[_user].insert(currentEpoch, newVoteLQTY, 0);
         } else {
             uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].getItem(currentEpoch).value;
+            // no veto to no veto
             if (_vetoLQTY == 0) {
                 // update the allocation for the current epoch by adding the new allocation and subtracting
                 // the previous one
                 totalLQTYAllocationByEpoch.items[currentEpoch].value =
                     totalLQTYAllocationByEpoch.items[currentEpoch].value + _voteLQTY - prevVoteLQTY;
                 lqtyAllocationByUserAtEpoch[_user].items[currentEpoch].value = _voteLQTY;
+            // no veto to veto
             } else {
                 // if the user vetoed the initiative subtract the allocation from the DLLs
                 totalLQTYAllocationByEpoch.items[currentEpoch].value =
