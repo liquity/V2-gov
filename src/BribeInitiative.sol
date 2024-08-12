@@ -106,14 +106,14 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IBribeInitiative
-    function claimBribes(address _user, ClaimData[] calldata _claimData)
+    function claimBribes(ClaimData[] calldata _claimData)
         external
         returns (uint256 boldAmount, uint256 bribeTokenAmount)
     {
         for (uint256 i = 0; i < _claimData.length; i++) {
             ClaimData memory claimData = _claimData[i];
             (uint256 boldAmount_, uint256 bribeTokenAmount_) = _claimBribe(
-                _user, claimData.epoch, claimData.prevLQTYAllocationEpoch, claimData.prevTotalLQTYAllocationEpoch
+                msg.sender, claimData.epoch, claimData.prevLQTYAllocationEpoch, claimData.prevTotalLQTYAllocationEpoch
             );
             boldAmount += boldAmount_;
             bribeTokenAmount += bribeTokenAmount_;

@@ -113,7 +113,7 @@ contract BribeInitiativeTest is Test {
         epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 1;
         epochs[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 1;
         vm.expectRevert();
-        (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(user, epochs);
+        (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
         assertEq(boldAmount, 0);
         assertEq(bribeTokenAmount, 0);
 
@@ -132,7 +132,7 @@ contract BribeInitiativeTest is Test {
         epochs[0].epoch = governance.epoch() - 1;
         epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 2;
         epochs[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 2;
-        (boldAmount, bribeTokenAmount) = bribeInitiative.claimBribes(user, epochs);
+        (boldAmount, bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
         assertEq(boldAmount, 1e18);
         assertEq(bribeTokenAmount, 1e18);
         vm.stopPrank();

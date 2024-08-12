@@ -66,9 +66,8 @@ interface IBribeInitiative {
     /// @dev The user can only claim bribes for past epochs.
     /// The arrays `_epochs`, `_prevLQTYAllocationEpochs` and `_prevTotalLQTYAllocationEpochs` should be sorted
     /// from oldest epoch to the newest. The length of the arrays has to be the same.
-    /// @param _user Address of the user
     /// @param _claimData Array specifying the epochs at which the user wants to claim the bribes
-    function claimBribes(address _user, ClaimData[] calldata _claimData)
+    function claimBribes(ClaimData[] calldata _claimData)
         external
         returns (uint256 boldAmount, uint256 bribeTokenAmount);
 }
