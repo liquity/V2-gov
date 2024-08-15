@@ -124,6 +124,10 @@ contract BribeInitiativeAllocateTest is Test {
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
 
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, 1e18, 1);
+        assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 0);
+        assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch()), 0);
+
         governance.setEpoch(3);
 
         vm.startPrank(address(user));
