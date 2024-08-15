@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {console} from "forge-std/console.sol";
-
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -84,6 +82,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
         DoubleLinkedList.Item memory lqtyAllocation =
             lqtyAllocationByUserAtEpoch[_user].getItem(_prevLQTYAllocationEpoch);
+
         require(
             lqtyAllocation.value != 0 && _prevLQTYAllocationEpoch <= _epoch
                 && (lqtyAllocation.next > _epoch || lqtyAllocation.next == 0),
@@ -97,8 +96,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             "BribeInitiative: invalid-prev-total-lqty-allocation-epoch"
         );
 
-        boldAmount = bribe.boldAmount * lqtyAllocation.value / totalLQTYAllocation.value;
-        bribeTokenAmount = bribe.bribeTokenAmount * lqtyAllocation.value / totalLQTYAllocation.value;
+        boldAmount = uint256(bribe.boldAmount) * uint256(lqtyAllocation.value) / uint256(totalLQTYAllocation.value);
+        bribeTokenAmount =
+            uint256(bribe.bribeTokenAmount) * uint256(lqtyAllocation.value) / uint256(totalLQTYAllocation.value);
 
         claimedBribeAtEpoch[_user][_epoch] = true;
 
@@ -124,95 +124,100 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IInitiative
-    function onRegisterInitiative() external virtual override onlyGovernance {}
+    function onRegisterInitiative(uint16) external virtual override onlyGovernance {}
 
     /// @inheritdoc IInitiative
-    function onUnregisterInitiative() external virtual override onlyGovernance {}
+    function onUnregisterInitiative(uint16) external virtual override onlyGovernance {}
+
+    function _setTotalLQTYAllocationByEpoch(uint16 _epoch, uint88 _value, bool _insert) private {
+        if (_insert) {
+            totalLQTYAllocationByEpoch.insert(_epoch, _value, 0);
+        } else {
+            totalLQTYAllocationByEpoch.items[_epoch].value = _value;
+        }
+        emit ModifyTotalLQTYAllocation(_epoch, _value);
+    }
+
+    function _setLQTYAllocationByUserAtEpoch(address _user, uint16 _epoch, uint88 _value, bool _insert) private {
+        if (_insert) {
+            lqtyAllocationByUserAtEpoch[_user].insert(_epoch, _value, 0);
+        } else {
+            lqtyAllocationByUserAtEpoch[_user].items[_epoch].value = _value;
+        }
+        emit ModifyLQTYAllocation(_user, _epoch, _value);
+    }
 
     /// @inheritdoc IInitiative
-    function onAfterAllocateLQTY(address _user, uint88 _voteLQTY, uint88 _vetoLQTY) external virtual onlyGovernance {
-        uint16 currentEpoch = governance.epoch();
-        Bribe memory bribe = bribeByEpoch[currentEpoch];
+    function onAfterAllocateLQTY(uint16 _currentEpoch, address _user, uint88 _voteLQTY, uint88 _vetoLQTY)
+        external
+        virtual
+        onlyGovernance
+    {
         uint16 mostRecentEpoch = lqtyAllocationByUserAtEpoch[_user].getTail();
 
-        if (currentEpoch == 0) return;
-
-        // new epoch:
-        //   no veto to no veto: insert new user allocation, add and sub from total allocation
-        // (prevVoteLQTY == 0 || prevVoteLQTY != 0) && _vetoLQTY == 0
-
-        //   no veto to veto: insert new 0 user allocation, sub from total allocation
-        // (prevVoteLQTY == 0 || prevVoteLQTY != 0) && _vetoLQTY != 0
-
-        //   veto to no veto: insert new user allocation, add to total allocation
-        // prevVoteLQTY == 0 && _vetoLQTY == 0
-
-        //   veto to veto: insert new 0 user allocation, do nothing to total allocation
-        // prevVoteLQTY == 0 && _vetoLQTY != 0
-
-        // same epoch:
-        //   no veto to no veto: update user allocation, add and sub from total allocation
-        //   no veto to veto: set 0 user allocation, sub from total allocation
-        //   veto to no veto: update user allocation, add to total allocation
-        //   veto to veto: set 0 user allocation, do nothing to total allocation
+        if (_currentEpoch == 0) return;
 
         // if this is the first user allocation in the epoch, then insert a new item into the user allocation DLL
-        if (mostRecentEpoch != currentEpoch) {
-            uint88 prevVoteLQTY =
-                lqtyAllocationByUserAtEpoch[_user].items[lqtyAllocationByUserAtEpoch[_user].getPrev(currentEpoch)].value;
+        if (mostRecentEpoch != _currentEpoch) {
+            uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].items[mostRecentEpoch].value;
             uint88 newVoteLQTY = (_vetoLQTY == 0) ? _voteLQTY : 0;
             // if this is the first allocation in the epoch, then insert a new item into the total allocation DLL
-            if (totalLQTYAllocationByEpoch.getTail() != currentEpoch) {
-                uint88 prevTotalLQTYAllocation =
-                    totalLQTYAllocationByEpoch.items[totalLQTYAllocationByEpoch.getPrev(currentEpoch)].value;
-                // no veto to no veto
+            uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getTail();
+            if (mostRecentTotalEpoch != _currentEpoch) {
+                uint88 prevTotalLQTYAllocation = totalLQTYAllocationByEpoch.items[mostRecentTotalEpoch].value;
                 if (_vetoLQTY == 0) {
-                    totalLQTYAllocationByEpoch.insert(
-                        currentEpoch, prevTotalLQTYAllocation + newVoteLQTY - prevVoteLQTY, 0
+                    // no veto to no veto
+                    _setTotalLQTYAllocationByEpoch(
+                        _currentEpoch, prevTotalLQTYAllocation + newVoteLQTY - prevVoteLQTY, true
                     );
                 } else {
-                    // if the prev user allocation was counted in, then remove the prev user allocation from the
-                    // total allocation
-                    // no veto to veto
                     if (prevVoteLQTY != 0) {
-                        totalLQTYAllocationByEpoch.insert(currentEpoch, prevTotalLQTYAllocation - prevVoteLQTY, 0);
-                    // veto to veto
+                        // if the prev user allocation was counted in, then remove the prev user allocation from the
+                        // total allocation (no veto to veto)
+                        _setTotalLQTYAllocationByEpoch(_currentEpoch, prevTotalLQTYAllocation - prevVoteLQTY, true);
                     } else {
-                        totalLQTYAllocationByEpoch.insert(currentEpoch, prevTotalLQTYAllocation, 0);
+                        // veto to veto
+                        _setTotalLQTYAllocationByEpoch(_currentEpoch, prevTotalLQTYAllocation, true);
                     }
                 }
             } else {
-                // no veto to no veto
                 if (_vetoLQTY == 0) {
-                    totalLQTYAllocationByEpoch.items[currentEpoch].value =
-                        totalLQTYAllocationByEpoch.items[currentEpoch].value + newVoteLQTY - prevVoteLQTY;
-                // no veto to veto
+                    // no veto to no veto
+                    _setTotalLQTYAllocationByEpoch(
+                        _currentEpoch,
+                        totalLQTYAllocationByEpoch.items[_currentEpoch].value + newVoteLQTY - prevVoteLQTY,
+                        false
+                    );
                 } else if (prevVoteLQTY != 0) {
-                    totalLQTYAllocationByEpoch.items[currentEpoch].value =
-                        totalLQTYAllocationByEpoch.items[currentEpoch].value - prevVoteLQTY;
+                    // no veto to veto
+                    _setTotalLQTYAllocationByEpoch(
+                        _currentEpoch, totalLQTYAllocationByEpoch.items[_currentEpoch].value - prevVoteLQTY, false
+                    );
                 }
             }
             // insert a new item into the user allocation DLL
-            lqtyAllocationByUserAtEpoch[_user].insert(currentEpoch, newVoteLQTY, 0);
+            _setLQTYAllocationByUserAtEpoch(_user, _currentEpoch, newVoteLQTY, true);
         } else {
-            uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].getItem(currentEpoch).value;
-            // no veto to no veto
+            uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].getItem(_currentEpoch).value;
             if (_vetoLQTY == 0) {
                 // update the allocation for the current epoch by adding the new allocation and subtracting
-                // the previous one
-                totalLQTYAllocationByEpoch.items[currentEpoch].value =
-                    totalLQTYAllocationByEpoch.items[currentEpoch].value + _voteLQTY - prevVoteLQTY;
-                lqtyAllocationByUserAtEpoch[_user].items[currentEpoch].value = _voteLQTY;
-            // no veto to veto
+                // the previous one (no veto to no veto)
+                _setTotalLQTYAllocationByEpoch(
+                    _currentEpoch,
+                    totalLQTYAllocationByEpoch.items[_currentEpoch].value + _voteLQTY - prevVoteLQTY,
+                    false
+                );
+                _setLQTYAllocationByUserAtEpoch(_user, _currentEpoch, _voteLQTY, false);
             } else {
-                // if the user vetoed the initiative subtract the allocation from the DLLs
-                totalLQTYAllocationByEpoch.items[currentEpoch].value =
-                    totalLQTYAllocationByEpoch.items[currentEpoch].value - prevVoteLQTY;
-                lqtyAllocationByUserAtEpoch[_user].items[currentEpoch].value = 0;
+                // if the user vetoed the initiative, subtract the allocation from the DLLs (no veto to veto)
+                _setTotalLQTYAllocationByEpoch(
+                    _currentEpoch, totalLQTYAllocationByEpoch.items[_currentEpoch].value - prevVoteLQTY, false
+                );
+                _setLQTYAllocationByUserAtEpoch(_user, _currentEpoch, 0, false);
             }
         }
     }
 
     /// @inheritdoc IInitiative
-    function onClaimForInitiative(uint256) external virtual override onlyGovernance {}
+    function onClaimForInitiative(uint16, uint256) external virtual override onlyGovernance {}
 }

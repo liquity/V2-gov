@@ -7,6 +7,8 @@ import {IGovernance} from "./IGovernance.sol";
 
 interface IBribeInitiative {
     event DepositBribe(address depositor, uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch);
+    event ModifyLQTYAllocation(address user, uint16 epoch, uint88 lqtyAllocated);
+    event ModifyTotalLQTYAllocation(uint16 epoch, uint88 totalLQTYAllocated);
     event ClaimBribe(address user, uint16 epoch, uint256 boldAmount, uint256 bribeTokenAmount);
 
     /// @notice Address of the governance contract

@@ -309,7 +309,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
         (VoteSnapshot memory snapshot,) = _snapshotVotes();
-
         UserState memory userState = userStates[msg.sender];
 
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
@@ -320,12 +319,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             "Governance: insufficient-lqty"
         );
 
+        uint16 currentEpoch = epoch();
+
         initiativeStates[_initiative] = InitiativeState(0, 0, 0, 0, 0);
-        registeredInitiatives[_initiative] = epoch();
+        registeredInitiatives[_initiative] = currentEpoch;
 
-        emit RegisterInitiative(_initiative, msg.sender, epoch());
+        emit RegisterInitiative(_initiative, msg.sender, currentEpoch);
 
-        try IInitiative(_initiative).onRegisterInitiative() {} catch {}
+        try IInitiative(_initiative).onRegisterInitiative(currentEpoch) {} catch {}
     }
 
     /// @inheritdoc IGovernance
@@ -339,11 +340,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint256 vetosForInitiative =
             lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestampVetoLQTY);
 
+        uint16 currentEpoch = epoch();
+
         // an initiative can be unregistered if it has no votes and has been inactive for 'UNREGISTRATION_AFTER_EPOCHS'
         // epochs or if it has received more vetos than votes and the vetos are more than
         // 'UNREGISTRATION_THRESHOLD_FACTOR' times the voting threshold
         require(
-            (votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < epoch())
+            (votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < currentEpoch)
                 || (
                     vetosForInitiative > votesForInitiativeSnapshot_.votes
                         && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
@@ -366,9 +369,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         delete initiativeStates[_initiative];
         delete registeredInitiatives[_initiative];
 
-        emit UnregisterInitiative(_initiative, epoch());
+        emit UnregisterInitiative(_initiative, currentEpoch);
 
-        try IInitiative(_initiative).onUnregisterInitiative() {} catch {}
+        try IInitiative(_initiative).onUnregisterInitiative(currentEpoch) {} catch {}
     }
 
     /// @inheritdoc IGovernance
@@ -467,8 +470,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 
-            try IInitiative(initiative).onAfterAllocateLQTY(msg.sender, allocation.voteLQTY, allocation.vetoLQTY) {}
-                catch {}
+            try IInitiative(initiative).onAfterAllocateLQTY(
+                currentEpoch, msg.sender, allocation.voteLQTY, allocation.vetoLQTY
+            ) {} catch {}
         }
 
         require(
@@ -498,7 +502,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         emit ClaimForInitiative(_initiative, claim, votesSnapshot_.forEpoch);
 
-        try IInitiative(_initiative).onClaimForInitiative(claim) {} catch {}
+        try IInitiative(_initiative).onClaimForInitiative(votesSnapshot_.forEpoch, claim) {} catch {}
 
         return claim;
     }
