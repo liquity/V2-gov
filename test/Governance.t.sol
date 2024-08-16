@@ -801,6 +801,13 @@ contract GovernanceTest is Test {
         (, uint32 averageAge) = governance.userStates(user2);
         assertEq(governance.lqtyToVotes(1e18, block.timestamp, averageAge), 0);
 
+        deltaLQTYVetos[0] = 1e18;
+
+        vm.expectRevert("Governance: vote-and-veto");
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+        deltaLQTYVetos[0] = 0;
+
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         // should update the user's allocated LQTY balance

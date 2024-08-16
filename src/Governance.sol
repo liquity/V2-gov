@@ -464,6 +464,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             allocation.voteLQTY = add(allocation.voteLQTY, deltaLQTYVotes);
             allocation.vetoLQTY = add(allocation.vetoLQTY, deltaLQTYVetos);
             allocation.atEpoch = currentEpoch;
+            require(!(allocation.voteLQTY != 0 && allocation.vetoLQTY != 0), "Governance: vote-and-veto");
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
 
             userState.allocatedLQTY = add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
