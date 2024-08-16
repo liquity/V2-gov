@@ -401,7 +401,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             // only allow allocations to initiatives that are active
             // an initiative becomes active in the epoch after it is registered
-            require(currentEpoch > registeredInitiatives[initiative], "Governance: initiative-not-active");
+            {
+                uint16 registeredAtEpoch = registeredInitiatives[initiative];
+                require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
+            }
 
             (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative);
 
