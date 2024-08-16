@@ -179,7 +179,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function withdrawLQTY(uint88 _lqtyAmount) external {
+    function withdrawLQTY(uint88 _lqtyAmount) external nonReentrant {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         require(address(userProxy).code.length != 0, "Governance: user-proxy-not-deployed");
 
@@ -294,6 +294,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     function snapshotVotesForInitiative(address _initiative)
         external
+        nonReentrant
         returns (VoteSnapshot memory voteSnapshot, InitiativeVoteSnapshot memory initiativeVoteSnapshot)
     {
         (voteSnapshot,) = _snapshotVotes();
@@ -301,7 +302,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function registerInitiative(address _initiative) external {
+    function registerInitiative(address _initiative) external nonReentrant {
         bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
 
         require(_initiative != address(0), "Governance: zero-address");
@@ -330,7 +331,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function unregisterInitiative(address _initiative) external {
+    function unregisterInitiative(address _initiative) external nonReentrant {
         require(registeredInitiatives[_initiative] != 0, "Governance: initiative-not-registered");
 
         (, GlobalState memory state) = _snapshotVotes();
