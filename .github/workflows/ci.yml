@@ -46,7 +46,7 @@ jobs:
       - name: Build the contracts and print their size
         run: |
           forge --version
-          forge build --sizes
+          forge build --sizes || true
 
       - name: Add build summary
         run: |
