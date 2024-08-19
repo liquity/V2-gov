@@ -57,6 +57,7 @@ contract UniV4DonationsTest is Test, Deployers {
     uint128 private constant REGISTRATION_FEE = 1e18;
     uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
     uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint16 private constant REGISTRATION_WARM_UP_PERIOD = 4;
     uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
     uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
     uint88 private constant MIN_CLAIM = 500e18;
@@ -113,6 +114,7 @@ contract UniV4DonationsTest is Test, Deployers {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,

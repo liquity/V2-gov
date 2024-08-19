@@ -52,6 +52,7 @@ contract GovernanceTest is Test {
     uint128 private constant REGISTRATION_FEE = 1e18;
     uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
     uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint16 private constant REGISTRATION_WARM_UP_PERIOD = 4;
     uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
     uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
     uint88 private constant MIN_CLAIM = 500e18;
@@ -106,6 +107,7 @@ contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -126,6 +128,7 @@ contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -392,6 +395,7 @@ contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -433,6 +437,7 @@ contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: 10e18,
@@ -478,6 +483,7 @@ contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: _votingThresholdFactor,
                 minClaim: _minClaim,
@@ -594,6 +600,12 @@ contract GovernanceTest is Test {
         uint16 atEpoch = governance.registeredInitiatives(baseInitiative3);
         assertEq(atEpoch, governance.epoch());
 
+        // should revert if the initiative is still in the registration warm up period
+        vm.expectRevert("Governance: initiative-in-warm-up");
+        governance.unregisterInitiative(baseInitiative3);
+
+        vm.warp(block.timestamp + 365 days);
+
         // should revert if the initiative is still active or the vetos don't meet the threshold
         vm.expectRevert("Governance: cannot-unregister-initiative");
         governance.unregisterInitiative(baseInitiative3);
@@ -642,6 +654,8 @@ contract GovernanceTest is Test {
         governance.registerInitiative(baseInitiative3);
         atEpoch = governance.registeredInitiatives(baseInitiative3);
         assertEq(atEpoch, governance.epoch());
+
+        vm.warp(block.timestamp + 365 days);
 
         initiativeSnapshot = IGovernance.InitiativeVoteSnapshot(1, governance.epoch() - 1, governance.epoch() - 1);
         vm.store(

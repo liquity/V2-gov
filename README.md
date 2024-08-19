@@ -57,11 +57,10 @@ how BOLD is to be used.
 ## Voting
 
 Users with LQTY staked in Governance.sol, can allocate LQTY in the same epoch in which they were deposited. But the
-effective voting power at that point would be 0.
+effective voting power at that point would be insignificant.
 
 Votes can take two forms, a vote for an Initiative or a veto vote. Initiatives which have received vetoes which are both:
-three times greater than the minimum qualifying threshold, and greater than the number of votes for will not be eligible for Claims and may
-be deregistered as an Initiative.
+three times greater than the minimum qualifying threshold, and greater than the number of votes for will not be eligible for claims by being excluded from the vote count and maybe deregistered as an Initiative.
 
 Users may split their votes for and veto votes across any number of initiatives. But cannot vote for and veto vote the same Initiative.
 

@@ -43,6 +43,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     uint256 public immutable UNREGISTRATION_THRESHOLD_FACTOR;
     /// @inheritdoc IGovernance
+    uint256 public immutable REGISTRATION_WARM_UP_PERIOD;
+    /// @inheritdoc IGovernance
     uint256 public immutable UNREGISTRATION_AFTER_EPOCHS;
     /// @inheritdoc IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
@@ -81,6 +83,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         REGISTRATION_FEE = _config.registrationFee;
         REGISTRATION_THRESHOLD_FACTOR = _config.registrationThresholdFactor;
         UNREGISTRATION_THRESHOLD_FACTOR = _config.unregistrationThresholdFactor;
+        REGISTRATION_WARM_UP_PERIOD = _config.registrationWarmUpPeriod;
         UNREGISTRATION_AFTER_EPOCHS = _config.unregistrationAfterEpochs;
         VOTING_THRESHOLD_FACTOR = _config.votingThresholdFactor;
         MIN_CLAIM = _config.minClaim;
@@ -326,7 +329,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function unregisterInitiative(address _initiative) external nonReentrant {
-        require(registeredInitiatives[_initiative] != 0, "Governance: initiative-not-registered");
+        uint16 registrationEpoch = registeredInitiatives[_initiative];
+        require(registrationEpoch != 0, "Governance: initiative-not-registered");
+        uint16 currentEpoch = epoch();
+        require(registrationEpoch + REGISTRATION_WARM_UP_PERIOD < currentEpoch, "Governance: initiative-in-warm-up");
 
         (, GlobalState memory state) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
@@ -334,8 +340,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         uint256 vetosForInitiative =
             lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestampVetoLQTY);
-
-        uint16 currentEpoch = epoch();
 
         // an initiative can be unregistered if it has no votes and has been inactive for 'UNREGISTRATION_AFTER_EPOCHS'
         // epochs or if it has received more vetos than votes and the vetos are more than
