@@ -3,8 +3,6 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 
-import {console} from "forge-std/console.sol";
-
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
@@ -86,7 +84,7 @@ contract CurveV2GaugeRewardsTest is Test {
             address(lusd),
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
-                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,

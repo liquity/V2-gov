@@ -22,7 +22,7 @@ interface IGovernance {
 
     struct Configuration {
         uint128 registrationFee;
-        uint128 regstrationThresholdFactor;
+        uint128 registrationThresholdFactor;
         uint128 unregistrationThresholdFactor;
         uint16 unregistrationAfterEpochs;
         uint128 votingThresholdFactor;

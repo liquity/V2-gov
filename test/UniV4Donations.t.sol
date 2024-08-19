@@ -111,7 +111,7 @@ contract UniV4DonationsTest is Test, Deployers {
             address(lusd),
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
-                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,

@@ -60,7 +60,7 @@ interface IBribeInitiative {
         uint16 epoch;
         // Epoch at which the user updated the LQTY allocation for this initiative
         uint16 prevLQTYAllocationEpoch;
-        // Epoch at which the total LQTY allocation for this initiative
+        // Epoch at which the total LQTY allocation is updated for this initiative
         uint16 prevTotalLQTYAllocationEpoch;
     }
 

@@ -79,7 +79,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         bold = IERC20(_bold);
         require(_config.minClaim <= _config.minAccrual, "Gov: min-claim-gt-min-accrual");
         REGISTRATION_FEE = _config.registrationFee;
-        REGISTRATION_THRESHOLD_FACTOR = _config.regstrationThresholdFactor;
+        REGISTRATION_THRESHOLD_FACTOR = _config.registrationThresholdFactor;
         UNREGISTRATION_THRESHOLD_FACTOR = _config.unregistrationThresholdFactor;
         UNREGISTRATION_AFTER_EPOCHS = _config.unregistrationAfterEpochs;
         VOTING_THRESHOLD_FACTOR = _config.votingThresholdFactor;
@@ -107,30 +107,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint88 _prevLQTYBalance,
         uint88 _newLQTYBalance
     ) internal view returns (uint32) {
+        if (_newLQTYBalance == 0) return 0;
+
         uint32 prevOuterAverageAge = _averageAge(uint32(block.timestamp), _prevOuterAverageTimestamp);
         uint32 newInnerAverageAge = _averageAge(uint32(block.timestamp), _newInnerAverageTimestamp);
 
         uint88 newOuterAverageAge;
         if (_prevLQTYBalance <= _newLQTYBalance) {
             uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
-            if (_newLQTYBalance == 0) {
-                return 0;
-            } else {
-                uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
-                uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
-                uint240 votes = prevVotes + newVotes;
-                newOuterAverageAge = (_newLQTYBalance == 0) ? 0 : uint32(votes / uint240(_newLQTYBalance));
-            }
+            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
+            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
+            uint240 votes = prevVotes + newVotes;
+            newOuterAverageAge = (_newLQTYBalance == 0) ? 0 : uint32(votes / uint240(_newLQTYBalance));
         } else {
             uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
-            if (_newLQTYBalance == 0) {
-                return 0;
-            } else {
-                uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
-                uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
-                uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
-                newOuterAverageAge = (_newLQTYBalance == 0) ? 0 : uint32(votes / uint240(_newLQTYBalance));
-            }
+            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
+            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
+            uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
+            newOuterAverageAge = (_newLQTYBalance == 0) ? 0 : uint32(votes / uint240(_newLQTYBalance));
         }
 
         if (newOuterAverageAge > block.timestamp) return 0;
@@ -322,7 +316,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         uint16 currentEpoch = epoch();
 
-        initiativeStates[_initiative] = InitiativeState(0, 0, 0, 0, 0);
+        // initiativeStates[_initiative] = InitiativeState(0, 0, 0, 0, 0);
         registeredInitiatives[_initiative] = currentEpoch;
 
         emit RegisterInitiative(_initiative, msg.sender, currentEpoch);
@@ -381,6 +375,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         int176[] calldata _deltaLQTYVotes,
         int176[] calldata _deltaLQTYVetos
     ) external nonReentrant {
+        require(
+            _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
+            "Governance: array-length-mismatch"
+        );
+
         (, GlobalState memory state) = _snapshotVotes();
 
         uint256 votingThreshold = calculateVotingThreshold();
