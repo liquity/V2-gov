@@ -15,6 +15,8 @@ import {UserProxy} from "../src/UserProxy.sol";
 
 import {PermitParams} from "../src/utils/Types.sol";
 
+import {MockInitiative} from "./mocks/MockInitiative.sol";
+
 contract GovernanceInternal is Governance {
     constructor(
         address _lqty,
@@ -980,5 +982,98 @@ contract GovernanceTest is Test {
         assertEq(lqty.balanceOf(user), lqtyBalance);
 
         vm.stopPrank();
+    }
+
+    function test_nonReentrant() public {
+        MockInitiative mockInitiative = new MockInitiative(address(governance));
+
+        vm.startPrank(user);
+
+        address userProxy = governance.deployUserProxy();
+
+        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
+        vm.store(
+            address(governance),
+            bytes32(uint256(2)),
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+        );
+        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
+        assertEq(votes, 1e18);
+        assertEq(forEpoch, 1);
+
+        vm.startPrank(lusdHolder);
+        lusd.transfer(user, 2e18);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+
+        lusd.approve(address(governance), 2e18);
+
+        lqty.approve(address(userProxy), 1e18);
+        governance.depositLQTY(1e18);
+        vm.warp(block.timestamp + 365 days);
+
+        governance.registerInitiative(address(mockInitiative));
+        uint16 atEpoch = governance.registeredInitiatives(address(mockInitiative));
+        assertEq(atEpoch, governance.epoch());
+
+        vm.warp(block.timestamp + 365 days);
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = address(mockInitiative);
+        int176[] memory deltaLQTYVotes = new int176[](1);
+        int176[] memory deltaLQTYVetos = new int176[](1);
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+        // check that votingThreshold is is high enough such that MIN_CLAIM is met
+        snapshot = IGovernance.VoteSnapshot(1, governance.epoch() - 1);
+        vm.store(
+            address(governance),
+            bytes32(uint256(2)),
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+        );
+        (votes, forEpoch) = governance.votesSnapshot();
+        assertEq(votes, 1);
+        assertEq(forEpoch, governance.epoch() - 1);
+
+        IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot =
+            IGovernance.InitiativeVoteSnapshot(1, governance.epoch() - 1, governance.epoch() - 1);
+        vm.store(
+            address(governance),
+            keccak256(abi.encode(address(mockInitiative), uint256(3))),
+            bytes32(
+                abi.encodePacked(
+                    uint16(initiativeSnapshot.lastCountedEpoch),
+                    uint16(initiativeSnapshot.forEpoch),
+                    uint224(initiativeSnapshot.votes)
+                )
+            )
+        );
+        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch) =
+            governance.votesForInitiativeSnapshot(address(mockInitiative));
+        assertEq(votes_, 1);
+        assertEq(forEpoch_, governance.epoch() - 1);
+        assertEq(lastCountedEpoch, governance.epoch() - 1);
+
+        governance.claimForInitiative(address(mockInitiative));
+
+        initiativeSnapshot = IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0);
+        vm.store(
+            address(governance),
+            keccak256(abi.encode(address(mockInitiative), uint256(3))),
+            bytes32(
+                abi.encodePacked(
+                    uint16(initiativeSnapshot.lastCountedEpoch),
+                    uint16(initiativeSnapshot.forEpoch),
+                    uint224(initiativeSnapshot.votes)
+                )
+            )
+        );
+        (votes_, forEpoch_, lastCountedEpoch) = governance.votesForInitiativeSnapshot(address(mockInitiative));
+        assertEq(votes_, 0);
+        assertEq(forEpoch_, governance.epoch() - 1);
+        assertEq(lastCountedEpoch, 0);
+
+        governance.unregisterInitiative(address(mockInitiative));
     }
 }

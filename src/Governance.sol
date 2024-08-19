@@ -494,12 +494,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function claimForInitiative(address _initiative) external returns (uint256) {
+    function claimForInitiative(address _initiative) external nonReentrant returns (uint256) {
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_,) = _snapshotVotesForInitiative(_initiative);
 
         // return 0 if the initiative has no votes
-        if (votesForInitiativeSnapshot_.votes == 0) return 0;
+        if (votesSnapshot_.votes == 0 || votesForInitiativeSnapshot_.votes == 0) return 0;
 
         uint256 claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
 
