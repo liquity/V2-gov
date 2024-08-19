@@ -735,8 +735,6 @@ contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
-    // function test_snapshotVotesForInitiative() public {}
-
     function test_allocateLQTY() public {
         vm.startPrank(user);
 
