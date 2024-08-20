@@ -43,11 +43,11 @@ In order to unstake and withdraw LQTY, a User must first deallocate a sufficient
 
 Initiative can be added permissionlessly, requiring the payment of a 100 BOLD fee, and in the following epoch become active
 for voting. During each snapshot, Initiatives which received as sufficient number of Votes that their incentive payout equals
-at least 500 BOLD, will be eligible to Claim. Initiatives failing to meet this threshold will not qualify to claim for that epoch.
-Initiatives failing to be eligible for a claim during four consecutive epochs may be deregistered permissionlessly, requiring
+at least 500 BOLD, will be eligible to Claim ("minimum qualifying threshold"). Initiatives failing to meet the minimum qualifying threshold will not qualify to claim for that epoch.
+Initiatives failing to meet the minimum qualifying threshold for a claim during four consecutive epochs may be deregistered permissionlessly, requiring
 reregistration to become eligible for voting again.
 
-Claims for Initiatives which have met the qualifying minimum, can be claimed permissionlessly, but must be claimed by the end of the epoch
+Claims for Initiatives which have met the minimum qualifying threshold, can be claimed permissionlessly, but must be claimed by the end of the epoch
 in which they are awarded. Failure to do so will result in the unclaimed portion being reused in the following epoch.
 
 As Initiatives are assigned to arbitrary addresses, they can be used for any purpose, including EOAs, Multisigs, or smart contracts designed
