@@ -153,7 +153,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         virtual
         onlyGovernance
     {
-        uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getTail();
+        uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
 
         if (_currentEpoch == 0) return;
 
@@ -161,7 +161,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         if (mostRecentUserEpoch != _currentEpoch) {
             uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].items[mostRecentUserEpoch].value;
             uint88 newVoteLQTY = (_vetoLQTY == 0) ? _voteLQTY : 0;
-            uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getTail();
+            uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
             // if this is the first allocation in the epoch, then insert a new item into the total allocation DLL
             if (mostRecentTotalEpoch != _currentEpoch) {
                 uint88 prevTotalLQTYAllocation = totalLQTYAllocationByEpoch.items[mostRecentTotalEpoch].value;
