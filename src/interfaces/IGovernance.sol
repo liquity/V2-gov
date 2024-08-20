@@ -9,9 +9,7 @@ import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
     event DepositLQTY(address user, uint256 depositedLQTY);
-    event WithdrawLQTY(
-        address user, uint256 withdrawnLQTY, uint256 accruedLQTY_, uint256 accruedLUSD, uint256 accruedETH
-    );
+    event WithdrawLQTY(address user, uint256 withdrawnLQTY, uint256 accruedLUSD, uint256 accruedETH);
 
     event SnapshotVotes(uint240 votes, uint16 forEpoch);
     event SnapshotVotesForInitiative(address initiative, uint240 votes, uint16 forEpoch);
@@ -23,16 +21,17 @@ interface IGovernance {
     event ClaimForInitiative(address initiative, uint256 bold, uint256 forEpoch);
 
     struct Configuration {
-        uint256 registrationFee;
-        uint256 regstrationThresholdFactor;
-        uint256 unregistrationThresholdFactor;
-        uint256 unregistrationAfterEpochs;
-        uint256 votingThresholdFactor;
-        uint256 minClaim;
-        uint256 minAccrual;
-        uint256 epochStart;
-        uint256 epochDuration;
-        uint256 epochVotingCutoff;
+        uint128 registrationFee;
+        uint128 registrationThresholdFactor;
+        uint128 unregistrationThresholdFactor;
+        uint16 registrationWarmUpPeriod;
+        uint16 unregistrationAfterEpochs;
+        uint128 votingThresholdFactor;
+        uint88 minClaim;
+        uint88 minAccrual;
+        uint32 epochStart;
+        uint32 epochDuration;
+        uint32 epochVotingCutoff;
     }
 
     /// @notice Address of the LQTY StakingV1 contract
@@ -70,6 +69,9 @@ interface IGovernance {
     /// @notice Multiple of the voting threshold in vetos that are necessary to unregister an initiative
     /// @return unregistrationThresholdFactor Unregistration threshold factor
     function UNREGISTRATION_THRESHOLD_FACTOR() external view returns (uint256 unregistrationThresholdFactor);
+    /// @notice Number of epochs an initiative has to exist before it can be unregistered
+    /// @return registrationWarmUpPeriod Number of epochs
+    function REGISTRATION_WARM_UP_PERIOD() external view returns (uint256 registrationWarmUpPeriod);
     /// @notice Number of epochs an initiative has to be inactive before it can be unregistered
     /// @return unregistrationAfterEpochs Number of epochs
     function UNREGISTRATION_AFTER_EPOCHS() external view returns (uint256 unregistrationAfterEpochs);
@@ -87,8 +89,9 @@ interface IGovernance {
     }
 
     struct InitiativeVoteSnapshot {
-        uint240 votes; // Votes at epoch transition
+        uint224 votes; // Votes at epoch transition
         uint16 forEpoch; // Epoch for which the votes are counted
+        uint16 lastCountedEpoch; // Epoch at which which the votes where counted last in the global snapshot
     }
 
     /// @notice Returns the vote count snapshot of the previous epoch
@@ -99,7 +102,11 @@ interface IGovernance {
     /// @param _initiative Address of the initiative
     /// @return votes Number of votes
     /// @return forEpoch Epoch for which the votes are counted
-    function votesForInitiativeSnapshot(address _initiative) external view returns (uint240 votes, uint16 forEpoch);
+    /// @return lastCountedEpoch Epoch at which which the votes where counted last in the global snapshot
+    function votesForInitiativeSnapshot(address _initiative)
+        external
+        view
+        returns (uint224 votes, uint16 forEpoch, uint16 lastCountedEpoch);
 
     struct Allocation {
         uint88 voteLQTY; // LQTY allocated vouching for the initiative
@@ -184,7 +191,9 @@ interface IGovernance {
     function withdrawLQTY(uint88 _lqtyAmount) external;
     /// @notice Claims staking rewards from StakingV1 without unstaking
     /// @param _rewardRecipient Address that will receive the rewards
-    function claimFromStakingV1(address _rewardRecipient) external;
+    /// @return accruedLUSD Amount of LUSD accrued
+    /// @return accruedETH Amount of ETH accrued
+    function claimFromStakingV1(address _rewardRecipient) external returns (uint256 accruedLUSD, uint256 accruedETH);
 
     /*//////////////////////////////////////////////////////////////
                                  VOTING

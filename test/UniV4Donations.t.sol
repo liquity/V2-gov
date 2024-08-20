@@ -54,15 +54,16 @@ contract UniV4DonationsTest is Test, Deployers {
     address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
 
-    uint256 private constant REGISTRATION_FEE = 1e18;
-    uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
-    uint256 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint256 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
-    uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint256 private constant MIN_CLAIM = 500e18;
-    uint256 private constant MIN_ACCRUAL = 1000e18;
-    uint256 private constant EPOCH_DURATION = 604800;
-    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint128 private constant REGISTRATION_FEE = 1e18;
+    uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint16 private constant REGISTRATION_WARM_UP_PERIOD = 4;
+    uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
+    uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint88 private constant MIN_CLAIM = 500e18;
+    uint88 private constant MIN_ACCRUAL = 1000e18;
+    uint32 private constant EPOCH_DURATION = 604800;
+    uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -73,7 +74,7 @@ contract UniV4DonationsTest is Test, Deployers {
     int24 constant MAX_TICK_SPACING = 32767;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"));
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
 
         manager = new PoolManager(500000);
         modifyLiquidityRouter = new PoolModifyLiquidityTest(manager);
@@ -111,13 +112,14 @@ contract UniV4DonationsTest is Test, Deployers {
             address(lusd),
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
-                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
-                epochStart: block.timestamp,
+                epochStart: uint32(block.timestamp),
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),

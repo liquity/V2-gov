@@ -3,7 +3,7 @@
 solc_version = "0.8.24"
 evm_version = "cancun"
 optimizer = true
-optimizer_runs = 100
+optimizer_runs = 100000
 
 # Testing
 gas_reports = ["*"]

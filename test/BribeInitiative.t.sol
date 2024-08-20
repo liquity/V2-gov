@@ -21,15 +21,16 @@ contract BribeInitiativeTest is Test {
     address private constant initiative2 = address(0x2);
     address private constant initiative3 = address(0x3);
 
-    uint256 private constant REGISTRATION_FEE = 1e18;
-    uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
-    uint256 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint256 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
-    uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint256 private constant MIN_CLAIM = 500e18;
-    uint256 private constant MIN_ACCRUAL = 1000e18;
-    uint256 private constant EPOCH_DURATION = 604800;
-    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint128 private constant REGISTRATION_FEE = 1e18;
+    uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint16 private constant REGISTRATION_WARM_UP_PERIOD = 4;
+    uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
+    uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint88 private constant MIN_CLAIM = 500e18;
+    uint88 private constant MIN_ACCRUAL = 1000e18;
+    uint32 private constant EPOCH_DURATION = 604800;
+    uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -60,13 +61,14 @@ contract BribeInitiativeTest is Test {
             address(lusd),
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
-                regstrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
-                epochStart: block.timestamp,
+                epochStart: uint32(block.timestamp),
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
@@ -104,6 +106,8 @@ contract BribeInitiativeTest is Test {
         deltaVoteLQTY[0] = 1e18;
         int176[] memory deltaVetoLQTY = new int176[](1);
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
+        assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1e18);
 
         // should be zero since user was not deposited at that time
         BribeInitiative.ClaimData[] memory epochs = new BribeInitiative.ClaimData[](1);
@@ -111,7 +115,9 @@ contract BribeInitiativeTest is Test {
         epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 1;
         epochs[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 1;
         vm.expectRevert();
-        (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(user, epochs);
+        (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
+        assertEq(boldAmount, 0);
+        assertEq(bribeTokenAmount, 0);
 
         vm.stopPrank();
 
@@ -123,13 +129,23 @@ contract BribeInitiativeTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
         vm.stopPrank();
 
+        // should be non zero since user was deposited at that time
         vm.startPrank(user);
         epochs[0].epoch = governance.epoch() - 1;
         epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 2;
         epochs[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 2;
-        (boldAmount, bribeTokenAmount) = bribeInitiative.claimBribes(user, epochs);
+        (boldAmount, bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
         assertEq(boldAmount, 1e18);
         assertEq(bribeTokenAmount, 1e18);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+        initiatives[0] = address(bribeInitiative);
+        deltaVoteLQTY[0] = -0.5e18;
+        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 0);
+        assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
         vm.stopPrank();
     }
 }

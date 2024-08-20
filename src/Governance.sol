@@ -43,6 +43,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     uint256 public immutable UNREGISTRATION_THRESHOLD_FACTOR;
     /// @inheritdoc IGovernance
+    uint256 public immutable REGISTRATION_WARM_UP_PERIOD;
+    /// @inheritdoc IGovernance
     uint256 public immutable UNREGISTRATION_AFTER_EPOCHS;
     /// @inheritdoc IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
@@ -79,8 +81,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         bold = IERC20(_bold);
         require(_config.minClaim <= _config.minAccrual, "Gov: min-claim-gt-min-accrual");
         REGISTRATION_FEE = _config.registrationFee;
-        REGISTRATION_THRESHOLD_FACTOR = _config.regstrationThresholdFactor;
+        REGISTRATION_THRESHOLD_FACTOR = _config.registrationThresholdFactor;
         UNREGISTRATION_THRESHOLD_FACTOR = _config.unregistrationThresholdFactor;
+        REGISTRATION_WARM_UP_PERIOD = _config.registrationWarmUpPeriod;
         UNREGISTRATION_AFTER_EPOCHS = _config.unregistrationAfterEpochs;
         VOTING_THRESHOLD_FACTOR = _config.votingThresholdFactor;
         MIN_CLAIM = _config.minClaim;
@@ -107,30 +110,27 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint88 _prevLQTYBalance,
         uint88 _newLQTYBalance
     ) internal view returns (uint32) {
+        if (_newLQTYBalance == 0) return 0;
+
         uint32 prevOuterAverageAge = _averageAge(uint32(block.timestamp), _prevOuterAverageTimestamp);
         uint32 newInnerAverageAge = _averageAge(uint32(block.timestamp), _newInnerAverageTimestamp);
 
         uint88 newOuterAverageAge;
         if (_prevLQTYBalance <= _newLQTYBalance) {
             uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
-            if (_newLQTYBalance == 0) {
-                return 0;
-            } else {
-                uint240 votes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge)
-                    + uint240(deltaLQTY) * uint240(newInnerAverageAge);
-                newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
-            }
+            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
+            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
+            uint240 votes = prevVotes + newVotes;
+            newOuterAverageAge = (_newLQTYBalance == 0) ? 0 : uint32(votes / uint240(_newLQTYBalance));
         } else {
             uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
-            if (_newLQTYBalance == 0) {
-                return 0;
-            } else {
-                uint240 votes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge)
-                    - uint240(deltaLQTY) * uint240(newInnerAverageAge);
-                newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
-            }
+            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
+            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
+            uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
+            newOuterAverageAge = (_newLQTYBalance == 0) ? 0 : uint32(votes / uint240(_newLQTYBalance));
         }
 
+        if (newOuterAverageAge > block.timestamp) return 0;
         return uint32(block.timestamp - newOuterAverageAge);
     }
 
@@ -139,6 +139,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     //////////////////////////////////////////////////////////////*/
 
     function _deposit(uint88 _lqtyAmount) private returns (UserProxy) {
+        require(_lqtyAmount > 0, "Governance: zero-lqty-amount");
+
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
         if (userProxyAddress.code.length == 0) {
@@ -174,8 +176,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function withdrawLQTY(uint88 _lqtyAmount) external {
+    function withdrawLQTY(uint88 _lqtyAmount) external nonReentrant {
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
+        require(address(userProxy).code.length != 0, "Governance: user-proxy-not-deployed");
+
         uint88 lqtyStaked = uint88(stakingV1.stakes(address(userProxy)));
 
         UserState storage userState = userStates[msg.sender];
@@ -183,16 +187,16 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // check if user has enough unallocated lqty
         require(_lqtyAmount <= lqtyStaked - userState.allocatedLQTY, "Governance: insufficient-unallocated-lqty");
 
-        // TODO: remove accruedLQTY
-        (uint256 accruedLQTY, uint256 accruedLUSD, uint256 accruedETH) =
-            userProxy.unstake(_lqtyAmount, msg.sender, msg.sender);
+        (uint256 accruedLUSD, uint256 accruedETH) = userProxy.unstake(_lqtyAmount, msg.sender, msg.sender);
 
-        emit WithdrawLQTY(msg.sender, _lqtyAmount, accruedLQTY, accruedLUSD, accruedETH);
+        emit WithdrawLQTY(msg.sender, _lqtyAmount, accruedLUSD, accruedETH);
     }
 
     /// @inheritdoc IGovernance
-    function claimFromStakingV1(address _rewardRecipient) external {
-        UserProxy(payable(deriveUserProxyAddress(msg.sender))).unstake(0, _rewardRecipient, _rewardRecipient);
+    function claimFromStakingV1(address _rewardRecipient) external returns (uint256 accruedLUSD, uint256 accruedETH) {
+        address payable userProxyAddress = payable(deriveUserProxyAddress(msg.sender));
+        require(userProxyAddress.code.length != 0, "Governance: user-proxy-not-deployed");
+        return UserProxy(userProxyAddress).unstake(0, _rewardRecipient, _rewardRecipient);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -201,16 +205,20 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function epoch() public view returns (uint16) {
+        if (block.timestamp < EPOCH_START) return 0;
         return uint16(((block.timestamp - EPOCH_START) / EPOCH_DURATION) + 1);
     }
 
     /// @inheritdoc IGovernance
     function epochStart() public view returns (uint32) {
-        return uint32(EPOCH_START + (epoch() - 1) * EPOCH_DURATION);
+        uint16 currentEpoch = epoch();
+        if (currentEpoch == 0) return 0;
+        return uint32(EPOCH_START + (currentEpoch - 1) * EPOCH_DURATION);
     }
 
     /// @inheritdoc IGovernance
     function secondsWithinEpoch() public view returns (uint32) {
+        if (block.timestamp < EPOCH_START) return 0;
         return uint32((block.timestamp - EPOCH_START) % EPOCH_DURATION);
     }
 
@@ -269,7 +277,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
             // if the votes didn't meet the voting threshold then no votes qualify
             if (votes >= votingThreshold && votes >= vetos) {
-                initiativeSnapshot.votes = votes;
+                initiativeSnapshot.votes = uint224(votes);
+                initiativeSnapshot.lastCountedEpoch = currentEpoch - 1;
+            } else {
+                initiativeSnapshot.votes = 0;
             }
             initiativeSnapshot.forEpoch = currentEpoch - 1;
             votesForInitiativeSnapshot[_initiative] = initiativeSnapshot;
@@ -280,6 +291,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     function snapshotVotesForInitiative(address _initiative)
         external
+        nonReentrant
         returns (VoteSnapshot memory voteSnapshot, InitiativeVoteSnapshot memory initiativeVoteSnapshot)
     {
         (voteSnapshot,) = _snapshotVotes();
@@ -287,7 +299,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function registerInitiative(address _initiative) external {
+    function registerInitiative(address _initiative) external nonReentrant {
         bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
 
         require(_initiative != address(0), "Governance: zero-address");
@@ -295,7 +307,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
         (VoteSnapshot memory snapshot,) = _snapshotVotes();
-
         UserState memory userState = userStates[msg.sender];
 
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
@@ -306,17 +317,22 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             "Governance: insufficient-lqty"
         );
 
-        initiativeStates[_initiative] = InitiativeState(0, 0, 0, 0, 0);
-        registeredInitiatives[_initiative] = epoch();
+        uint16 currentEpoch = epoch();
 
-        emit RegisterInitiative(_initiative, msg.sender, epoch());
+        // initiativeStates[_initiative] = InitiativeState(0, 0, 0, 0, 0);
+        registeredInitiatives[_initiative] = currentEpoch;
 
-        try IInitiative(_initiative).onRegisterInitiative() {} catch {}
+        emit RegisterInitiative(_initiative, msg.sender, currentEpoch);
+
+        try IInitiative(_initiative).onRegisterInitiative(currentEpoch) {} catch {}
     }
 
     /// @inheritdoc IGovernance
-    function unregisterInitiative(address _initiative) external {
-        require(registeredInitiatives[_initiative] != 0, "Governance: initiative-not-registered");
+    function unregisterInitiative(address _initiative) external nonReentrant {
+        uint16 registrationEpoch = registeredInitiatives[_initiative];
+        require(registrationEpoch != 0, "Governance: initiative-not-registered");
+        uint16 currentEpoch = epoch();
+        require(registrationEpoch + REGISTRATION_WARM_UP_PERIOD < currentEpoch, "Governance: initiative-in-warm-up");
 
         (, GlobalState memory state) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
@@ -329,10 +345,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // epochs or if it has received more vetos than votes and the vetos are more than
         // 'UNREGISTRATION_THRESHOLD_FACTOR' times the voting threshold
         require(
-            (
-                votesForInitiativeSnapshot_.votes == 0
-                    && votesForInitiativeSnapshot_.forEpoch + UNREGISTRATION_AFTER_EPOCHS < epoch()
-            )
+            (votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < currentEpoch)
                 || (
                     vetosForInitiative > votesForInitiativeSnapshot_.votes
                         && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
@@ -353,10 +366,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
 
         delete initiativeStates[_initiative];
+        delete registeredInitiatives[_initiative];
 
-        emit UnregisterInitiative(_initiative, epoch());
+        emit UnregisterInitiative(_initiative, currentEpoch);
 
-        try IInitiative(_initiative).onUnregisterInitiative() {} catch {}
+        try IInitiative(_initiative).onUnregisterInitiative(currentEpoch) {} catch {}
     }
 
     /// @inheritdoc IGovernance
@@ -365,6 +379,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         int176[] calldata _deltaLQTYVotes,
         int176[] calldata _deltaLQTYVetos
     ) external nonReentrant {
+        require(
+            _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
+            "Governance: array-length-mismatch"
+        );
+
         (, GlobalState memory state) = _snapshotVotes();
 
         uint256 votingThreshold = calculateVotingThreshold();
@@ -385,7 +404,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             // only allow allocations to initiatives that are active
             // an initiative becomes active in the epoch after it is registered
-            require(currentEpoch > registeredInitiatives[initiative], "Governance: initiative-not-active");
+            {
+                uint16 registeredAtEpoch = registeredInitiatives[initiative];
+                require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
+            }
 
             (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative);
 
@@ -449,14 +471,16 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             allocation.voteLQTY = add(allocation.voteLQTY, deltaLQTYVotes);
             allocation.vetoLQTY = add(allocation.vetoLQTY, deltaLQTYVetos);
             allocation.atEpoch = currentEpoch;
+            require(!(allocation.voteLQTY != 0 && allocation.vetoLQTY != 0), "Governance: vote-and-veto");
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
 
             userState.allocatedLQTY = add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
 
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 
-            try IInitiative(initiative).onAfterAllocateLQTY(msg.sender, allocation.voteLQTY, allocation.vetoLQTY) {}
-                catch {}
+            try IInitiative(initiative).onAfterAllocateLQTY(
+                currentEpoch, msg.sender, allocation.voteLQTY, allocation.vetoLQTY
+            ) {} catch {}
         }
 
         require(
@@ -470,12 +494,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function claimForInitiative(address _initiative) external returns (uint256) {
+    function claimForInitiative(address _initiative) external nonReentrant returns (uint256) {
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_,) = _snapshotVotesForInitiative(_initiative);
 
         // return 0 if the initiative has no votes
-        if (votesForInitiativeSnapshot_.votes == 0) return 0;
+        if (votesSnapshot_.votes == 0 || votesForInitiativeSnapshot_.votes == 0) return 0;
 
         uint256 claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
 
@@ -486,7 +510,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         emit ClaimForInitiative(_initiative, claim, votesSnapshot_.forEpoch);
 
-        try IInitiative(_initiative).onClaimForInitiative(claim) {} catch {}
+        try IInitiative(_initiative).onClaimForInitiative(votesSnapshot_.forEpoch, claim) {} catch {}
 
         return claim;
     }

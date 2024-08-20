@@ -2,8 +2,8 @@
 pragma solidity ^0.8.24;
 
 /// @title DoubleLinkedList
-/// @notice Implements a double linked list where the head is defined as the null item's next pointer
-/// and the tail is defined as the null item's prev pointer
+/// @notice Implements a double linked list where the head is defined as the null item's prev pointer
+/// and the tail is defined as the null item's next pointer ([tail][prev][item][next][head])
 library DoubleLinkedList {
     struct Item {
         uint88 value;
@@ -19,18 +19,18 @@ library DoubleLinkedList {
     error ItemNotInList();
     error ItemInList();
 
-    /// @notice Returns the head item id of the list if the `id` is 0
+    /// @notice Returns the head item id of the list
     /// @param list Linked list which contains the item
     /// @return _ Id of the head item
     function getHead(List storage list) internal view returns (uint16) {
-        return list.items[0].next;
+        return list.items[0].prev;
     }
 
     /// @notice Returns the tail item id of the list
     /// @param list Linked list which contains the item
     /// @return _ Id of the tail item
     function getTail(List storage list) internal view returns (uint16) {
-        return list.items[0].prev;
+        return list.items[0].next;
     }
 
     /// @notice Returns the item id which follows item `id`. Returns the head item id of the list if the `id` is 0.
@@ -74,21 +74,8 @@ library DoubleLinkedList {
         return (list.items[id].prev != 0 || list.items[id].next != 0 || list.items[0].next == id);
     }
 
-    /// @notice Removes item `id` from the list
-    /// @dev This function should not be called with an `id` that is not in the list
-    /// @param list Linked list which contains the item
-    /// @param id Id of the item to remove
-    function remove(List storage list, uint16 id) internal {
-        Item memory item = list.items[id];
-        if (!contains(list, id)) revert ItemNotInList();
-        list.items[item.prev].next = item.next;
-        list.items[item.next].prev = item.prev;
-        delete list.items[id];
-    }
-
     /// @notice Inserts an item with `id` in the list before item `next`
-    /// - if `next` is 0, the item is inserted at the end (tail) of the list
-    /// - if `next` is the head of the list, the item is inserted at the beginning (head) of the list
+    /// - if `next` is 0, the item is inserted at the start (head) of the list
     /// @dev This function should not be called with an `id` that is already in the list.
     /// @param list Linked list which contains the next item and into which the new item will be inserted
     /// @param id Id of the item to insert
@@ -98,9 +85,8 @@ library DoubleLinkedList {
         if (contains(list, id)) revert ItemInList();
         if (next != 0 && !contains(list, next)) revert ItemNotInList();
         uint16 prev = list.items[next].prev;
-        list.items[next].prev = id;
-        if (next == 0 && list.items[next].next == 0) list.items[next].next = id;
         list.items[prev].next = id;
+        list.items[next].prev = id;
         list.items[id].prev = prev;
         list.items[id].next = next;
         list.items[id].value = value;

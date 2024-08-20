@@ -7,6 +7,8 @@ import {IGovernance} from "./IGovernance.sol";
 
 interface IBribeInitiative {
     event DepositBribe(address depositor, uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch);
+    event ModifyLQTYAllocation(address user, uint16 epoch, uint88 lqtyAllocated);
+    event ModifyTotalLQTYAllocation(uint16 epoch, uint88 totalLQTYAllocated);
     event ClaimBribe(address user, uint16 epoch, uint256 boldAmount, uint256 bribeTokenAmount);
 
     /// @notice Address of the governance contract
@@ -58,7 +60,7 @@ interface IBribeInitiative {
         uint16 epoch;
         // Epoch at which the user updated the LQTY allocation for this initiative
         uint16 prevLQTYAllocationEpoch;
-        // Epoch at which the total LQTY allocation for this initiative
+        // Epoch at which the total LQTY allocation is updated for this initiative
         uint16 prevTotalLQTYAllocationEpoch;
     }
 
@@ -66,9 +68,8 @@ interface IBribeInitiative {
     /// @dev The user can only claim bribes for past epochs.
     /// The arrays `_epochs`, `_prevLQTYAllocationEpochs` and `_prevTotalLQTYAllocationEpochs` should be sorted
     /// from oldest epoch to the newest. The length of the arrays has to be the same.
-    /// @param _user Address of the user
     /// @param _claimData Array specifying the epochs at which the user wants to claim the bribes
-    function claimBribes(address _user, ClaimData[] calldata _claimData)
+    function claimBribes(ClaimData[] calldata _claimData)
         external
         returns (uint256 boldAmount, uint256 bribeTokenAmount);
 }
