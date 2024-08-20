@@ -319,7 +319,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         uint16 currentEpoch = epoch();
 
-        // initiativeStates[_initiative] = InitiativeState(0, 0, 0, 0, 0);
         registeredInitiatives[_initiative] = currentEpoch;
 
         emit RegisterInitiative(_initiative, msg.sender, currentEpoch);
