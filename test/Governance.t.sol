@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
+import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
@@ -864,6 +865,102 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
         assertEq(counted, 1);
+
+        vm.stopPrank();
+    }
+
+    function test_allocateLQTY_multiple() public {
+        vm.startPrank(user);
+
+        address userProxy = governance.deployUserProxy();
+
+        lqty.approve(address(userProxy), 2e18);
+        governance.depositLQTY(2e18);
+
+        (uint88 allocatedLQTY,) = governance.userStates(user);
+        assertEq(allocatedLQTY, 0);
+        (uint88 countedVoteLQTY,) = governance.globalState();
+        assertEq(countedVoteLQTY, 0);
+
+        address[] memory initiatives = new address[](2);
+        initiatives[0] = baseInitiative1;
+        initiatives[1] = baseInitiative2;
+        int176[] memory deltaLQTYVotes = new int176[](2);
+        deltaLQTYVotes[0] = 1e18;
+        deltaLQTYVotes[1] = 1e18;
+        int176[] memory deltaLQTYVetos = new int176[](2);
+
+        vm.warp(block.timestamp + 365 days);
+
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+        (allocatedLQTY,) = governance.userStates(user);
+        assertEq(allocatedLQTY, 2e18);
+        (countedVoteLQTY,) = governance.globalState();
+        assertEq(countedVoteLQTY, 2e18);
+
+        (
+            uint88 voteLQTY,
+            uint88 vetoLQTY,
+            uint32 averageStakingTimestampVoteLQTY,
+            uint32 averageStakingTimestampVetoLQTY,
+            uint16 counted
+        ) = governance.initiativeStates(baseInitiative1);
+        assertEq(voteLQTY, 1e18);
+        assertEq(vetoLQTY, 0);
+
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted) =
+            governance.initiativeStates(baseInitiative2);
+        assertEq(voteLQTY, 1e18);
+        assertEq(vetoLQTY, 0);
+    }
+
+    function test_allocateLQTY_fuzz_deltaLQTYVotes(uint88 _deltaLQTYVotes) public {
+        vm.assume(_deltaLQTYVotes > 0);
+
+        vm.startPrank(user);
+
+        address userProxy = governance.deployUserProxy();
+
+        vm.store(address(lqty), keccak256(abi.encode(user, 0)), bytes32(abi.encode(uint256(_deltaLQTYVotes))));
+        console.log(lqty.balanceOf(user));
+        lqty.approve(address(userProxy), _deltaLQTYVotes);
+        governance.depositLQTY(_deltaLQTYVotes);
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = baseInitiative1;
+        int176[] memory deltaLQTYVotes = new int176[](1);
+        deltaLQTYVotes[0] = int176(uint176(_deltaLQTYVotes));
+        int176[] memory deltaLQTYVetos = new int176[](1);
+
+        vm.warp(block.timestamp + 365 days);
+
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+        vm.stopPrank();
+    }
+
+    function test_allocateLQTY_fuzz_deltaLQTYVetos(uint88 _deltaLQTYVetos) public {
+        vm.assume(_deltaLQTYVetos > 0);
+
+        vm.startPrank(user);
+
+        address userProxy = governance.deployUserProxy();
+
+        vm.store(address(lqty), keccak256(abi.encode(user, 0)), bytes32(abi.encode(uint256(_deltaLQTYVetos))));
+        console.log(lqty.balanceOf(user));
+        lqty.approve(address(userProxy), _deltaLQTYVetos);
+        governance.depositLQTY(_deltaLQTYVetos);
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = baseInitiative1;
+        int176[] memory deltaLQTYVotes = new int176[](1);
+        int176[] memory deltaLQTYVetos = new int176[](1);
+        deltaLQTYVetos[0] = int176(uint176(_deltaLQTYVetos));
+
+        vm.warp(block.timestamp + 365 days);
+
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         vm.stopPrank();
     }
