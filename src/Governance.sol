@@ -121,13 +121,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
             uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
             uint240 votes = prevVotes + newVotes;
-            newOuterAverageAge = (_newLQTYBalance == 0) ? 0 : uint32(votes / uint240(_newLQTYBalance));
+            newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
         } else {
             uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
             uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
             uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
             uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
-            newOuterAverageAge = (_newLQTYBalance == 0) ? 0 : uint32(votes / uint240(_newLQTYBalance));
+            newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
         }
 
         if (newOuterAverageAge > block.timestamp) return 0;
