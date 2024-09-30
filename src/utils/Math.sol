@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.18;
 
 function add(uint88 a, int192 b) pure returns (uint88) {
     if (b < 0) {

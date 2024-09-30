@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.18;
 
 interface ILiquidityGauge {
     function add_reward(address _reward_token, address _distributor) external;

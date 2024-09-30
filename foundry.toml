@@ -1,7 +1,7 @@
 [profile.default]
 # Compilation
-solc_version = "0.8.24"
-evm_version = "cancun"
+solc_version = "0.8.18"
+evm_version = "shanghai"
 optimizer = true
 optimizer_runs = 100000
 

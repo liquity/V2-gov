@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.18;
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -27,27 +27,27 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     IERC20 public immutable bold;
     /// @inheritdoc IGovernance
-    uint256 public immutable EPOCH_START;
+    uint256 public immutable EPOCH_START; // 0000 UTC on the Thursday following deployment
     /// @inheritdoc IGovernance
-    uint256 public immutable EPOCH_DURATION;
+    uint256 public immutable EPOCH_DURATION; // 1 week (604800 seconds)
     /// @inheritdoc IGovernance
-    uint256 public immutable EPOCH_VOTING_CUTOFF;
+    uint256 public immutable EPOCH_VOTING_CUTOFF; // 6 days (518400 seconds)
     /// @inheritdoc IGovernance
-    uint256 public immutable MIN_CLAIM;
+    uint256 public immutable MIN_CLAIM; // 500 BOLD (500e18)
     /// @inheritdoc IGovernance
-    uint256 public immutable MIN_ACCRUAL;
+    uint256 public immutable MIN_ACCRUAL; // 1000 (1000e18)
     /// @inheritdoc IGovernance
-    uint256 public immutable REGISTRATION_FEE;
+    uint256 public immutable REGISTRATION_FEE; // 100 BOLD (100e18)
     /// @inheritdoc IGovernance
-    uint256 public immutable REGISTRATION_THRESHOLD_FACTOR;
+    uint256 public immutable REGISTRATION_THRESHOLD_FACTOR; // 0.001e18 (0.1%)
     /// @inheritdoc IGovernance
-    uint256 public immutable UNREGISTRATION_THRESHOLD_FACTOR;
+    uint256 public immutable UNREGISTRATION_THRESHOLD_FACTOR; // 3e18 (3 times the voting threshold)
     /// @inheritdoc IGovernance
-    uint256 public immutable REGISTRATION_WARM_UP_PERIOD;
+    uint256 public immutable REGISTRATION_WARM_UP_PERIOD; // 4 epochs
     /// @inheritdoc IGovernance
-    uint256 public immutable UNREGISTRATION_AFTER_EPOCHS;
+    uint256 public immutable UNREGISTRATION_AFTER_EPOCHS; // 4 epochs
     /// @inheritdoc IGovernance
-    uint256 public immutable VOTING_THRESHOLD_FACTOR;
+    uint256 public immutable VOTING_THRESHOLD_FACTOR; // 0.03e18 (3%)
 
     /// @inheritdoc IGovernance
     uint256 public boldAccrued;
