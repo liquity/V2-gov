@@ -126,11 +126,7 @@ contract DeploymentScript is Script {
         gauge = ILiquidityGauge(curveFactory.deploy_gauge(address(curvePool)));
 
         curveV2GaugeRewards = new CurveV2GaugeRewards(
-            address(vm.computeCreateAddress(address(this), _nonce)),
-            address(bold),
-            address(lqty),
-            address(gauge),
-            DURATION
+            address(vm.computeCreateAddress(address(this), _nonce)), address(bold), address(lqty), address(gauge), DURATION
         );
 
         initialInitiatives.push(address(curveV2GaugeRewards));
