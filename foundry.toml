@@ -30,3 +30,6 @@ number_underscore = "preserve"
 [profile.default.rpc_endpoints]
 mainnet = "${MAINNET_RPC_URL}"
 tenderly = "${TENDERLY_FORK_URL}"
+
+
+# forge script --chain mainnet script/Deploy.s.sol:DeploymentScript --rpc-url https://eth-mainnet.alchemyapi.io/v2/B4w2ueJLjihQPuf868vthxg7FvfND5i5
