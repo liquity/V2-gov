@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
-import {IPoolManager, PoolManager, Deployers, TickMath, Hooks} from "v4-core/test/utils/Deployers.sol";
+import {IPoolManager, PoolManager, Deployers, TickMath, Hooks, IHooks} from "v4-core/test/utils/Deployers.sol";
 import {PoolModifyLiquidityTest} from "v4-core/src/test/PoolModifyLiquidityTest.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";

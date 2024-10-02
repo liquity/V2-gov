@@ -2,11 +2,9 @@
 pragma solidity ^0.8.13;
 
 import {Script} from "forge-std/Script.sol";
-
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
 import {PoolManager, Deployers, Hooks} from "v4-core/test/utils/Deployers.sol";
-import {PoolModifyLiquidityTest} from "v4-core/src/test/PoolModifyLiquidityTest.sol";
 import {ICurveStableswapFactoryNG} from "../src/interfaces/ICurveStableswapFactoryNG.sol";
 import {ICurveStableswapNG} from "../src/interfaces/ICurveStableswapNG.sol";
 import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
@@ -16,18 +14,21 @@ import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {Governance} from "../src/Governance.sol";
 import {UniV4Donations} from "../src/UniV4Donations.sol";
 import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
-import {BaseHook, Hooks} from "../src/utils/BaseHook.sol";
+import {Hooks} from "../src/utils/BaseHook.sol";
 
-import {UniV4DonationsImpl} from "../test/UniV4Donations.t.sol";
+import {MockStakingV1} from "../test/mocks/MockStakingV1.sol";
+import {HookMiner} from "./utils/HookMiner.sol";
 
-contract DeploymentScript is Script, Deployers {
+contract DeploySepoliaScript is Script, Deployers {
     // Environment Constants
-    IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
-    IERC20 private constant bold = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
-    address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
-    IERC20 private constant usdc = IERC20(address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48));
+    MockERC20 private lqty;
+    MockERC20 private bold;
+    address private stakingV1;
+    MockERC20 private usdc;
+
+    PoolManager private constant poolManager = PoolManager(0xE8E23e97Fa135823143d6b9Cba9c699040D51F70);
     ICurveStableswapFactoryNG private constant curveFactory =
-        ICurveStableswapFactoryNG(address(0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf));
+        ICurveStableswapFactoryNG(address(0xfb37b8D939FFa77114005e61CFc2e543d6F49A81));
 
     // Governance Constants
     uint128 private constant REGISTRATION_FEE = 100e18;
@@ -44,9 +45,7 @@ contract DeploymentScript is Script, Deployers {
     // UniV4Donations Constants
     uint256 private immutable VESTING_EPOCH_START = block.timestamp;
     uint256 private constant VESTING_EPOCH_DURATION = 7 days;
-    address private constant TOKEN = address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-    uint24 private constant FEE = 0;
-    int24 private constant TICK_SPACING = 0;
+    uint24 private constant FEE = 400;
     int24 constant MAX_TICK_SPACING = 32767;
 
     // CurveV2GaugeRewards Constants
@@ -55,15 +54,27 @@ contract DeploymentScript is Script, Deployers {
     Governance private governance;
     address[] private initialInitiatives;
 
-    UniV4Donations private uniV4Donations =
-        UniV4Donations(address(uint160(Hooks.AFTER_INITIALIZE_FLAG | Hooks.AFTER_ADD_LIQUIDITY_FLAG)));
+    UniV4Donations private uniV4Donations;
 
     CurveV2GaugeRewards private curveV2GaugeRewards;
 
     ICurveStableswapNG private curvePool;
     ILiquidityGauge private gauge;
 
-    function setUp() public {}
+    uint256 private privateKey;
+
+    function setUp() public {
+        privateKey = vm.envUint("PRIVATE_KEY");
+    }
+
+    function deployEnvironment() private {
+        vm.startBroadcast(privateKey);
+        lqty = deployMockERC20("Liquity", "LQTY", 18);
+        bold = deployMockERC20("Bold", "BOLD", 18);
+        usdc = deployMockERC20("USD Coin", "USDC", 6);
+        stakingV1 = address(new MockStakingV1(address(lqty)));
+        vm.stopBroadcast();
+    }
 
     function deployGovernance() private {
         governance = new Governance(
@@ -89,31 +100,38 @@ contract DeploymentScript is Script, Deployers {
     }
 
     function deployUniV4Donations(uint256 _nonce) private {
-        manager = new PoolManager(500000);
-        modifyLiquidityRouter = new PoolModifyLiquidityTest(manager);
+        address gov = address(vm.computeCreateAddress(address(this), _nonce));
+        uint160 flags = uint160(Hooks.AFTER_INITIALIZE_FLAG | Hooks.AFTER_ADD_LIQUIDITY_FLAG);
 
-        UniV4DonationsImpl impl = new UniV4DonationsImpl(
-            address(vm.computeCreateAddress(address(this), _nonce)),
+        (, bytes32 salt) = HookMiner.find(
+            // 0x4e59b44847b379578588920cA78FbF26c0B4956C,
+            address(this),
+            flags,
+            type(UniV4Donations).creationCode,
+            abi.encode(
+                gov,
+                address(bold),
+                address(lqty),
+                block.timestamp,
+                EPOCH_DURATION,
+                address(poolManager),
+                address(usdc),
+                FEE,
+                MAX_TICK_SPACING
+            )
+        );
+
+        uniV4Donations = new UniV4Donations{salt: salt}(
+            gov,
             address(bold),
             address(lqty),
             block.timestamp,
             EPOCH_DURATION,
-            address(manager),
+            address(poolManager),
             address(usdc),
-            400,
-            MAX_TICK_SPACING,
-            BaseHook(address(uniV4Donations))
+            FEE,
+            MAX_TICK_SPACING
         );
-
-        (, bytes32[] memory writes) = vm.accesses(address(impl));
-        vm.etch(address(uniV4Donations), address(impl).code);
-        // for each storage key that was written during the hook implementation, copy the value over
-        unchecked {
-            for (uint256 i = 0; i < writes.length; i++) {
-                bytes32 slot = writes[i];
-                vm.store(address(uniV4Donations), slot, vm.load(address(impl), slot));
-            }
-        }
 
         initialInitiatives.push(address(uniV4Donations));
     }
@@ -152,12 +170,11 @@ contract DeploymentScript is Script, Deployers {
     }
 
     function run() public {
-        // vm.broadcast();
-
+        // vm.startBroadcast(privateKey);
+        deployEnvironment();
         deployUniV4Donations(vm.getNonce(address(this)) + 2);
-        deployCurveV2GaugeRewards(vm.getNonce(address(this)) + 1);
+        // deployCurveV2GaugeRewards(vm.getNonce(address(this)) + 1);
         deployGovernance();
-
         // vm.stopBroadcast();
     }
 }
