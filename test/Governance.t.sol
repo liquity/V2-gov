@@ -923,7 +923,6 @@ contract GovernanceTest is Test {
         address userProxy = governance.deployUserProxy();
 
         vm.store(address(lqty), keccak256(abi.encode(user, 0)), bytes32(abi.encode(uint256(_deltaLQTYVotes))));
-        console.log(lqty.balanceOf(user));
         lqty.approve(address(userProxy), _deltaLQTYVotes);
         governance.depositLQTY(_deltaLQTYVotes);
 
@@ -948,7 +947,6 @@ contract GovernanceTest is Test {
         address userProxy = governance.deployUserProxy();
 
         vm.store(address(lqty), keccak256(abi.encode(user, 0)), bytes32(abi.encode(uint256(_deltaLQTYVetos))));
-        console.log(lqty.balanceOf(user));
         lqty.approve(address(userProxy), _deltaLQTYVetos);
         governance.depositLQTY(_deltaLQTYVetos);
 
