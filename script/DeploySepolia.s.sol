@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {Script, console} from "forge-std/Script.sol";
+import {Script} from "forge-std/Script.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
 import {PoolManager, Deployers, Hooks} from "v4-core/test/utils/Deployers.sol";
