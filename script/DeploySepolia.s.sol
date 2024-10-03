@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import {Script} from "forge-std/Script.sol";
+import {Script, console} from "forge-std/Script.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
 import {PoolManager, Deployers, Hooks} from "v4-core/test/utils/Deployers.sol";
@@ -51,29 +51,30 @@ contract DeploySepoliaScript is Script, Deployers {
     // CurveV2GaugeRewards Constants
     uint256 private constant DURATION = 7 days;
 
+    // Contracts
     Governance private governance;
     address[] private initialInitiatives;
-
     UniV4Donations private uniV4Donations;
-
     CurveV2GaugeRewards private curveV2GaugeRewards;
-
     ICurveStableswapNG private curvePool;
     ILiquidityGauge private gauge;
 
+    // Deployer
+    address private deployer;
     uint256 private privateKey;
+    uint256 private nonce;
 
     function setUp() public {
         privateKey = vm.envUint("PRIVATE_KEY");
+        deployer = vm.createWallet(privateKey).addr;
+        nonce = vm.getNonce(deployer);
     }
 
     function deployEnvironment() private {
-        vm.startBroadcast(privateKey);
         lqty = deployMockERC20("Liquity", "LQTY", 18);
         bold = deployMockERC20("Bold", "BOLD", 18);
         usdc = deployMockERC20("USD Coin", "USDC", 6);
         stakingV1 = address(new MockStakingV1(address(lqty)));
-        vm.stopBroadcast();
     }
 
     function deployGovernance() private {
@@ -97,15 +98,16 @@ contract DeploySepoliaScript is Script, Deployers {
             }),
             initialInitiatives
         );
+        assert(governance == uniV4Donations.governance());
     }
 
     function deployUniV4Donations(uint256 _nonce) private {
-        address gov = address(vm.computeCreateAddress(address(this), _nonce));
+        address gov = address(vm.computeCreateAddress(deployer, _nonce));
         uint160 flags = uint160(Hooks.AFTER_INITIALIZE_FLAG | Hooks.AFTER_ADD_LIQUIDITY_FLAG);
 
         (, bytes32 salt) = HookMiner.find(
-            // 0x4e59b44847b379578588920cA78FbF26c0B4956C,
-            address(this),
+            0x4e59b44847b379578588920cA78FbF26c0B4956C,
+            // address(this),
             flags,
             type(UniV4Donations).creationCode,
             abi.encode(
@@ -170,11 +172,10 @@ contract DeploySepoliaScript is Script, Deployers {
     }
 
     function run() public {
-        // vm.startBroadcast(privateKey);
+        vm.startBroadcast(privateKey);
         deployEnvironment();
-        deployUniV4Donations(vm.getNonce(address(this)) + 2);
-        // deployCurveV2GaugeRewards(vm.getNonce(address(this)) + 1);
+        deployUniV4Donations(nonce + 8);
         deployGovernance();
-        // vm.stopBroadcast();
+        vm.stopBroadcast();
     }
 }
