@@ -100,7 +100,6 @@ contract GovernanceTest is Test {
 
         initialInitiatives.push(baseInitiative1);
         initialInitiatives.push(baseInitiative2);
-        initialInitiatives.push(baseInitiative3);
 
         governance = new Governance(
             address(lqty),
@@ -754,9 +753,9 @@ contract GovernanceTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
-        int176[] memory deltaLQTYVotes = new int176[](1);
+        int96[] memory deltaLQTYVotes = new int96[](1);
         deltaLQTYVotes[0] = 1e18; //this should be 0
-        int176[] memory deltaLQTYVetos = new int176[](1);
+        int96[] memory deltaLQTYVetos = new int96[](1);
 
         // should revert if the initiative has been registered in the current epoch
         vm.expectRevert("Governance: initiative-not-active");
@@ -886,10 +885,10 @@ contract GovernanceTest is Test {
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
-        int176[] memory deltaLQTYVotes = new int176[](2);
+        int96[] memory deltaLQTYVotes = new int96[](2);
         deltaLQTYVotes[0] = 1e18;
         deltaLQTYVotes[1] = 1e18;
-        int176[] memory deltaLQTYVetos = new int176[](2);
+        int96[] memory deltaLQTYVetos = new int96[](2);
 
         vm.warp(block.timestamp + 365 days);
 
@@ -929,9 +928,9 @@ contract GovernanceTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
-        int176[] memory deltaLQTYVotes = new int176[](1);
-        deltaLQTYVotes[0] = int176(uint176(_deltaLQTYVotes));
-        int176[] memory deltaLQTYVetos = new int176[](1);
+        int96[] memory deltaLQTYVotes = new int96[](1);
+        deltaLQTYVotes[0] = int96(uint96(_deltaLQTYVotes));
+        int96[] memory deltaLQTYVetos = new int96[](1);
 
         vm.warp(block.timestamp + 365 days);
 
@@ -953,9 +952,9 @@ contract GovernanceTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
-        int176[] memory deltaLQTYVotes = new int176[](1);
-        int176[] memory deltaLQTYVetos = new int176[](1);
-        deltaLQTYVetos[0] = int176(uint176(_deltaLQTYVetos));
+        int96[] memory deltaLQTYVotes = new int96[](1);
+        int96[] memory deltaLQTYVetos = new int96[](1);
+        deltaLQTYVetos[0] = int96(uint96(_deltaLQTYVetos));
 
         vm.warp(block.timestamp + 365 days);
 
@@ -986,10 +985,10 @@ contract GovernanceTest is Test {
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
-        int176[] memory deltaVoteLQTY = new int176[](2);
+        int96[] memory deltaVoteLQTY = new int96[](2);
         deltaVoteLQTY[0] = 500e18;
         deltaVoteLQTY[1] = 500e18;
-        int176[] memory deltaVetoLQTY = new int176[](2);
+        int96[] memory deltaVetoLQTY = new int96[](2);
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
         (uint88 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1000e18);
@@ -1062,10 +1061,10 @@ contract GovernanceTest is Test {
         address[] memory initiatives = new address[](2);
         initiatives[0] = EOAInitiative; // attempt for an EOA
         initiatives[1] = baseInitiative2;
-        int176[] memory deltaVoteLQTY = new int176[](2);
+        int96[] memory deltaVoteLQTY = new int96[](2);
         deltaVoteLQTY[0] = 500e18;
         deltaVoteLQTY[1] = 500e18;
-        int176[] memory deltaVetoLQTY = new int176[](2);
+        int96[] memory deltaVetoLQTY = new int96[](2);
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
         (uint88 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1000e18);
@@ -1126,22 +1125,22 @@ contract GovernanceTest is Test {
         bytes[] memory data = new bytes[](7);
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
-        int176[] memory deltaVoteLQTY = new int176[](1);
-        deltaVoteLQTY[0] = int176(uint176(lqtyAmount));
-        int176[] memory deltaVetoLQTY = new int176[](1);
+        int96[] memory deltaVoteLQTY = new int96[](1);
+        deltaVoteLQTY[0] = int96(uint96(lqtyAmount));
+        int96[] memory deltaVetoLQTY = new int96[](1);
 
-        int176[] memory deltaVoteLQTY_ = new int176[](1);
-        deltaVoteLQTY_[0] = -int176(uint176(lqtyAmount));
+        int96[] memory deltaVoteLQTY_ = new int96[](1);
+        deltaVoteLQTY_[0] = -int96(uint96(lqtyAmount));
 
         data[0] = abi.encodeWithSignature("deployUserProxy()");
         data[1] = abi.encodeWithSignature("depositLQTY(uint88)", lqtyAmount);
         data[2] = abi.encodeWithSignature(
-            "allocateLQTY(address[],int176[],int176[])", initiatives, deltaVoteLQTY, deltaVetoLQTY
+            "allocateLQTY(address[],int96[],int96[])", initiatives, deltaVoteLQTY, deltaVetoLQTY
         );
         data[3] = abi.encodeWithSignature("userStates(address)", user);
         data[4] = abi.encodeWithSignature("snapshotVotesForInitiative(address)", baseInitiative1);
         data[5] = abi.encodeWithSignature(
-            "allocateLQTY(address[],int176[],int176[])", initiatives, deltaVoteLQTY_, deltaVetoLQTY
+            "allocateLQTY(address[],int96[],int96[])", initiatives, deltaVoteLQTY_, deltaVetoLQTY
         );
         data[6] = abi.encodeWithSignature("withdrawLQTY(uint88)", lqtyAmount);
         bytes[] memory response = governance.multicall(data);
@@ -1193,8 +1192,8 @@ contract GovernanceTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(mockInitiative);
-        int176[] memory deltaLQTYVotes = new int176[](1);
-        int176[] memory deltaLQTYVetos = new int176[](1);
+        int96[] memory deltaLQTYVotes = new int96[](1);
+        int96[] memory deltaLQTYVetos = new int96[](1);
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
@@ -1253,33 +1252,20 @@ contract GovernanceTest is Test {
     function test_allocateLQTY_overflow() public {
         vm.startPrank(user);
 
-        address[] memory initiatives = new address[](3);
+        address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
-        initiatives[1] = baseInitiative3;
-        initiatives[2] = baseInitiative2;
-        int176[] memory deltaLQTYVotes = new int176[](3);
-        deltaLQTYVotes[0] = 154742504910672534362390528; // 2**87
-        deltaLQTYVotes[1] = 0;
-        deltaLQTYVotes[2] = 154742504910672534362390527; // 2**87 - 1
-        int176[] memory deltaLQTYVetos = new int176[](3);
-        deltaLQTYVetos[0] = 0;
-        deltaLQTYVetos[1] = 1;
-        deltaLQTYVetos[2] = -309485009821345068724781056; // - 2**88
+        initiatives[1] = baseInitiative2;
+
+        int96[] memory deltaLQTYVotes = new int96[](2);
+        deltaLQTYVotes[0] = 0;
+        deltaLQTYVotes[1] = 2 ** 88 - 1;
+        int96[] memory deltaLQTYVetos = new int96[](2);
+        deltaLQTYVetos[0] = 1;
+        deltaLQTYVetos[1] = -(2 ** 88);
 
         vm.warp(block.timestamp + 365 days);
+        vm.expectRevert("Governance: deltas-too-large");
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
-
-        (uint allocatedLQTY,) = governance.userStates(user);
-        assertEq(allocatedLQTY, 0);
-        console.log(allocatedLQTY);
-
-        (uint88 voteLQTY1,,,,) = governance.initiativeStates(baseInitiative1);
-        assertGt(voteLQTY1, 0);
-        console.log(voteLQTY1);
-
-        (uint88 voteLQTY2,,,,) = governance.initiativeStates(baseInitiative2);
-        assertGt(voteLQTY2, 0);
-        console.log(voteLQTY2);
 
         vm.stopPrank();
     }

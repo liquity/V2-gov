@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {console} from "forge-std/console.sol";
+
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
@@ -12,7 +14,7 @@ import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 
-import {add, max} from "./utils/Math.sol";
+import {add, max, abs} from "./utils/Math.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 
@@ -376,38 +378,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         try IInitiative(_initiative).onUnregisterInitiative(currentEpoch) {} catch {}
     }
 
-    event log_votes(uint votes);
-
-    function _checkSufficientVotes(
-        UserState memory userState,
-        address[] calldata _initiatives,
-        int176[] calldata _deltaLQTYVotes,
-        int176[] calldata _deltaLQTYVetos
-    ) internal returns (bool) {
-        uint userVotes = lqtyToVotes(userState.allocatedLQTY, block.timestamp, userState.averageStakingTimestamp);
-        // an allocation can only be made if the user has more voting power (LQTY * age)
-
-        emit log_votes(userVotes);
-
-        uint176 absVote;
-        uint176 absVeto;
-
-        for (uint256 i = 0; i < _initiatives.length; i++) {
-            absVote = _deltaLQTYVotes[i] < 0 ? uint176(-_deltaLQTYVotes[i]) : uint176(_deltaLQTYVotes[i]);
-            absVeto = _deltaLQTYVetos[i] < 0 ? uint176(-_deltaLQTYVetos[i]) : uint176(_deltaLQTYVetos[i]);
-            if (absVote > userVotes || absVeto > userVotes) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
     /// @inheritdoc IGovernance
     function allocateLQTY(
         address[] calldata _initiatives,
-        int176[] calldata _deltaLQTYVotes,
-        int176[] calldata _deltaLQTYVetos
+        int96[] calldata _deltaLQTYVotes,
+        int96[] calldata _deltaLQTYVetos
     ) external nonReentrant {
         require(
             _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
@@ -421,15 +396,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         UserState memory userState = userStates[msg.sender];
 
-        require(
-            _checkSufficientVotes(userState, _initiatives, _deltaLQTYVotes, _deltaLQTYVetos),
-            "Governance: invalid-votes"
-        );
-
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];
-            int176 deltaLQTYVotes = _deltaLQTYVotes[i];
-            int176 deltaLQTYVetos = _deltaLQTYVetos[i];
+            int96 deltaLQTYVotes = _deltaLQTYVotes[i];
+            int96 deltaLQTYVetos = _deltaLQTYVetos[i];
+
+            require(
+                abs(deltaLQTYVotes) <= type(uint88).max && abs(deltaLQTYVetos) <= type(uint88).max,
+                "Governance: deltas-too-large"
+            );
 
             // only allow vetoing post the voting cutoff
             require(

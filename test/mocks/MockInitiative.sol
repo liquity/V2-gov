@@ -24,8 +24,8 @@ contract MockInitiative is IInitiative {
     /// @inheritdoc IInitiative
     function onAfterAllocateLQTY(uint16, address, uint88, uint88) external virtual {
         address[] memory initiatives = new address[](0);
-        int176[] memory deltaLQTYVotes = new int176[](0);
-        int176[] memory deltaLQTYVetos = new int176[](0);
+        int96[] memory deltaLQTYVotes = new int96[](0);
+        int96[] memory deltaLQTYVetos = new int96[](0);
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 
