@@ -16,6 +16,8 @@ import {add, max} from "./utils/Math.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 
+import {SafeCastLib} from "lib/solmate/src/utils/SafeCastLib.sol";
+
 /// @title Governance: Modular Initiative based Governance
 contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
     using SafeERC20 for IERC20;
@@ -67,6 +69,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     mapping(address => mapping(address => Allocation)) public lqtyAllocatedByUserToInitiative;
     /// @inheritdoc IGovernance
     mapping(address => uint16) public override registeredInitiatives;
+
+    error RegistrationFailed(address initiative);
 
     constructor(
         address _lqty,
@@ -372,6 +376,33 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         try IInitiative(_initiative).onUnregisterInitiative(currentEpoch) {} catch {}
     }
 
+    event log_votes(uint votes);
+
+    function _checkSufficientVotes(
+        UserState memory userState,
+        address[] calldata _initiatives,
+        int176[] calldata _deltaLQTYVotes,
+        int176[] calldata _deltaLQTYVetos
+    ) internal returns (bool) {
+        uint userVotes = lqtyToVotes(userState.allocatedLQTY, block.timestamp, userState.averageStakingTimestamp);
+        // an allocation can only be made if the user has more voting power (LQTY * age)
+
+        emit log_votes(userVotes);
+
+        uint176 absVote;
+        uint176 absVeto;
+
+        for (uint256 i = 0; i < _initiatives.length; i++) {
+            absVote = _deltaLQTYVotes[i] < 0 ? uint176(-_deltaLQTYVotes[i]) : uint176(_deltaLQTYVotes[i]);
+            absVeto = _deltaLQTYVetos[i] < 0 ? uint176(-_deltaLQTYVetos[i]) : uint176(_deltaLQTYVetos[i]);
+            if (absVote > userVotes || absVeto > userVotes) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /// @inheritdoc IGovernance
     function allocateLQTY(
         address[] calldata _initiatives,
@@ -389,6 +420,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint16 currentEpoch = epoch();
 
         UserState memory userState = userStates[msg.sender];
+
+        require(
+            _checkSufficientVotes(userState, _initiatives, _deltaLQTYVotes, _deltaLQTYVetos),
+            "Governance: invalid-votes"
+        );
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];

