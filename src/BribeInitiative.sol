@@ -157,6 +157,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
         if (_currentEpoch == 0) return;
 
+        assert(_voteLQTY == 0 || _vetoLQTY == 0); // Key invariant: Either Voting or Vetoing for a specific initiative
+
         // if this is the first user allocation in the epoch, then insert a new item into the user allocation DLL
         if (mostRecentUserEpoch != _currentEpoch) {
             uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].items[mostRecentUserEpoch].value;

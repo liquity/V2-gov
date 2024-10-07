@@ -120,11 +120,11 @@ contract BribeInitiativeAllocateTest is Test {
 
         vm.startPrank(address(governance));
 
-        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 1);
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 0);
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
 
-        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, 1e18, 1);
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, 1e18, 0);
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 0);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch()), 0);
 
@@ -154,7 +154,7 @@ contract BribeInitiativeAllocateTest is Test {
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1000e18);
 
         governance.setEpoch(2);
-        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 1);
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 0);
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
 
@@ -196,12 +196,12 @@ contract BribeInitiativeAllocateTest is Test {
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1000e18);
 
         governance.setEpoch(2);
-        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 1);
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 0);
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
 
         governance.setEpoch(3);
-        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 1);
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 0);
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
     }
@@ -259,7 +259,7 @@ contract BribeInitiativeAllocateTest is Test {
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1001e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1000e18);
 
-        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 1);
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 0);
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
 
@@ -294,7 +294,7 @@ contract BribeInitiativeAllocateTest is Test {
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1001e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1000e18);
 
-        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 1);
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 0);
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
 
@@ -326,11 +326,11 @@ contract BribeInitiativeAllocateTest is Test {
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1001e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1000e18);
 
-        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 1);
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 0);
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
 
-        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 1000e18, 1);
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 1000e18, 0);
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
     }
