@@ -124,7 +124,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         }
 
         if (boldAmount != 0 || bribeTokenAmount != 0) {
-            bribeTreasury.claimBribes(msg.sender, bribeTokenAmount, boldAmount);
+            IBribeTreasury(bribeTreasury).claimBribes(msg.sender, bribeTokenAmount, boldAmount);
         }
     }
 
@@ -228,7 +228,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 }
 
 interface IBribeTreasury {
-    function claimBribes(uint256 bribeTokenAmt, uint256 boldAmount) external;
+    function claimBribes(address caller, uint256 bribeTokenAmt, uint256 boldAmount) external;
 }
 
 contract BribeTreasury is IBribeTreasury {
@@ -240,7 +240,7 @@ contract BribeTreasury is IBribeTreasury {
 
     function claimBribes(address caller, uint256 bribeTokenAmt, uint256 boldAmount) external {
         require(msg.sender == bribeInitiative, "BribeTreasury: invalid-sender");
-        IBribeInitiative(bribeInitiative).boldToken().safeTransfer(caller, boldAmount);
-        IBribeInitiative(bribeInitiative).bribeToken().safeTransfer(caller, bribeTokenAmt);
+        IBribeInitiative(bribeInitiative).bold().transfer(caller, boldAmount);
+        IBribeInitiative(bribeInitiative).bribeToken().transfer(caller, bribeTokenAmt);
     }
 }
