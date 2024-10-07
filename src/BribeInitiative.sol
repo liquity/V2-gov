@@ -31,10 +31,14 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     /// Double linked list of LQTY allocated by a user at a given epoch
     mapping(address => DoubleLinkedList.List) internal lqtyAllocationByUserAtEpoch;
 
+    // bribe treasury
+    address public immutable bribeTreasury;
+
     constructor(address _governance, address _bold, address _bribeToken) {
         governance = IGovernance(_governance);
         bold = IERC20(_bold);
         bribeToken = IERC20(_bribeToken);
+        bribeTreasury = address(new BribeTreasury());
     }
 
     modifier onlyGovernance() {
@@ -54,8 +58,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     /// @inheritdoc IBribeInitiative
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external {
-        bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
-        bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
+        bold.safeTransferFrom(msg.sender, bribeTreasury, _boldAmount);
+        bribeToken.safeTransferFrom(msg.sender, bribeTreasury, _bribeTokenAmount);
 
         uint16 epoch = governance.epoch();
         require(_epoch > epoch, "BribeInitiative: only-future-epochs");
@@ -119,8 +123,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             bribeTokenAmount += bribeTokenAmount_;
         }
 
-        if (boldAmount != 0) bold.safeTransfer(msg.sender, boldAmount);
-        if (bribeTokenAmount != 0) bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
+        if (boldAmount != 0 || bribeTokenAmount != 0) {
+            bribeTreasury.claimBribes(msg.sender, bribeTokenAmount, boldAmount);
+        }
     }
 
     /// @inheritdoc IInitiative
@@ -220,4 +225,22 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     /// @inheritdoc IInitiative
     function onClaimForInitiative(uint16, uint256) external virtual override onlyGovernance {}
+}
+
+interface IBribeTreasury {
+    function claimBribes(uint256 bribeTokenAmt, uint256 boldAmount) external;
+}
+
+contract BribeTreasury is IBribeTreasury {
+    address public immutable bribeInitiative;
+
+    constructor() {
+        bribeInitiative = msg.sender;
+    }
+
+    function claimBribes(address caller, uint256 bribeTokenAmt, uint256 boldAmount) external {
+        require(msg.sender == bribeInitiative, "BribeTreasury: invalid-sender");
+        IBribeInitiative(bribeInitiative).boldToken().safeTransfer(caller, boldAmount);
+        IBribeInitiative(bribeInitiative).bribeToken().safeTransfer(caller, bribeTokenAmt);
+    }
 }
