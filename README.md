@@ -50,8 +50,8 @@ reregistration to become eligible for voting again.
 Claims for Initiatives which have met the minimum qualifying threshold, can be claimed permissionlessly, but must be claimed by the end of the epoch
 in which they are awarded. Failure to do so will result in the unclaimed portion being reused in the following epoch.
 
-As Initiatives are assigned to arbitrary addresses, they can be used for any purpose, including EOAs, Multisigs, or smart contracts designed
-for targetted purposes. Smart contracts should be designed in a way that they can support BOLD and include any additional logic about
+As Initiatives are assigned to arbitrary addresses, they can be used for any purpose, provided that they implement the IInitiative interface, they can be designed
+for targetted purposes and logic. Smart contracts should be designed in a way that they can support BOLD and include any additional logic about
 how BOLD is to be used.
 
 ## Voting
