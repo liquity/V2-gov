@@ -75,7 +75,7 @@ contract UserProxy is IUserProxy {
         ethAmount = address(this).balance;
         if (ethAmount > 0) {
             (bool success,) = payable(_lusdEthRecipient).call{value: ethAmount}("");
-            success;
+            require(success, "UserProxy: eth-fail");
         }
 
         emit Unstake(_amount, _lqtyRecipient, _lusdEthRecipient, lusdAmount, ethAmount);
