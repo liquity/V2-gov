@@ -22,3 +22,16 @@ contract ForwardBribe is BribeInitiative {
         if (bribeTokenAmount != 0) bribeToken.safeTransfer(receiver, bribeTokenAmount);
     }
 }
+
+contract ForwardBribeFactory {
+    address public immutable governance;
+
+    constructor(address _governance) {
+        governance = _governance;
+    }
+
+    function createForwardBribe(address bold, address bribeToken, address receiver) external returns (address) {
+        ForwardBribe forwardBribe = new ForwardBribe(governance, bold, bribeToken, receiver);
+        return address(forwardBribe);
+    }
+}
