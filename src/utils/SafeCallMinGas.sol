@@ -19,7 +19,9 @@ function safeCallWithMinGas(
     uint256 _value,
     bytes memory _calldata
 ) returns (bool success) {
-    require(hasMinGas(_gas, 1_000), "Must have minGas");
+    /// @audit This is not necessary
+    ///     But this is basically a worst case estimate of mem exp cost + operations before the call
+    require(hasMinGas(_gas, 1_000), "Must have minGas"); 
 
     // dispatch message to recipient
     // by assembly calling "handle" function

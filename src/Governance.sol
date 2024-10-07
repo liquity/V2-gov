@@ -21,6 +21,8 @@ import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
 contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
     using SafeERC20 for IERC20;
 
+    uint256 constant MIN_GAS_TO_HOOK = 350_000; /// Replace this to ensure hooks have sufficient gas
+
     /// @inheritdoc IGovernance
     ILQTYStaking public immutable stakingV1;
     /// @inheritdoc IGovernance
@@ -326,7 +328,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // try IInitiative(_initiative).onRegisterInitiative(currentEpoch) {} catch {}
         // Replaces try / catch | Enforces sufficient gas is passed
-        safeCallWithMinGas(_initiative, 350_000, 0, abi.encodeCall(IInitiative.onRegisterInitiative, (currentEpoch)));
+        safeCallWithMinGas(_initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onRegisterInitiative, (currentEpoch)));
     }
 
     /// @inheritdoc IGovernance
@@ -374,7 +376,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // try IInitiative(_initiative).onUnregisterInitiative(currentEpoch) {} catch {}
         // Replaces try / catch | Enforces sufficient gas is passed
-        safeCallWithMinGas(_initiative, 350_000, 0, abi.encodeCall(IInitiative.onUnregisterInitiative, (currentEpoch)));
+        safeCallWithMinGas(_initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onUnregisterInitiative, (currentEpoch)));
     }
 
     /// @inheritdoc IGovernance
@@ -486,7 +488,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             //     currentEpoch, msg.sender, allocation.voteLQTY, allocation.vetoLQTY
             // ) {} catch {}
             // Replaces try / catch | Enforces sufficient gas is passed
-            safeCallWithMinGas(initiative, 350_000, 0, abi.encodeCall(IInitiative.onAfterAllocateLQTY, (currentEpoch, msg.sender, allocation.voteLQTY, allocation.vetoLQTY)));
+            safeCallWithMinGas(initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onAfterAllocateLQTY, (currentEpoch, msg.sender, allocation.voteLQTY, allocation.vetoLQTY)));
         }
 
         require(
@@ -518,7 +520,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // try IInitiative(_initiative).onClaimForInitiative(votesSnapshot_.forEpoch, claim) {} catch {}
         // Replaces try / catch | Enforces sufficient gas is passed
-        safeCallWithMinGas(_initiative, 350_000, 0, abi.encodeCall(IInitiative.onClaimForInitiative, (votesSnapshot_.forEpoch, claim)));
+        safeCallWithMinGas(_initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onClaimForInitiative, (votesSnapshot_.forEpoch, claim)));
 
         return claim;
     }
