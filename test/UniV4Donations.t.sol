@@ -131,21 +131,25 @@ contract UniV4DonationsTest is Test, Deployers {
         manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
     }
 
+    //// TODO: e2e test - With real governance and proposals
+
     function test_modifyPosition() public {
         manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
 
         vm.startPrank(lusdHolder);
-
         lusd.transfer(address(uniV4Donations), 1000e18);
+        vm.stopPrank();
 
-        vm.mockCall(
-            address(governance), abi.encode(IGovernance.claimForInitiative.selector), abi.encode(uint256(1000e18))
-        );
-        assertEq(uniV4Donations.donateToPool(), 0);
+        /// TODO: This is a mock call, we need a E2E test as well
+        vm.prank(address(governance));
+        uniV4Donations.onClaimForInitiative(0, 1000e18);
+
+        vm.startPrank(lusdHolder);
+        assertEq(uniV4Donations.donateToPool(), 0, "d");
         (uint240 amount, uint16 epoch, uint256 released) = uniV4Donations.vesting();
-        assertEq(amount, 1000e18);
-        assertEq(epoch, 1);
-        assertEq(released, 0);
+        assertEq(amount, 1000e18, "amt");
+        assertEq(epoch, 1, "epoch");
+        assertEq(released, 0, "released");
 
         vm.warp(block.timestamp + uniV4Donations.VESTING_EPOCH_DURATION() / 2);
         lusd.approve(address(modifyLiquidityRouter), type(uint256).max);
