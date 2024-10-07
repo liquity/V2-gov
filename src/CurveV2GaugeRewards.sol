@@ -19,7 +19,11 @@ contract CurveV2GaugeRewards is BribeInitiative {
     }
 
     function depositIntoGauge() external returns (uint256) {
-        uint256 amount = governance.claimForInitiative(address(this));
+        // Claim rewards (could be front-run)
+        governance.claimForInitiative(address(this));
+
+        // Use available balance
+        uint256 amount = bold.balanceOf(address(this));
 
         bold.approve(address(gauge), amount);
         gauge.deposit_reward_token(address(bold), amount, duration);
