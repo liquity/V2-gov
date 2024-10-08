@@ -190,7 +190,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
         // if this is the first user allocation in the epoch, then insert a new item into the user allocation DLL
         if (mostRecentUserEpoch != _currentEpoch) {
-            uint88 newVoteLQTY = (_allocation.vetoLQTY == 0) ? _allocation.voteLQTY : 0;
             uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
             // if this is the first allocation in the epoch, then insert a new item into the total allocation DLL
             if (mostRecentTotalEpoch != _currentEpoch) {
@@ -202,14 +201,15 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
                     _currentEpoch, _initiativeState.voteLQTY, _initiativeState.averageStakingTimestampVoteLQTY, false
                 );
             }
-            _setLQTYAllocationByUserAtEpoch(_user, _currentEpoch, newVoteLQTY, _userState.averageStakingTimestamp, true);
+            _setLQTYAllocationByUserAtEpoch(
+                _user, _currentEpoch, _allocation.voteLQTY, _userState.averageStakingTimestamp, true
+            );
         } else {
             _setTotalLQTYAllocationByEpoch(
                 _currentEpoch, _initiativeState.voteLQTY, _initiativeState.averageStakingTimestampVoteLQTY, false
             );
-            uint88 newVoteLQTY = (_allocation.vetoLQTY == 0) ? _allocation.voteLQTY : 0;
             _setLQTYAllocationByUserAtEpoch(
-                _user, _currentEpoch, newVoteLQTY, _userState.averageStakingTimestamp, false
+                _user, _currentEpoch, _allocation.voteLQTY, _userState.averageStakingTimestamp, false
             );
         }
     }
