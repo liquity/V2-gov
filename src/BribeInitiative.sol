@@ -153,71 +153,39 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         virtual
         onlyGovernance
     {
-        uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
-
+        /// @audit TODO: WHY?
         if (_currentEpoch == 0) return;
 
-        assert(_voteLQTY == 0 || _vetoLQTY == 0); // Key invariant: Either Voting or Vetoing for a specific initiative
+        /// @audit Key invariant: Either Voting or Vetoing for a specific initiative
+        assert(_voteLQTY == 0 || _vetoLQTY == 0); 
 
-        // if this is the first user allocation in the epoch, then insert a new item into the user allocation DLL
-        if (mostRecentUserEpoch != _currentEpoch) {
-            uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].items[mostRecentUserEpoch].value;
-            uint88 newVoteLQTY = (_vetoLQTY == 0) ? _voteLQTY : 0;
-            uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
-            // if this is the first allocation in the epoch, then insert a new item into the total allocation DLL
-            if (mostRecentTotalEpoch != _currentEpoch) {
-                uint88 prevTotalLQTYAllocation = totalLQTYAllocationByEpoch.items[mostRecentTotalEpoch].value;
-                if (_vetoLQTY == 0) {
-                    // no veto to no veto
-                    _setTotalLQTYAllocationByEpoch(
-                        _currentEpoch, prevTotalLQTYAllocation + newVoteLQTY - prevVoteLQTY, true
-                    );
-                } else {
-                    if (prevVoteLQTY != 0) {
-                        // if the prev user allocation was counted in, then remove the prev user allocation from the
-                        // total allocation (no veto to veto)
-                        _setTotalLQTYAllocationByEpoch(_currentEpoch, prevTotalLQTYAllocation - prevVoteLQTY, true);
-                    } else {
-                        // veto to veto
-                        _setTotalLQTYAllocationByEpoch(_currentEpoch, prevTotalLQTYAllocation, true);
-                    }
-                }
-            } else {
-                if (_vetoLQTY == 0) {
-                    // no veto to no veto
-                    _setTotalLQTYAllocationByEpoch(
-                        _currentEpoch,
-                        totalLQTYAllocationByEpoch.items[_currentEpoch].value + newVoteLQTY - prevVoteLQTY,
-                        false
-                    );
-                } else if (prevVoteLQTY != 0) {
-                    // no veto to veto
-                    _setTotalLQTYAllocationByEpoch(
-                        _currentEpoch, totalLQTYAllocationByEpoch.items[_currentEpoch].value - prevVoteLQTY, false
-                    );
-                }
-            }
-            // insert a new item into the user allocation DLL
-            _setLQTYAllocationByUserAtEpoch(_user, _currentEpoch, newVoteLQTY, true);
-        } else {
-            uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].getItem(_currentEpoch).value;
-            if (_vetoLQTY == 0) {
-                // update the allocation for the current epoch by adding the new allocation and subtracting
-                // the previous one (no veto to no veto)
-                _setTotalLQTYAllocationByEpoch(
-                    _currentEpoch,
-                    totalLQTYAllocationByEpoch.items[_currentEpoch].value + _voteLQTY - prevVoteLQTY,
-                    false
-                );
-                _setLQTYAllocationByUserAtEpoch(_user, _currentEpoch, _voteLQTY, false);
-            } else {
-                // if the user vetoed the initiative, subtract the allocation from the DLLs (no veto to veto)
-                _setTotalLQTYAllocationByEpoch(
-                    _currentEpoch, totalLQTYAllocationByEpoch.items[_currentEpoch].value - prevVoteLQTY, false
-                );
-                _setLQTYAllocationByUserAtEpoch(_user, _currentEpoch, 0, false);
-            }
-        }
+        // User Epoch
+        uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
+
+        // User total
+        uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].getItem(mostRecentUserEpoch).value;
+
+        // Recent Epoch
+        uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
+
+        // New total is always equal to last known + new votes - prev votes
+        uint88 newTotal = totalLQTYAllocationByEpoch.items[mostRecentTotalEpoch].value + _voteLQTY - prevVoteLQTY;
+
+        
+        _setTotalLQTYAllocationByEpoch(
+            _currentEpoch,
+            newTotal, // We update total with relative change
+            mostRecentTotalEpoch != _currentEpoch  // And insert if it's the first in the epoch
+        );
+
+        
+        _setLQTYAllocationByUserAtEpoch(
+            _user, 
+            _currentEpoch, 
+            _voteLQTY,  // We update user with new absolute value
+            mostRecentUserEpoch != _currentEpoch // And insert if it's the first user change in the epoch
+        );
+
     }
 
     /// @inheritdoc IInitiative
