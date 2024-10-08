@@ -478,7 +478,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 
             try IInitiative(initiative).onAfterAllocateLQTY(
-                currentEpoch, msg.sender, allocation.voteLQTY, allocation.vetoLQTY
+                currentEpoch, msg.sender, userState, allocation, initiativeState
             ) {} catch {}
         }
 

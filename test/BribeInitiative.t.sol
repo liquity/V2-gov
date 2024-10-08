@@ -106,8 +106,14 @@ contract BribeInitiativeTest is Test {
         deltaVoteLQTY[0] = 1e18;
         int176[] memory deltaVetoLQTY = new int176[](1);
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
-        assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1e18);
+        (uint88 totalLQTYAllocated, uint32 averageTimestamp) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(totalLQTYAllocated, 1e18);
+        assertEq(averageTimestamp, block.timestamp - 365 days - 365 days);
+        (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+        assertEq(userLQTYAllocated, 1e18);
+        assertEq(userAverageTimestamp, block.timestamp - 365 days - 365 days);
 
         // should be zero since user was not deposited at that time
         BribeInitiative.ClaimData[] memory epochs = new BribeInitiative.ClaimData[](1);
@@ -144,8 +150,10 @@ contract BribeInitiativeTest is Test {
         deltaVoteLQTY[0] = -0.5e18;
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 0);
-        assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
+        (userLQTYAllocated, userAverageTimestamp) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+        assertEq(userLQTYAllocated, 0);
+        (totalLQTYAllocated, averageTimestamp) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(totalLQTYAllocated, 0);
         vm.stopPrank();
     }
 }
