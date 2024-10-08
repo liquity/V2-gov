@@ -273,105 +273,327 @@ contract BribeInitiativeAllocateTest is Test {
         assertEq(bribeTokenAmount, 0);
     }
 
-    // function test_onAfterAllocateLQTY_newEpoch_VetoToNoVeto() public {
-    //     governance.setEpoch(1);
+    function test_onAfterAllocateLQTY_newEpoch_VetoToNoVeto() public {
+        governance.setEpoch(1);
 
-    //     vm.startPrank(address(governance));
+        vm.startPrank(address(governance));
 
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, 1e18, 0);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch()), 1e18);
+        IGovernance.UserState memory userState =
+            IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
+        IGovernance.Allocation memory allocation =
+            IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+        IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
+            voteLQTY: 1e18,
+            vetoLQTY: 0,
+            averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+            averageStakingTimestampVetoLQTY: 0,
+            counted: 1
+        });
+        bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 1000e18, 0);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1001e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1000e18);
+        (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(totalLQTYAllocated, 1e18);
+        assertEq(totalAverageTimestamp, uint32(block.timestamp));
+        (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
+        assertEq(userLQTYAllocated, 1e18);
+        assertEq(userAverageTimestamp, uint32(block.timestamp));
 
-    //     governance.setEpoch(2);
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 1);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
+        IGovernance.UserState memory userStateVeto =
+            IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
+        IGovernance.Allocation memory allocationVeto =
+            IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1000e18, atEpoch: uint16(governance.epoch())});
+        IGovernance.InitiativeState memory initiativeStateVeto = IGovernance.InitiativeState({
+            voteLQTY: 1e18,
+            vetoLQTY: 1000e18,
+            averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+            averageStakingTimestampVetoLQTY: uint32(block.timestamp),
+            counted: 1
+        });
+        bribeInitiative.onAfterAllocateLQTY(
+            governance.epoch(), user, userStateVeto, allocationVeto, initiativeStateVeto
+        );
 
-    //     vm.startPrank(lusdHolder);
-    //     lqty.approve(address(bribeInitiative), 1000e18);
-    //     lusd.approve(address(bribeInitiative), 1000e18);
-    //     bribeInitiative.depositBribe(1000e18, 1000e18, governance.epoch() + 1);
-    //     vm.stopPrank();
+        (uint88 totalLQTYAllocatedAfterVeto, uint32 totalAverageTimestampAfterVeto) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(totalLQTYAllocatedAfterVeto, 1e18);
+        assertEq(totalAverageTimestampAfterVeto, uint32(block.timestamp));
+        (uint88 userLQTYAllocatedAfterVeto, uint32 userAverageTimestampAfterVeto) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+        assertEq(userLQTYAllocatedAfterVeto, 0);
+        assertEq(userAverageTimestampAfterVeto, uint32(block.timestamp));
 
-    //     vm.startPrank(address(governance));
+        governance.setEpoch(2);
 
-    //     governance.setEpoch(3);
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 0);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 2001e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 2000e18);
+        IGovernance.UserState memory userStateNewEpoch =
+            IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint32(block.timestamp)});
+        IGovernance.Allocation memory allocationNewEpoch =
+            IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: uint16(governance.epoch())});
+        IGovernance.InitiativeState memory initiativeStateNewEpoch = IGovernance.InitiativeState({
+            voteLQTY: 1e18,
+            vetoLQTY: 1,
+            averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+            averageStakingTimestampVetoLQTY: uint32(block.timestamp),
+            counted: 1
+        });
+        bribeInitiative.onAfterAllocateLQTY(
+            governance.epoch(), user, userStateNewEpoch, allocationNewEpoch, initiativeStateNewEpoch
+        );
 
-    //     governance.setEpoch(4);
+        (uint88 totalLQTYAllocatedNewEpoch, uint32 totalAverageTimestampNewEpoch) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(totalLQTYAllocatedNewEpoch, 1e18);
+        assertEq(totalAverageTimestampNewEpoch, uint32(block.timestamp));
+        (uint88 userLQTYAllocatedNewEpoch, uint32 userAverageTimestampNewEpoch) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+        assertEq(userLQTYAllocatedNewEpoch, 0);
+        assertEq(userAverageTimestampNewEpoch, uint32(block.timestamp));
 
-    //     vm.startPrank(address(user));
+        vm.startPrank(lusdHolder);
+        lqty.approve(address(bribeInitiative), 1000e18);
+        lusd.approve(address(bribeInitiative), 1000e18);
+        bribeInitiative.depositBribe(1000e18, 1000e18, governance.epoch() + 1);
+        vm.stopPrank();
 
-    //     BribeInitiative.ClaimData[] memory claimData = new BribeInitiative.ClaimData[](1);
-    //     claimData[0].epoch = 3;
-    //     claimData[0].prevLQTYAllocationEpoch = 3;
-    //     claimData[0].prevTotalLQTYAllocationEpoch = 3;
-    //     bribeInitiative.claimBribes(claimData);
-    // }
+        vm.startPrank(address(governance));
 
-    // function test_onAfterAllocateLQTY_newEpoch_VetoToVeto() public {
-    //     governance.setEpoch(1);
+        governance.setEpoch(3);
 
-    //     vm.startPrank(address(governance));
+        IGovernance.UserState memory userStateNewEpoch3 =
+            IGovernance.UserState({allocatedLQTY: 2000e18, averageStakingTimestamp: uint32(block.timestamp)});
+        IGovernance.Allocation memory allocationNewEpoch3 =
+            IGovernance.Allocation({voteLQTY: 2000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+        IGovernance.InitiativeState memory initiativeStateNewEpoch3 = IGovernance.InitiativeState({
+            voteLQTY: 2001e18,
+            vetoLQTY: 0,
+            averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+            averageStakingTimestampVetoLQTY: 0,
+            counted: 1
+        });
+        bribeInitiative.onAfterAllocateLQTY(
+            governance.epoch(), user, userStateNewEpoch3, allocationNewEpoch3, initiativeStateNewEpoch3
+        );
 
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, 1e18, 0);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch()), 1e18);
+        (uint88 totalLQTYAllocatedNewEpoch3, uint32 totalAverageTimestampNewEpoch3) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(totalLQTYAllocatedNewEpoch3, 2001e18);
+        assertEq(totalAverageTimestampNewEpoch3, uint32(block.timestamp));
+        (uint88 userLQTYAllocatedNewEpoch3, uint32 userAverageTimestampNewEpoch3) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+        assertEq(userLQTYAllocatedNewEpoch3, 2000e18);
+        assertEq(userAverageTimestampNewEpoch3, uint32(block.timestamp));
 
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 1000e18, 0);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1001e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1000e18);
+        governance.setEpoch(4);
 
-    //     governance.setEpoch(2);
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 1);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
+        vm.startPrank(address(user));
 
-    //     governance.setEpoch(3);
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 1);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 0);
-    // }
+        BribeInitiative.ClaimData[] memory claimData = new BribeInitiative.ClaimData[](1);
+        claimData[0].epoch = 3;
+        claimData[0].prevLQTYAllocationEpoch = 3;
+        claimData[0].prevTotalLQTYAllocationEpoch = 3;
+        bribeInitiative.claimBribes(claimData);
+    }
 
-    // function test_onAfterAllocateLQTY_sameEpoch_NoVetoToNoVeto() public {
-    //     vm.startPrank(lusdHolder);
-    //     lqty.approve(address(bribeInitiative), 1000e18);
-    //     lusd.approve(address(bribeInitiative), 1000e18);
-    //     bribeInitiative.depositBribe(1000e18, 1000e18, governance.epoch() + 1);
-    //     vm.stopPrank();
+    function test_onAfterAllocateLQTY_newEpoch_VetoToVeto() public {
+        governance.setEpoch(1);
 
-    //     governance.setEpoch(1);
+        vm.startPrank(address(governance));
 
-    //     vm.startPrank(address(governance));
+        {
+            IGovernance.UserState memory userState =
+                IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
+            IGovernance.Allocation memory allocation =
+                IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
+                voteLQTY: 1e18,
+                vetoLQTY: 0,
+                averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+                averageStakingTimestampVetoLQTY: 0,
+                counted: 1
+            });
+            bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, 1e18, 0);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch()), 1e18);
+            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+                bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+            assertEq(totalLQTYAllocated, 1e18);
+            assertEq(totalAverageTimestamp, uint32(block.timestamp));
+            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+                bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
+            assertEq(userLQTYAllocated, 1e18);
+            assertEq(userAverageTimestamp, uint32(block.timestamp));
+        }
 
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 1000e18, 0);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1001e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1000e18);
+        {
+            IGovernance.UserState memory userState =
+                IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
+            IGovernance.Allocation memory allocation =
+                IGovernance.Allocation({voteLQTY: 1000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
+                voteLQTY: 1001e18,
+                vetoLQTY: 0,
+                averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+                averageStakingTimestampVetoLQTY: 0,
+                counted: 1
+            });
+            bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-    //     bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, 2000e18, 0);
-    //     assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 2001e18);
-    //     assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 2000e18);
+            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+                bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+            assertEq(totalLQTYAllocated, 1001e18);
+            assertEq(totalAverageTimestamp, uint32(block.timestamp));
+            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+                bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+            assertEq(userLQTYAllocated, 1000e18);
+            assertEq(userAverageTimestamp, uint32(block.timestamp));
+        }
 
-    //     governance.setEpoch(2);
+        governance.setEpoch(2);
 
-    //     vm.startPrank(address(user));
+        {
+            IGovernance.UserState memory userState =
+                IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint32(block.timestamp)});
+            IGovernance.Allocation memory allocation =
+                IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: uint16(governance.epoch())});
+            IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
+                voteLQTY: 1e18,
+                vetoLQTY: 0,
+                averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+                averageStakingTimestampVetoLQTY: 0,
+                counted: 1
+            });
+            bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-    //     BribeInitiative.ClaimData[] memory claimData = new BribeInitiative.ClaimData[](1);
-    //     claimData[0].epoch = 1;
-    //     claimData[0].prevLQTYAllocationEpoch = 1;
-    //     claimData[0].prevTotalLQTYAllocationEpoch = 1;
-    //     bribeInitiative.claimBribes(claimData);
-    // }
+            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+                bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+            assertEq(totalLQTYAllocated, 1e18);
+            assertEq(totalAverageTimestamp, uint32(block.timestamp));
+            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+                bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+            assertEq(userLQTYAllocated, 0);
+            assertEq(userAverageTimestamp, uint32(block.timestamp));
+        }
+
+        governance.setEpoch(3);
+
+        {
+            IGovernance.UserState memory userState =
+                IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint32(block.timestamp)});
+            IGovernance.Allocation memory allocation =
+                IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: uint16(governance.epoch())});
+            IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
+                voteLQTY: 1e18,
+                vetoLQTY: 0,
+                averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+                averageStakingTimestampVetoLQTY: 0,
+                counted: 1
+            });
+            bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
+
+            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+                bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+            assertEq(totalLQTYAllocated, 1e18);
+            assertEq(totalAverageTimestamp, uint32(block.timestamp));
+            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+                bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+            assertEq(userLQTYAllocated, 0);
+            assertEq(userAverageTimestamp, uint32(block.timestamp));
+        }
+    }
+
+    function test_onAfterAllocateLQTY_sameEpoch_NoVetoToNoVeto() public {
+        vm.startPrank(lusdHolder);
+        lqty.approve(address(bribeInitiative), 1000e18);
+        lusd.approve(address(bribeInitiative), 1000e18);
+        bribeInitiative.depositBribe(1000e18, 1000e18, governance.epoch() + 1);
+        vm.stopPrank();
+
+        governance.setEpoch(1);
+
+        vm.startPrank(address(governance));
+
+        {
+            IGovernance.UserState memory userState =
+                IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
+            IGovernance.Allocation memory allocation =
+                IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
+                voteLQTY: 1e18,
+                vetoLQTY: 0,
+                averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+                averageStakingTimestampVetoLQTY: 0,
+                counted: 1
+            });
+            bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
+
+            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+                bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+            assertEq(totalLQTYAllocated, 1e18);
+            assertEq(totalAverageTimestamp, uint32(block.timestamp));
+            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+                bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
+            assertEq(userLQTYAllocated, 1e18);
+            assertEq(userAverageTimestamp, uint32(block.timestamp));
+        }
+
+        {
+            IGovernance.UserState memory userState =
+                IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
+            IGovernance.Allocation memory allocation =
+                IGovernance.Allocation({voteLQTY: 1000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
+                voteLQTY: 1001e18,
+                vetoLQTY: 0,
+                averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+                averageStakingTimestampVetoLQTY: 0,
+                counted: 1
+            });
+            bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
+
+            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+                bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+            assertEq(totalLQTYAllocated, 1001e18);
+            assertEq(totalAverageTimestamp, uint32(block.timestamp));
+            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+                bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+            assertEq(userLQTYAllocated, 1000e18);
+            assertEq(userAverageTimestamp, uint32(block.timestamp));
+        }
+
+        {
+            IGovernance.UserState memory userState =
+                IGovernance.UserState({allocatedLQTY: 2000e18, averageStakingTimestamp: uint32(block.timestamp)});
+            IGovernance.Allocation memory allocation =
+                IGovernance.Allocation({voteLQTY: 2000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
+                voteLQTY: 2001e18,
+                vetoLQTY: 0,
+                averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+                averageStakingTimestampVetoLQTY: 0,
+                counted: 1
+            });
+            bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
+
+            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+                bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+            assertEq(totalLQTYAllocated, 2001e18);
+            assertEq(totalAverageTimestamp, uint32(block.timestamp));
+            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+                bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+            assertEq(userLQTYAllocated, 2000e18);
+            assertEq(userAverageTimestamp, uint32(block.timestamp));
+        }
+
+        governance.setEpoch(2);
+
+        vm.startPrank(address(user));
+
+        BribeInitiative.ClaimData[] memory claimData = new BribeInitiative.ClaimData[](1);
+        claimData[0].epoch = 1;
+        claimData[0].prevLQTYAllocationEpoch = 1;
+        claimData[0].prevTotalLQTYAllocationEpoch = 1;
+        bribeInitiative.claimBribes(claimData);
+    }
 
     // function test_onAfterAllocateLQTY_sameEpoch_NoVetoToVeto() public {
     //     vm.startPrank(lusdHolder);
