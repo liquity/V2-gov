@@ -176,7 +176,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         return _decodeLQTYAllocation(lqtyAllocationByUserAtEpoch[_user].items[_epoch].value);
     }
 
-    /// @inheritdoc IInitiative
     function onAfterAllocateLQTY(
         uint16 _currentEpoch,
         address _user,
@@ -184,34 +183,25 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         IGovernance.Allocation calldata _allocation,
         IGovernance.InitiativeState calldata _initiativeState
     ) external virtual onlyGovernance {
-        uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
-
         if (_currentEpoch == 0) return;
 
-        // if this is the first user allocation in the epoch, then insert a new item into the user allocation DLL
-        if (mostRecentUserEpoch != _currentEpoch) {
-            uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
-            // if this is the first allocation in the epoch, then insert a new item into the total allocation DLL
-            if (mostRecentTotalEpoch != _currentEpoch) {
-                _setTotalLQTYAllocationByEpoch(
-                    _currentEpoch, _initiativeState.voteLQTY, _initiativeState.averageStakingTimestampVoteLQTY, true
-                );
-            } else {
-                _setTotalLQTYAllocationByEpoch(
-                    _currentEpoch, _initiativeState.voteLQTY, _initiativeState.averageStakingTimestampVoteLQTY, false
-                );
-            }
-            _setLQTYAllocationByUserAtEpoch(
-                _user, _currentEpoch, _allocation.voteLQTY, _userState.averageStakingTimestamp, true
-            );
-        } else {
-            _setTotalLQTYAllocationByEpoch(
-                _currentEpoch, _initiativeState.voteLQTY, _initiativeState.averageStakingTimestampVoteLQTY, false
-            );
-            _setLQTYAllocationByUserAtEpoch(
-                _user, _currentEpoch, _allocation.voteLQTY, _userState.averageStakingTimestamp, false
-            );
-        }
+        uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
+        uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
+
+        _setTotalLQTYAllocationByEpoch(
+            _currentEpoch,
+            _initiativeState.voteLQTY,
+            _initiativeState.averageStakingTimestampVoteLQTY,
+            mostRecentTotalEpoch != _currentEpoch // Insert if current > recent
+        );
+
+        _setLQTYAllocationByUserAtEpoch(
+            _user,
+            _currentEpoch,
+            _allocation.voteLQTY,
+            _userState.averageStakingTimestamp,
+            mostRecentUserEpoch != _currentEpoch // Insert if user current > recent
+        );
     }
 
     /// @inheritdoc IInitiative
