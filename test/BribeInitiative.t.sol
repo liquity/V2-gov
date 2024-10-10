@@ -29,7 +29,7 @@ contract BribeInitiativeTest is Test {
     uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
     uint88 private constant MIN_CLAIM = 500e18;
     uint88 private constant MIN_ACCRUAL = 1000e18;
-    uint32 private constant EPOCH_DURATION = 604800;
+    uint32 private constant EPOCH_DURATION = 7 days; // 7 days
     uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
@@ -41,8 +41,8 @@ contract BribeInitiativeTest is Test {
         lqty = deployMockERC20("Liquity", "LQTY", 18);
         lusd = deployMockERC20("Liquity USD", "LUSD", 18);
 
-        vm.store(address(lqty), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10000e18)));
-        vm.store(address(lusd), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10000e18)));
+        vm.store(address(lqty), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
+        vm.store(address(lusd), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
 
         stakingV1 = address(new MockStakingV1(address(lqty)));
 
@@ -76,9 +76,62 @@ contract BribeInitiativeTest is Test {
         );
 
         vm.startPrank(lusdHolder);
-        lqty.transfer(user, 1e18);
-        lusd.transfer(user, 1e18);
+        lqty.transfer(user, 1_000_000e18);
+        lusd.transfer(user, 1_000_000e18);
         vm.stopPrank();
+    }
+
+    // test total allocation vote case
+    function test_totalLQTYAllocatedByEpoch_vote() public {        
+        // staking LQTY into governance for user in first epoch
+        _stakeLQTY(user, 10e18);
+
+        // fast forward to second epoch
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // allocate LQTY to the bribeInitiative
+        _allocateLQTY(user, 10e18, 0);
+        // total LQTY allocated for this epoch should increase
+        (uint88 totalLQTYAllocated, ) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(totalLQTYAllocated, 10e18);
+    }
+
+    // test total allocation veto case 
+    function test_totalLQTYAllocatedByEpoch_veto() public {      
+        _stakeLQTY(user, 10e18);
+
+        // fast forward to second epoch
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // allocate LQTY to the bribeInitiative
+        _allocateLQTY(user, 0, 10e18);
+        // total LQTY allocated for this epoch should not increase
+        (uint88 totalLQTYAllocated, ) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(totalLQTYAllocated, 0);
+    }
+
+    // TODO: test total allocations at start/end of epoch
+
+    // user tries to allocate multiple times in different epochs 
+    function test_allocating_same_initiative_multiple_epochs_reverts() public { 
+        _stakeLQTY(user, 10e18);
+
+        // fast forward to second epoch
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // allocate LQTY to the bribeInitiative
+         _allocateLQTY(user, 10e18, 0);
+        // total LQTY allocated for this epoch should increase
+        (uint88 totalLQTYAllocated1, ) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+
+        // fast forward to third epoch
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        vm.expectRevert();
+        _allocateLQTY(user, 10e18, 0);
     }
 
     function test_claimBribes() public {
@@ -154,6 +207,30 @@ contract BribeInitiativeTest is Test {
         assertEq(userLQTYAllocated, 0);
         (totalLQTYAllocated, averageTimestamp) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocated, 0);
+        vm.stopPrank();
+    }
+
+    function _stakeLQTY(address staker, uint88 amount) public {
+        vm.startPrank(staker);
+        address userProxy = governance.deployUserProxy();
+        lqty.approve(address(userProxy), amount);
+        governance.depositLQTY(amount);
+        vm.stopPrank();
+    }
+
+    function _allocateLQTY(address staker, int176 deltaVoteLQTYAmt, int176 deltaVetoLQTYAmt) public {
+        vm.startPrank(staker);
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = address(bribeInitiative);
+
+        // voting in favor of the  initiative with half of user's stake
+        int176[] memory deltaVoteLQTY = new int176[](1);
+        deltaVoteLQTY[0] = deltaVoteLQTYAmt;
+
+        int176[] memory deltaVetoLQTY = new int176[](1);
+        deltaVetoLQTY[0] = deltaVetoLQTYAmt;
+
+        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.stopPrank();
     }
 }
