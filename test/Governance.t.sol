@@ -1152,6 +1152,8 @@ contract GovernanceTest is Test {
 
         governance.claimForInitiative(address(mockInitiative));
 
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
         initiativeSnapshot = IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0);
         vm.store(
             address(governance),
