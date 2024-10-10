@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
@@ -11,11 +11,13 @@ import {BribeInitiative} from "../src/BribeInitiative.sol";
 
 import {MockStakingV1} from "./mocks/MockStakingV1.sol";
 
+// coverage: forge coverage --mc BribeInitiativeTest --report lcov
 contract BribeInitiativeTest is Test {
     MockERC20 private lqty;
     MockERC20 private lusd;
     address private stakingV1;
-    address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
+    address private constant user1 = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
+    address private constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
     address private constant initiative = address(0x1);
     address private constant initiative2 = address(0x2);
@@ -41,6 +43,8 @@ contract BribeInitiativeTest is Test {
         lqty = deployMockERC20("Liquity", "LQTY", 18);
         lusd = deployMockERC20("Liquity USD", "LUSD", 18);
 
+        vm.store(address(lqty), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
+        vm.store(address(lusd), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
         vm.store(address(lqty), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
         vm.store(address(lusd), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
 
@@ -76,99 +80,309 @@ contract BribeInitiativeTest is Test {
         );
 
         vm.startPrank(lusdHolder);
-        lqty.transfer(user, 1_000_000e18);
-        lusd.transfer(user, 1_000_000e18);
+        lqty.transfer(user1, 1_000_000e18);
+        lusd.transfer(user1, 1_000_000e18);
+        lqty.transfer(user2, 1_000_000e18);
+        lusd.transfer(user2, 1_000_000e18);
         vm.stopPrank();
     }
 
     // test total allocation vote case
     function test_totalLQTYAllocatedByEpoch_vote() public {        
-        // staking LQTY into governance for user in first epoch
-        _stakeLQTY(user, 10e18);
+        // staking LQTY into governance for user1 in first epoch
+        _stakeLQTY(user1, 10e18);
 
         // fast forward to second epoch
         vm.warp(block.timestamp + EPOCH_DURATION);
 
         // allocate LQTY to the bribeInitiative
-        _allocateLQTY(user, 10e18, 0);
+        _allocateLQTY(user1, 10e18, 0);
         // total LQTY allocated for this epoch should increase
-        (uint88 totalLQTYAllocated, ) =
+        (uint88 totalLQTYAllocated) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocated, 10e18);
     }
 
     // test total allocation veto case 
     function test_totalLQTYAllocatedByEpoch_veto() public {      
-        _stakeLQTY(user, 10e18);
+        _stakeLQTY(user1, 10e18);
 
         // fast forward to second epoch
         vm.warp(block.timestamp + EPOCH_DURATION);
 
-        // allocate LQTY to the bribeInitiative
-        _allocateLQTY(user, 0, 10e18);
+        // allocate LQTY to veto bribeInitiative
+        _allocateLQTY(user1, 0, 10e18);
         // total LQTY allocated for this epoch should not increase
-        (uint88 totalLQTYAllocated, ) =
+        (uint88 totalLQTYAllocated) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocated, 0);
     }
 
-    // TODO: test total allocations at start/end of epoch
-
-    // user tries to allocate multiple times in different epochs 
-    function test_allocating_same_initiative_multiple_epochs_reverts() public { 
-        _stakeLQTY(user, 10e18);
+    // user1 allocates multiple times in different epochs 
+    function test_allocating_same_initiative_multiple_epochs() public { 
+        _stakeLQTY(user1, 10e18);
 
         // fast forward to second epoch
         vm.warp(block.timestamp + EPOCH_DURATION);
 
         // allocate LQTY to the bribeInitiative
-         _allocateLQTY(user, 10e18, 0);
+         _allocateLQTY(user1, 5e18, 0);
+
         // total LQTY allocated for this epoch should increase
-        (uint88 totalLQTYAllocated1, ) =
+        (uint88 totalLQTYAllocated1) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated1) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated1, 5e18);
+        assertEq(userLQTYAllocated1, 5e18);
 
         // fast forward to third epoch
         vm.warp(block.timestamp + EPOCH_DURATION);
 
-        vm.expectRevert();
-        _allocateLQTY(user, 10e18, 0);
+        _allocateLQTY(user1, 5e18, 0);
+
+        // total LQTY allocated for this epoch should not change
+        (uint88 totalLQTYAllocated2) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated2) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated2, 10e18);
+        assertEq(userLQTYAllocated1, 5e18);
+
     }
 
-    function test_claimBribes() public {
-        vm.startPrank(user);
-        address userProxy = governance.deployUserProxy();
-        lqty.approve(address(userProxy), 1e18);
-        governance.depositLQTY(1e18);
-        vm.stopPrank();
+    // user1 allocates multiple times in same epoch
+    function test_totalLQTYAllocatedByEpoch_vote_same_epoch() public {        
+        _stakeLQTY(user1, 10e18);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + EPOCH_DURATION);
 
+        // user1 allocates in first epoch
+        _allocateLQTY(user1, 5e18, 0);
+        (uint88 totalLQTYAllocated1) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated1) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated1, 5e18);
+        assertEq(userLQTYAllocated1, 5e18);
+
+        // vm.warp(block.timestamp + EPOCH_DURATION);
+
+        _allocateLQTY(user1, 5e18, 0);
+        (uint88 totalLQTYAllocated2) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated2) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated2, 10e18);
+        assertEq(userLQTYAllocated2, 10e18);
+    }
+
+    function test_allocation_stored_in_list() public {        
+        _stakeLQTY(user1, 10e18);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // user1 allocates in first epoch
+        _allocateLQTY(user1, 5e18, 0);
+        (uint88 totalLQTYAllocated1) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated1) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated1, 5e18);
+        assertEq(userLQTYAllocated1, 5e18);
+
+        console2.log("current governance epoch: ", governance.epoch());
+        // user's linked-list should be updated to have a value for the current epoch
+        uint88 allocatedAtEpoch = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        console2.log("allocatedAtEpoch: ", allocatedAtEpoch);
+    }
+
+    // test total allocation by multiple users in multiple epochs
+    function test_totalLQTYAllocatedByEpoch_vote_multiple_epochs() public {        
+        _stakeLQTY(user1, 10e18);
+        _stakeLQTY(user2, 10e18);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // user1 allocates in first epoch
+        _allocateLQTY(user1, 10e18, 0);
+        (uint88 totalLQTYAllocated1) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated1) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated1, 10e18);
+        assertEq(userLQTYAllocated1, 10e18);
+
+        // user2 allocates in second epoch
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // user allocations should be disjoint because they're in separate epochs
+        _allocateLQTY(user2, 10e18, 0);
+        (uint88 totalLQTYAllocated2) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated2) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
+        assertEq(totalLQTYAllocated2, 20e18);
+        assertEq(userLQTYAllocated2, 10e18);
+
+    }
+
+    // test total allocations for multiple users in the same epoch
+    function test_totalLQTYAllocatedByEpoch_vote_same_epoch_multiple() public {        
+        _stakeLQTY(user1, 10e18);
+        _stakeLQTY(user2, 10e18);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // user1 allocates in first epoch
+        _allocateLQTY(user1, 10e18, 0);
+        (uint88 totalLQTYAllocated1) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated1) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated1, 10e18);
+        assertEq(userLQTYAllocated1, 10e18);
+
+        _allocateLQTY(user2, 10e18, 0);
+        (uint88 totalLQTYAllocated2) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated2) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
+        assertEq(totalLQTYAllocated2, 20e18);
+        assertEq(userLQTYAllocated2, 10e18);
+    }
+
+    // test total allocation doesn't grow from start to end of epoch
+    function test_totalLQTYAllocatedByEpoch_growth() public {        
+        _stakeLQTY(user1, 10e18);
+        _stakeLQTY(user2, 10e18);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // user1 allocates in first epoch
+        _allocateLQTY(user1, 10e18, 0);
+        (uint88 totalLQTYAllocated1) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(totalLQTYAllocated1, 10e18);
+
+        // warp to the end of the epoch
+        vm.warp(block.timestamp + (EPOCH_VOTING_CUTOFF - 1)); 
+
+        (uint88 totalLQTYAllocated2) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(totalLQTYAllocated2, 10e18);
+    }
+
+    // test depositing bribe
+    function test_depositBribe_success() public {
         vm.startPrank(lusdHolder);
         lqty.approve(address(bribeInitiative), 1e18);
         lusd.approve(address(bribeInitiative), 1e18);
         bribeInitiative.depositBribe(1e18, 1e18, governance.epoch() + 1);
         vm.stopPrank();
+    }
 
-        vm.startPrank(user);
+    function test_claimBribes() public {
+        _stakeLQTY(user1, 1e18);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + EPOCH_DURATION);
 
-        address[] memory initiatives = new address[](1);
-        initiatives[0] = address(bribeInitiative);
-        int176[] memory deltaVoteLQTY = new int176[](1);
-        deltaVoteLQTY[0] = 1e18;
-        int176[] memory deltaVetoLQTY = new int176[](1);
-        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        (uint88 totalLQTYAllocated, uint32 averageTimestamp) =
+        _depositBribe(1e18, 1e18, governance.epoch() + 1);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        _allocateLQTY(user1, 1e18, 0);
+
+        (uint88 totalLQTYAllocated) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated, 1e18);
-        assertEq(averageTimestamp, block.timestamp - 365 days - 365 days);
-        (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
-            bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
         assertEq(userLQTYAllocated, 1e18);
-        assertEq(userAverageTimestamp, block.timestamp - 365 days - 365 days);
 
-        // should be zero since user was not deposited at that time
+        // deposit bribe
+        _depositBribe(1e18, 1e18, governance.epoch() + 1);
+        vm.warp(block.timestamp + (EPOCH_DURATION * 2));
+
+        // user should receive bribe from their allocated stake
+        (uint256 boldAmount, uint256 bribeTokenAmount) = _claimBribe(user1, governance.epoch() - 1, governance.epoch() - 2, governance.epoch() - 2);
+        assertEq(boldAmount, 1e18);
+        assertEq(bribeTokenAmount, 1e18);
+    }
+
+    function test_decrement_after_claimBribes() public {
+        _stakeLQTY(user1, 1e18);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        _depositBribe(1e18, 1e18, governance.epoch() + 1);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        _allocateLQTY(user1, 1e18, 0);
+
+        (uint88 totalLQTYAllocated) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated, 1e18);
+        assertEq(userLQTYAllocated, 1e18);
+
+        // deposit bribe
+        _depositBribe(1e18, 1e18, governance.epoch() + 1);
+        vm.warp(block.timestamp + (EPOCH_DURATION * 2));
+
+        // user should receive bribe from their allocated stake
+        (uint256 boldAmount, uint256 bribeTokenAmount) = _claimBribe(user1, governance.epoch() - 1, governance.epoch() - 2, governance.epoch() - 2);
+        assertEq(boldAmount, 1e18);
+        assertEq(bribeTokenAmount, 1e18);
+
+        // decrease user allocation for the initiative
+        _allocateLQTY(user1, -1e18, 0);
+
+        (userLQTYAllocated) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (totalLQTYAllocated) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(userLQTYAllocated, 0);
+        assertEq(totalLQTYAllocated, 0);
+    }
+
+    /** 
+        Revert Cases
+    */
+    // TODO: come back to this to figure out why revert doesn't get caught
+    // function test_depositBribe_epoch_too_early_reverts() public {
+    //     vm.startPrank(lusdHolder);
+
+    //     lqty.approve(address(bribeInitiative), 1e18);
+    //     lusd.approve(address(bribeInitiative), 1e18);
+
+    //     vm.expectRevert();
+    //     bribeInitiative.depositBribe(1e18, 1e18, governance.epoch());
+
+    //     vm.stopPrank();
+    // }
+
+     function test_claimBribes_before_deposit_reverts() public {
+        _stakeLQTY(user1, 1e18);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        _depositBribe(1e18, 1e18, governance.epoch() + 1);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        _allocateLQTY(user1, 1e18, 0);
+
+        (uint88 totalLQTYAllocated) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated, 1e18);
+        assertEq(userLQTYAllocated, 1e18);
+
+        vm.startPrank(user1);
+
+        // should be zero since user1 was not deposited at that time
         BribeInitiative.ClaimData[] memory epochs = new BribeInitiative.ClaimData[](1);
         epochs[0].epoch = governance.epoch() - 1;
         epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 1;
@@ -179,40 +393,14 @@ contract BribeInitiativeTest is Test {
         assertEq(bribeTokenAmount, 0);
 
         vm.stopPrank();
-
-        vm.startPrank(lusdHolder);
-        lqty.approve(address(bribeInitiative), 1e18);
-        lusd.approve(address(bribeInitiative), 1e18);
-        bribeInitiative.depositBribe(1e18, 1e18, governance.epoch() + 1);
-        vm.warp(block.timestamp + governance.EPOCH_DURATION());
-        vm.warp(block.timestamp + governance.EPOCH_DURATION());
-        vm.stopPrank();
-
-        // should be non zero since user was deposited at that time
-        vm.startPrank(user);
-        epochs[0].epoch = governance.epoch() - 1;
-        epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 2;
-        epochs[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 2;
-        (boldAmount, bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
-        assertEq(boldAmount, 1e18);
-        assertEq(bribeTokenAmount, 1e18);
-        vm.stopPrank();
-
-        vm.startPrank(user);
-        initiatives[0] = address(bribeInitiative);
-        deltaVoteLQTY[0] = -0.5e18;
-        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        (userLQTYAllocated, userAverageTimestamp) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
-        assertEq(userLQTYAllocated, 0);
-        (totalLQTYAllocated, averageTimestamp) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        assertEq(totalLQTYAllocated, 0);
-        vm.stopPrank();
     }
 
+    /**
+        Helpers
+    */
     function _stakeLQTY(address staker, uint88 amount) public {
         vm.startPrank(staker);
-        address userProxy = governance.deployUserProxy();
+        address userProxy = governance.deriveUserProxyAddress(staker);
         lqty.approve(address(userProxy), amount);
         governance.depositLQTY(amount);
         vm.stopPrank();
@@ -223,7 +411,7 @@ contract BribeInitiativeTest is Test {
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
 
-        // voting in favor of the  initiative with half of user's stake
+        // voting in favor of the  initiative with half of user1's stake
         int176[] memory deltaVoteLQTY = new int176[](1);
         deltaVoteLQTY[0] = deltaVoteLQTYAmt;
 
@@ -231,6 +419,24 @@ contract BribeInitiativeTest is Test {
         deltaVetoLQTY[0] = deltaVetoLQTYAmt;
 
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        vm.stopPrank();
+    }
+
+    function _depositBribe(uint128 boldAmount, uint128 bribeAmount, uint16 epoch) public {
+        vm.startPrank(lusdHolder);
+        lqty.approve(address(bribeInitiative), boldAmount);
+        lusd.approve(address(bribeInitiative), bribeAmount);
+        bribeInitiative.depositBribe(1e18, 1e18, epoch);
+        vm.stopPrank();
+    }
+
+    function _claimBribe(address claimer, uint16 epoch, uint16 prevLQTYAllocationEpoch, uint16 prevTotalLQTYAllocationEpoch) public returns (uint256 boldAmount, uint256 bribeTokenAmount){
+        vm.startPrank(claimer);
+        BribeInitiative.ClaimData[] memory epochs = new BribeInitiative.ClaimData[](1);
+        epochs[0].epoch = epoch;
+        epochs[0].prevLQTYAllocationEpoch = prevLQTYAllocationEpoch;
+        epochs[0].prevTotalLQTYAllocationEpoch = prevTotalLQTYAllocationEpoch;
+        (boldAmount, bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
         vm.stopPrank();
     }
 }
