@@ -85,6 +85,8 @@ contract UniV4Donations is BribeInitiative, BaseHook {
     }
 
     function _donateToPool() internal returns (uint256) {
+        /// @audit TODO: Need to use storage value here I think
+        /// TODO: Test and fix release speed, which looks off
         Vesting memory _vesting = _restartVesting(uint240(governance.claimForInitiative(address(this))));
         uint256 amount =
             (_vesting.amount * (block.timestamp - vestingEpochStart()) / VESTING_EPOCH_DURATION) - _vesting.released;
