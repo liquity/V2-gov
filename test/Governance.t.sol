@@ -692,7 +692,7 @@ contract GovernanceTest is Test {
         assertEq(countedVoteLQTYAverageTimestamp, block.timestamp);
 
         IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState(
-            1, 10e18, uint32(block.timestamp - 365 days), uint32(block.timestamp - 365 days), 1
+            1, 10e18, uint32(block.timestamp - 365 days), uint32(block.timestamp - 365 days), 1, 0
         );
         vm.store(
             address(governance),
@@ -714,7 +714,7 @@ contract GovernanceTest is Test {
             uint88 vetoLQTY,
             uint32 averageStakingTimestampVoteLQTY,
             uint32 averageStakingTimestampVetoLQTY,
-            uint16 counted
+            uint16 counted,
         ) = governance.initiativeStates(baseInitiative3);
         assertEq(voteLQTY, 1);
         assertEq(vetoLQTY, 10e18);
@@ -727,7 +727,7 @@ contract GovernanceTest is Test {
         assertEq(governance.registeredInitiatives(baseInitiative3), 0);
 
         // should delete the initiative state and the registration timestamp
-        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted) =
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted, ) =
             governance.initiativeStates(baseInitiative3);
         assertEq(voteLQTY, 0);
         assertEq(vetoLQTY, 0);
@@ -772,7 +772,7 @@ contract GovernanceTest is Test {
             uint88 vetoLQTY,
             uint32 averageStakingTimestampVoteLQTY,
             uint32 averageStakingTimestampVetoLQTY,
-            uint16 counted
+            uint16 counted, 
         ) = governance.initiativeStates(baseInitiative1);
         // should update the `voteLQTY` and `vetoLQTY` variables
         assertEq(voteLQTY, 1e18);
@@ -828,7 +828,7 @@ contract GovernanceTest is Test {
         (allocatedLQTY,) = governance.userStates(user2);
         assertEq(allocatedLQTY, 1e18);
 
-        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted) =
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted, ) =
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 2e18);
         assertEq(vetoLQTY, 0);
@@ -858,7 +858,7 @@ contract GovernanceTest is Test {
         (countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 1e18);
 
-        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted) =
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted, ) =
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
@@ -904,12 +904,12 @@ contract GovernanceTest is Test {
             uint88 vetoLQTY,
             uint32 averageStakingTimestampVoteLQTY,
             uint32 averageStakingTimestampVetoLQTY,
-            uint16 counted
+            uint16 counted, 
         ) = governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
 
-        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted) =
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted, ) =
             governance.initiativeStates(baseInitiative2);
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);

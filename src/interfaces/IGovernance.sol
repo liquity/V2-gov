@@ -125,6 +125,7 @@ interface IGovernance {
         uint32 averageStakingTimestampVoteLQTY; // Average staking timestamp of the voting LQTY for the initiative
         uint32 averageStakingTimestampVetoLQTY; // Average staking timestamp of the vetoing LQTY for the initiative
         uint16 counted; // Whether votes should be counted in the next snapshot (in 'globalAllocation.countedLQTY')
+        uint16 lastEpochClaim;
     }
 
     struct GlobalState {
@@ -152,7 +153,8 @@ interface IGovernance {
             uint88 vetoLQTY,
             uint32 averageStakingTimestampVoteLQTY,
             uint32 averageStakingTimestampVetoLQTY,
-            uint16 counted
+            uint16 counted,
+            uint16 lastEpochClaim
         );
     /// @notice Returns the global state
     /// @return countedVoteLQTY Total LQTY that is included in vote counting

@@ -94,7 +94,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         require(_config.epochVotingCutoff < _config.epochDuration, "Gov: epoch-voting-cutoff-gt-epoch-duration");
         EPOCH_VOTING_CUTOFF = _config.epochVotingCutoff;
         for (uint256 i = 0; i < _initiatives.length; i++) {
-            initiativeStates[_initiatives[i]] = InitiativeState(0, 0, 0, 0, 0);
+            initiativeStates[_initiatives[i]] = InitiativeState(0, 0, 0, 0, 0, 0);
             registeredInitiatives[_initiatives[i]] = 1;
         }
     }
@@ -298,6 +298,39 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (initiativeVoteSnapshot,) = _snapshotVotesForInitiative(_initiative);
     }
 
+
+    /// @notice Given an initiative, return whether the initiative will be unregisted, whether it can claim and which epoch it last claimed at
+    function getInitiativeState(address _initiative) public returns (bool mustUnregister, bool canClaimRewards, uint16 lastEpochClaim){
+        (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(_initiative);
+
+        // TODO: Should this be start - 1?
+        uint256 vetosForInitiative =
+            lqtyToVotes(initiativeState.vetoLQTY, epochStart(), initiativeState.averageStakingTimestampVetoLQTY);
+
+        // Unregister Condition
+        // TODO: Figure out `UNREGISTRATION_AFTER_EPOCHS`
+        /// @audit epoch() - 1 because we can have Now - 1 and that's not a removal case
+        if((votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1) 
+            ||  vetosForInitiative > votesForInitiativeSnapshot_.votes
+                        && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
+        ) {
+            mustUnregister = true;
+        }
+
+        // How do we know that they have canClaimRewards?
+        // They must have votes / totalVotes AND meet the Requirement AND not be vetoed
+        /// @audit if we already are above, then why are we re-computing this?
+        // Ultimately the checkpoint logic for initiative is fine, so we can skip this
+        if(votesForInitiativeSnapshot_.votes > 0) {
+            canClaimRewards = true;
+        }
+
+        lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
+
+        // implicit return (mustUnregister, canClaimRewards, lastEpochClaim)
+    }
+
     /// @inheritdoc IGovernance
     function registerInitiative(address _initiative) external nonReentrant {
         bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
@@ -416,7 +449,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 initiativeState.vetoLQTY,
                 initiativeState.averageStakingTimestampVoteLQTY,
                 initiativeState.averageStakingTimestampVetoLQTY,
-                initiativeState.counted
+                initiativeState.counted,
+                initiativeState.lastEpochClaim
             );
 
             // update the average staking timestamp for the initiative based on the user's average staking timestamp
