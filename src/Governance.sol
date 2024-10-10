@@ -456,7 +456,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             if (prevInitiativeState.counted == 1) {
                 state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
                     state.countedVoteLQTYAverageTimestamp,
-                    initiativeState.averageStakingTimestampVoteLQTY,
+                    prevInitiativeState.averageStakingTimestampVoteLQTY,
                     state.countedVoteLQTY,
                     state.countedVoteLQTY - prevInitiativeState.voteLQTY
                 );
