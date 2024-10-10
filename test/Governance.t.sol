@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.24;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, console2} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
 
@@ -386,6 +386,58 @@ contract GovernanceTest is Test {
     // should not revert under any input
     function test_lqtyToVotes(uint88 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp) public {
         governance.lqtyToVotes(_lqtyAmount, _currentTimestamp, _averageTimestamp);
+    }
+
+    // NOTE: issue 5.3 from CS audit 
+    function test_check_correct_vote_calculation() public {
+        // objective: verify that the voting power from an allocation is the same as the lqtyToVotes calculated using an average timestamp
+        // 1. allocate and reach the specific path prevInitiativeState.counted == 1 by allocating a sufficient amount to reach the threshold
+       
+        // votingThreshold = 5e17
+        vm.startPrank(user);
+
+        address userProxy = governanceInternal.deployUserProxy();
+
+        // stake LQTY
+        console.log("user lqty balance: %e", lqty.balanceOf(user));
+        lqty.approve(address(userProxy), 20e18);
+        governanceInternal.depositLQTY(20e18);
+
+        (uint88 allocatedLQTY, uint32 averageStakingTimestampUser) = governanceInternal.userStates(user);
+        (uint88 countedVoteLQTY,) = governanceInternal.globalState();
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = baseInitiative1;
+        int176[] memory deltaLQTYVotes = new int176[](1);
+        deltaLQTYVotes[0] = 10e18;
+        int176[] memory deltaLQTYVetos = new int176[](1);
+
+        vm.warp(block.timestamp + 365 days);
+        governanceInternal.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        
+        (uint88 voteLQTY1,, uint32 averageStakingTimestampVoteLQTY1,,) = governanceInternal.initiativeStates(address(baseInitiative1));
+        console2.log("averageStakingTimestampVoteLQTY1: ", averageStakingTimestampVoteLQTY1);
+        
+        // 2. allocate again to reach the needed path
+        address[] memory initiatives2 = new address[](1);
+        initiatives2[0] = baseInitiative1;
+        int176[] memory deltaLQTYVotes2 = new int176[](1);
+        deltaLQTYVotes2[0] = 5e18;
+        int176[] memory deltaLQTYVetos2 = new int176[](1);
+
+        vm.warp(block.timestamp + 4 days);
+        governanceInternal.allocateLQTY(initiatives2, deltaLQTYVotes2, deltaLQTYVetos2);
+
+        // 3. calculate voting power as state.countedVoteLQTYAverageTimestamp * state.countedVoteLQTY
+        // need to get the latest initiative state
+        (uint88 voteLQTY2,, uint32 averageStakingTimestampVoteLQTY2,,) = governanceInternal.initiativeStates(address(baseInitiative1));
+        console2.log("averageStakingTimestampVoteLQTY2: ", averageStakingTimestampVoteLQTY2);
+        uint240 votingPower1 = governanceInternal.lqtyToVotes(voteLQTY2, block.timestamp, averageStakingTimestampVoteLQTY2);
+
+        // 4. compare with voting power returned from lqtyToVotes using correct average timestamp
+        uint32 averageTimestamp = governanceInternal.calculateAverageTimestamp(averageStakingTimestampVoteLQTY1, averageStakingTimestampVoteLQTY2, voteLQTY1, voteLQTY2);
+        uint240 votingPower2 = governanceInternal.lqtyToVotes(voteLQTY2, block.timestamp, averageTimestamp);
+        assertEq(votingPower1, votingPower2);
     }
 
     function test_calculateVotingThreshold() public {
