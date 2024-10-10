@@ -370,6 +370,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
             _snapshotVotesForInitiative(_initiative);
 
+        /// Invariant: Must only claim once or unregister
+        require(initiativeState.lastEpochClaim < epoch() - 1);
+
         uint256 vetosForInitiative =
             lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestampVetoLQTY);
 
@@ -529,14 +532,17 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     function claimForInitiative(address _initiative) external nonReentrant returns (uint256) {
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
-        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_,) = _snapshotVotesForInitiative(_initiative);
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState_) = _snapshotVotesForInitiative(_initiative);
+
+        /// Invariant: Must only claim once or unregister
+        require(initiativeState_.lastEpochClaim < epoch() - 1);
 
         // return 0 if the initiative has no votes
         if (votesSnapshot_.votes == 0 || votesForInitiativeSnapshot_.votes == 0) return 0;
 
         uint256 claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
 
-        votesForInitiativeSnapshot_.votes = 0;
+        initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
         votesForInitiativeSnapshot[_initiative] = votesForInitiativeSnapshot_; // implicitly prevents double claiming
 
         bold.safeTransfer(_initiative, claim);
