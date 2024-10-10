@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {console} from "forge-std/console.sol";
+
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
@@ -12,10 +14,12 @@ import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 
-import {add, max} from "./utils/Math.sol";
+import {add, max, abs} from "./utils/Math.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
+
+import {SafeCastLib} from "lib/solmate/src/utils/SafeCastLib.sol";
 
 /// @title Governance: Modular Initiative based Governance
 contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
@@ -70,6 +74,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     mapping(address => mapping(address => Allocation)) public lqtyAllocatedByUserToInitiative;
     /// @inheritdoc IGovernance
     mapping(address => uint16) public override registeredInitiatives;
+
+    error RegistrationFailed(address initiative);
 
     constructor(
         address _lqty,
@@ -382,8 +388,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     function allocateLQTY(
         address[] calldata _initiatives,
-        int176[] calldata _deltaLQTYVotes,
-        int176[] calldata _deltaLQTYVetos
+        int96[] calldata _deltaLQTYVotes,
+        int96[] calldata _deltaLQTYVetos
     ) external nonReentrant {
         require(
             _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
@@ -399,8 +405,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];
-            int176 deltaLQTYVotes = _deltaLQTYVotes[i];
-            int176 deltaLQTYVetos = _deltaLQTYVetos[i];
+            int96 deltaLQTYVotes = _deltaLQTYVotes[i];
+            int96 deltaLQTYVetos = _deltaLQTYVetos[i];
+
+            require(
+                abs(deltaLQTYVotes) <= type(uint88).max && abs(deltaLQTYVetos) <= type(uint88).max,
+                "Governance: deltas-too-large"
+            );
 
             // only allow vetoing post the voting cutoff
             require(

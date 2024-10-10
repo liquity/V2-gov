@@ -9,4 +9,4 @@
 	url = https://github.com/Uniswap/v4-core
 [submodule "lib/solmate"]
 	path = lib/solmate
-	url = git@github.com:Transmissions11/solmate
+	url = https://github.com/Transmissions11/solmate
