@@ -598,7 +598,7 @@ contract GovernanceTest is Test {
         // should revert if the initiative isn't registered
         vm.expectRevert("Governance: initiative-not-registered");
         governance.unregisterInitiative(baseInitiative3);
-
+        
         governance.registerInitiative(baseInitiative3);
         uint16 atEpoch = governance.registeredInitiatives(baseInitiative3);
         assertEq(atEpoch, governance.epoch());

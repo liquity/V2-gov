@@ -420,7 +420,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
 
         delete initiativeStates[_initiative];
-        delete registeredInitiatives[_initiative];
+
+        /// @audit Should not delete this
+        /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
+        registeredInitiatives[_initiative] = type(uint16).max; 
 
         emit UnregisterInitiative(_initiative, currentEpoch);
 
@@ -461,7 +464,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             {
                 uint16 registeredAtEpoch = registeredInitiatives[initiative];
                 require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
-            }
+            } /// @audit TODO: We must allow removals for Proposals that are disabled | Should use the flag u16
 
             (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative);
 
