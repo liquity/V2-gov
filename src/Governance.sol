@@ -300,6 +300,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
 
     /// @notice Given an initiative, return whether the initiative will be unregisted, whether it can claim and which epoch it last claimed at
+    /**
+        FSM:
+            - Can claim (false, true, epoch - 1 - X)
+            - Has claimed (false, false, epoch - 1)
+            - Cannot claim and should not be kicked (false, false, epoch - 1 - [0, X])
+            - Should be kicked (true, false, epoch - 1 - [UNREGISTRATION_AFTER_EPOCHS, UNREGISTRATION_AFTER_EPOCHS + X])
+     */
     function getInitiativeState(address _initiative) public returns (bool mustUnregister, bool canClaimRewards, uint16 lastEpochClaim){
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(_initiative);
@@ -307,6 +314,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // TODO: Should this be start - 1?
         uint256 vetosForInitiative =
             lqtyToVotes(initiativeState.vetoLQTY, epochStart(), initiativeState.averageStakingTimestampVetoLQTY);
+        
+        // TODO: If we the call was already done, we must return false
+        lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
+
+        if(lastEpochClaim >= epoch() - 1) {
+            // early return, we have already claimed
+            return (false, false, lastEpochClaim);
+        }
 
         // Unregister Condition
         // TODO: Figure out `UNREGISTRATION_AFTER_EPOCHS`
@@ -326,7 +341,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             canClaimRewards = true;
         }
 
-        lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
+        
 
         // implicit return (mustUnregister, canClaimRewards, lastEpochClaim)
     }
@@ -373,6 +388,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         /// Invariant: Must only claim once or unregister
         require(initiativeState.lastEpochClaim < epoch() - 1);
 
+        (bool mustUnregister, , ) = getInitiativeState(_initiative);
+        require(mustUnregister, "Governance: cannot-unregister-initiative");
+
+
         uint256 vetosForInitiative =
             lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestampVetoLQTY);
 
@@ -386,7 +405,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                         && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
                 ),
             "Governance: cannot-unregister-initiative"
-        );
+        ); /// @audit TODO: Differential review of this vs `mustUnregister`
 
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
         if (initiativeState.counted == 1) {
@@ -536,6 +555,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         /// Invariant: Must only claim once or unregister
         require(initiativeState_.lastEpochClaim < epoch() - 1);
+
+        (, bool canClaimRewards, ) = getInitiativeState(_initiative);
+        require(canClaimRewards, "Governance: claim-not-met");
 
         // return 0 if the initiative has no votes
         if (votesSnapshot_.votes == 0 || votesForInitiativeSnapshot_.votes == 0) return 0;
