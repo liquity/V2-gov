@@ -485,7 +485,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         require(
             userState.allocatedLQTY == 0
                 || userState.allocatedLQTY <= uint88(stakingV1.stakes(deriveUserProxyAddress(msg.sender))),
-            "Governance: insufficient-or-unallocated-lqty"
+            "Governance: insufficient-or-allocated-lqty"
         );
 
         globalState = state;
