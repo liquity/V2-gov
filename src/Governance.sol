@@ -68,6 +68,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     mapping(address => uint16) public override registeredInitiatives;
 
+    uint16 constant DISABLED_INITIATIVE = type(uint16).max;
+
     constructor(
         address _lqty,
         address _lusd,
@@ -423,7 +425,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         /// @audit Should not delete this
         /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
-        registeredInitiatives[_initiative] = type(uint16).max; 
+        registeredInitiatives[_initiative] = DISABLED_INITIATIVE; 
 
         emit UnregisterInitiative(_initiative, currentEpoch);
 
