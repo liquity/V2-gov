@@ -610,6 +610,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             return 0;
         }
         
+        assert(votesSnapshot_.forEpoch == epoch() - 1); /// @audit INVARIANT: You can only claim for previous epoch
+        /// All unclaimed rewards are always recycled
 
         initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
         votesForInitiativeSnapshot[_initiative] = votesForInitiativeSnapshot_; // implicitly prevents double claiming
