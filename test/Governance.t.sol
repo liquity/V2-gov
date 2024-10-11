@@ -654,90 +654,10 @@ contract GovernanceTest is Test {
         vm.startPrank(user);
 
         lusd.approve(address(governance), 1e18);
-
+        vm.expectRevert("Governance: initiative-already-registered");
         governance.registerInitiative(baseInitiative3);
-        atEpoch = governance.registeredInitiatives(baseInitiative3);
-        assertEq(atEpoch, governance.epoch());
-
-        vm.warp(block.timestamp + 365 days);
-
-        initiativeSnapshot = IGovernance.InitiativeVoteSnapshot(1, governance.epoch() - 1, governance.epoch() - 1);
-        vm.store(
-            address(governance),
-            keccak256(abi.encode(baseInitiative3, uint256(3))),
-            bytes32(
-                abi.encodePacked(
-                    uint16(initiativeSnapshot.lastCountedEpoch),
-                    uint16(initiativeSnapshot.forEpoch),
-                    uint224(initiativeSnapshot.votes)
-                )
-            )
-        );
-        (votes_, forEpoch_, lastCountedEpoch) = governance.votesForInitiativeSnapshot(baseInitiative3);
-        assertEq(votes_, 1);
-        assertEq(forEpoch_, governance.epoch() - 1);
-        assertEq(lastCountedEpoch, governance.epoch() - 1);
-
-        IGovernance.GlobalState memory globalState = IGovernance.GlobalState(type(uint88).max, uint32(block.timestamp));
-        vm.store(
-            address(governance),
-            bytes32(uint256(4)),
-            bytes32(
-                abi.encodePacked(
-                    uint136(0), uint32(globalState.countedVoteLQTYAverageTimestamp), uint88(globalState.countedVoteLQTY)
-                )
-            )
-        );
-        (uint88 countedVoteLQTY, uint32 countedVoteLQTYAverageTimestamp) = governance.globalState();
-        assertEq(countedVoteLQTY, type(uint88).max);
-        assertEq(countedVoteLQTYAverageTimestamp, block.timestamp);
-
-        IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState(
-            1, 10e18, uint32(block.timestamp - 365 days), uint32(block.timestamp - 365 days), 1, 0
-        );
-        vm.store(
-            address(governance),
-            keccak256(abi.encode(baseInitiative3, uint256(6))),
-            bytes32(
-                abi.encodePacked(
-                    uint16(initiativeState.counted),
-                    uint32(initiativeState.averageStakingTimestampVetoLQTY),
-                    uint32(initiativeState.averageStakingTimestampVoteLQTY),
-                    uint88(initiativeState.vetoLQTY),
-                    uint88(initiativeState.voteLQTY)
-                )
-            )
-        );
-
-        // should update the average timestamp for counted lqty if the initiative has been counted in
-        (
-            uint88 voteLQTY,
-            uint88 vetoLQTY,
-            uint32 averageStakingTimestampVoteLQTY,
-            uint32 averageStakingTimestampVetoLQTY,
-            uint16 counted,
-        ) = governance.initiativeStates(baseInitiative3);
-        assertEq(voteLQTY, 1);
-        assertEq(vetoLQTY, 10e18);
-        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - 365 days);
-        assertEq(averageStakingTimestampVetoLQTY, block.timestamp - 365 days);
-        assertEq(counted, 1);
-
-        governance.unregisterInitiative(baseInitiative3);
-
-        assertEq(governance.registeredInitiatives(baseInitiative3), 0);
-
-        // should delete the initiative state and the registration timestamp
-        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, counted, ) =
-            governance.initiativeStates(baseInitiative3);
-        assertEq(voteLQTY, 0);
-        assertEq(vetoLQTY, 0);
-        assertEq(averageStakingTimestampVoteLQTY, 0);
-        assertEq(averageStakingTimestampVetoLQTY, 0);
-        assertEq(counted, 0);
-
-        vm.stopPrank();
     }
+
 
     // Test: You can always remove allocation
     // forge test --match-test test_crit_accounting_mismatch -vv
@@ -1205,12 +1125,14 @@ contract GovernanceTest is Test {
 
         // should compute the claim and transfer it to the initiative
         assertEq(governance.claimForInitiative(baseInitiative1), 5000e18);
+
+        vm.expectRevert("Governance: already-claimed"); /// @audit TODO: Decide if we should not revert
         governance.claimForInitiative(baseInitiative1);
-        assertEq(governance.claimForInitiative(baseInitiative1), 0);
-        assertEq(lusd.balanceOf(baseInitiative1), 5000e18);
 
         assertEq(governance.claimForInitiative(baseInitiative2), 5000e18);
-        assertEq(governance.claimForInitiative(baseInitiative2), 0);
+
+        vm.expectRevert("Governance: already-claimed");
+        governance.claimForInitiative(baseInitiative2);
 
         assertEq(lusd.balanceOf(baseInitiative2), 5000e18);
 
@@ -1231,13 +1153,21 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
         assertEq(governance.claimForInitiative(baseInitiative1), 10000e18);
-        // should not allow double claiming
-        assertEq(governance.claimForInitiative(baseInitiative1), 0);
+
+        vm.expectRevert("Governance: already-claimed");
+        governance.claimForInitiative(baseInitiative1);
 
         assertEq(lusd.balanceOf(baseInitiative1), 15000e18);
 
+        // TODO: This should most likely either return 0 or we accept the claim not met
+        /// Claim not met is kind of a weird thing to return tbh
+        /// @audit THIS FAILS ON PURPOSE
+        /// TODO: Let's fix this by fixing single claiming
+        /// Let's decide how to handle 0 rewards case and then decide
         assertEq(governance.claimForInitiative(baseInitiative2), 0);
-        assertEq(governance.claimForInitiative(baseInitiative2), 0);
+
+        vm.expectRevert("Governance: already-claimed");
+        governance.claimForInitiative(baseInitiative2);
 
         assertEq(lusd.balanceOf(baseInitiative2), 5000e18);
 

@@ -16,6 +16,9 @@ import {add, max} from "./utils/Math.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 
+// TODO: REMOVE
+import {console} from "forge-std/console.sol";
+
 /// @title Governance: Modular Initiative based Governance
 contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
     using SafeERC20 for IERC20;
@@ -68,7 +71,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     mapping(address => uint16) public override registeredInitiatives;
 
-    uint16 constant DISABLED_INITIATIVE = type(uint16).max;
+    uint16 constant UNREGISTERED_INITIATIVE = type(uint16).max;
 
     constructor(
         address _lqty,
@@ -313,17 +316,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(_initiative);
 
-        // TODO: Should this be start - 1?
-        uint256 vetosForInitiative =
-            lqtyToVotes(initiativeState.vetoLQTY, epochStart(), initiativeState.averageStakingTimestampVetoLQTY);
-        
-        // TODO: If we the call was already done, we must return false
         lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
 
         if(lastEpochClaim >= epoch() - 1) {
             // early return, we have already claimed
             return (false, false, lastEpochClaim);
         }
+
+        // TODO: If a initiative is disabled, we return false and the last epoch claim
+        if(registeredInitiatives[_initiative] == UNREGISTERED_INITIATIVE) {
+            return (false, false, lastEpochClaim);
+        }
+
+
+        // TODO: Should this be start - 1?
+        uint256 vetosForInitiative =
+            lqtyToVotes(initiativeState.vetoLQTY, epochStart(), initiativeState.averageStakingTimestampVetoLQTY);
+        
+
 
         // Unregister Condition
         // TODO: Figure out `UNREGISTRATION_AFTER_EPOCHS`
@@ -421,11 +431,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             globalState = state;
         }
 
-        delete initiativeStates[_initiative];
+        /// @audit removal math causes issues
+        // delete initiativeStates[_initiative]; 
 
         /// @audit Should not delete this
         /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
-        registeredInitiatives[_initiative] = DISABLED_INITIATIVE; 
+        registeredInitiatives[_initiative] = UNREGISTERED_INITIATIVE; 
 
         emit UnregisterInitiative(_initiative, currentEpoch);
 
@@ -443,6 +454,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             "Governance: array-length-mismatch"
         );
 
+        console.log("0");
+
         (, GlobalState memory state) = _snapshotVotes();
 
         uint256 votingThreshold = calculateVotingThreshold();
@@ -455,20 +468,37 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             int176 deltaLQTYVotes = _deltaLQTYVotes[i];
             int176 deltaLQTYVetos = _deltaLQTYVetos[i];
 
+            // TODO: Better assertion
+            /// Can remove or add
+            /// But cannot add or remove both
+
             // only allow vetoing post the voting cutoff
+            console.log("1");
             require(
                 deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsWithinEpoch() <= EPOCH_VOTING_CUTOFF,
                 "Governance: epoch-voting-cutoff"
             );
-
-            // only allow allocations to initiatives that are active
-            // an initiative becomes active in the epoch after it is registered
+            
             {
                 uint16 registeredAtEpoch = registeredInitiatives[initiative];
-                require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
-            } /// @audit TODO: We must allow removals for Proposals that are disabled | Should use the flag u16
+                if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
+                    require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
+                } /// @audit TODO: We must allow removals for Proposals that are disabled | Should use the flag u16
+                
+                if(registeredAtEpoch == UNREGISTERED_INITIATIVE) {
+                    require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
+                }
+            }
+            console.log("3");
+            // TODO: CHANGE
+            // Can add if active
+            // Can remove if inactive
+            // only allow allocations to initiatives that are active
+            // an initiative becomes active in the epoch after it is registered
+
 
             (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative);
+            console.log("4");
 
             // deep copy of the initiative's state before the allocation
             InitiativeState memory prevInitiativeState = InitiativeState(
@@ -480,6 +510,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 initiativeState.lastEpochClaim
             );
 
+            console.log("add(initiativeState.voteLQTY, deltaLQTYVotes)", add(initiativeState.voteLQTY, deltaLQTYVotes));
             // update the average staking timestamp for the initiative based on the user's average staking timestamp
             initiativeState.averageStakingTimestampVoteLQTY = _calculateAverageTimestamp(
                 initiativeState.averageStakingTimestampVoteLQTY,
@@ -487,22 +518,27 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 initiativeState.voteLQTY,
                 add(initiativeState.voteLQTY, deltaLQTYVotes)
             );
+            console.log("5");
             initiativeState.averageStakingTimestampVetoLQTY = _calculateAverageTimestamp(
                 initiativeState.averageStakingTimestampVetoLQTY,
                 userState.averageStakingTimestamp,
                 initiativeState.vetoLQTY,
                 add(initiativeState.vetoLQTY, deltaLQTYVetos)
             );
+            console.log("6");
 
             // allocate the voting and vetoing LQTY to the initiative
             initiativeState.voteLQTY = add(initiativeState.voteLQTY, deltaLQTYVotes);
             initiativeState.vetoLQTY = add(initiativeState.vetoLQTY, deltaLQTYVetos);
+
+            console.log("7");
 
             // determine if the initiative's allocated voting LQTY should be included in the vote count
             uint240 votesForInitiative =
                 lqtyToVotes(initiativeState.voteLQTY, block.timestamp, initiativeState.averageStakingTimestampVoteLQTY);
             initiativeState.counted = (votesForInitiative >= votingThreshold) ? 1 : 0;
 
+            console.log("8");
             // update the initiative's state
             initiativeStates[initiative] = initiativeState;
 
@@ -526,13 +562,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 state.countedVoteLQTY += initiativeState.voteLQTY;
             }
 
+            console.log("9");
+
             // allocate the voting and vetoing LQTY to the initiative
+            console.log("B4 lqtyAllocatedByUserToInitiative[msg.sender][initiative]", lqtyAllocatedByUserToInitiative[msg.sender][initiative].voteLQTY);
             Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
+            console.log("allocation.voteLQTY", allocation.voteLQTY);
+            console.log("deltaLQTYVotes", uint256(int256(deltaLQTYVotes)));
             allocation.voteLQTY = add(allocation.voteLQTY, deltaLQTYVotes);
+            console.log("allocation.voteLQTY", allocation.voteLQTY);
             allocation.vetoLQTY = add(allocation.vetoLQTY, deltaLQTYVetos);
+            console.log("allocation.vetoLQTY", allocation.vetoLQTY);
             allocation.atEpoch = currentEpoch;
+            console.log("allocation.atEpoch", allocation.atEpoch);
             require(!(allocation.voteLQTY != 0 && allocation.vetoLQTY != 0), "Governance: vote-and-veto");
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
+            console.log("After lqtyAllocatedByUserToInitiative[msg.sender][initiative]", lqtyAllocatedByUserToInitiative[msg.sender][initiative].voteLQTY);
+
+            console.log("10");
 
             userState.allocatedLQTY = add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
 
@@ -559,10 +606,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState_) = _snapshotVotesForInitiative(_initiative);
 
         /// Invariant: Must only claim once or unregister
-        require(initiativeState_.lastEpochClaim < epoch() - 1);
+        require(initiativeState_.lastEpochClaim < epoch() - 1, "Governance: already-claimed"); /// TODO: Merge into rest
+        // TODO: We can do a early return instead
 
+        // TODO: Return type from state FSM can be standardized
         (, bool canClaimRewards, ) = getInitiativeState(_initiative);
         require(canClaimRewards, "Governance: claim-not-met");
+        // if(!canClaimRewards) {
+        //     return 0;
+        // }
 
         // return 0 if the initiative has no votes
         if (votesSnapshot_.votes == 0 || votesForInitiativeSnapshot_.votes == 0) return 0;
