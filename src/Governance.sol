@@ -302,6 +302,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
 
     /// @notice Given an initiative, return whether the initiative will be unregisted, whether it can claim and which epoch it last claimed at
+    enum InitiativeStatus {
+        SKIP, /// This epoch will result in no rewards and no unregistering
+        CLAIMABLE, /// This epoch will result in claiming rewards
+        CLAIMED, /// The rewards for this epoch have been claimed
+        UNREGISTERABLE, /// Can be unregistered
+        DISABLED // It was already Unregistered
+    }
     /**
         FSM:
             - Can claim (false, true, epoch - 1 - X)
@@ -309,7 +316,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             - Cannot claim and should not be kicked (false, false, epoch - 1 - [0, X])
             - Should be kicked (true, false, epoch - 1 - [UNREGISTRATION_AFTER_EPOCHS, UNREGISTRATION_AFTER_EPOCHS + X])
      */
-    function getInitiativeState(address _initiative) public returns (bool mustUnregister, bool canClaimRewards, uint16 lastEpochClaim){
+
+    function getInitiativeState(address _initiative) public returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount) {
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(_initiative);
 
@@ -317,20 +325,19 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         if(lastEpochClaim >= epoch() - 1) {
             // early return, we have already claimed
-            return (false, false, lastEpochClaim);
+            return (InitiativeStatus.CLAIMED, lastEpochClaim, claimableAmount);
         }
 
         // TODO: If a initiative is disabled, we return false and the last epoch claim
         if(registeredInitiatives[_initiative] == UNREGISTERED_INITIATIVE) {
-            return (false, false, lastEpochClaim);
+            return (InitiativeStatus.DISABLED, lastEpochClaim, 0); /// @audit By definition it must have zero rewards
         }
 
 
-        // TODO: Should this be start - 1?
+        // TODO: Should this be start - 1? | QA at most
         uint256 vetosForInitiative =
             lqtyToVotes(initiativeState.vetoLQTY, epochStart(), initiativeState.averageStakingTimestampVetoLQTY);
         
-
 
         // Unregister Condition
         // TODO: Figure out `UNREGISTRATION_AFTER_EPOCHS`
@@ -339,20 +346,29 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             ||  vetosForInitiative > votesForInitiativeSnapshot_.votes
                         && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
-            mustUnregister = true;
+            return (InitiativeStatus.UNREGISTERABLE, lastEpochClaim, 0);
         }
 
         // How do we know that they have canClaimRewards?
         // They must have votes / totalVotes AND meet the Requirement AND not be vetoed
         /// @audit if we already are above, then why are we re-computing this?
         // Ultimately the checkpoint logic for initiative is fine, so we can skip this
-        if(votesForInitiativeSnapshot_.votes > 0) {
-            canClaimRewards = true;
+
+        /// @audit TODO: Add Votes vs Vetos
+        // For now the code always returns Votes iif votes > vetos, so we can trust it
+
+        uint256 claim;
+
+        if (votesSnapshot_.votes == 0 || votesForInitiativeSnapshot_.votes == 0) {
+            claim = 0;
+            return (InitiativeStatus.SKIP, lastEpochClaim, 0);
+        } else {
+            claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
+            return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
 
-        
-
-        // implicit return (mustUnregister, canClaimRewards, lastEpochClaim)
+        /// Unrecheable state, we should be covering all possible states
+        assert(false); 
     }
 
     /// @inheritdoc IGovernance
@@ -532,9 +548,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         /// Invariant: Must only claim once or unregister
         require(initiativeState.lastEpochClaim < epoch() - 1);
-
-        (bool mustUnregister, , ) = getInitiativeState(_initiative);
-        require(mustUnregister, "Governance: cannot-unregister-initiative");
+        
+        (InitiativeStatus status, , )= getInitiativeState(_initiative);
+        require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
 
 
         uint256 vetosForInitiative =
@@ -582,7 +598,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState_) = _snapshotVotesForInitiative(_initiative);
 
         // TODO: Return type from state FSM can be standardized
-        (, bool canClaimRewards, ) = getInitiativeState(_initiative);
+        (InitiativeStatus status, , uint256 claimableAmount )= getInitiativeState(_initiative);
 
         /// @audit Return 0 if we cannot claim
         /// INVARIANT:
@@ -590,27 +606,20 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         /// We have already claimed
         /// We do not meet the threshold
         /// TODO: Enforce this with assertions
-        if(!canClaimRewards) {
+        if(status != InitiativeStatus.CLAIMABLE) {
             return 0;
         }
-        // if(!canClaimRewards) {
-        //     return 0;
-        // }
-
-        // return 0 if the initiative has no votes
-        if (votesSnapshot_.votes == 0 || votesForInitiativeSnapshot_.votes == 0) return 0;
-
-        uint256 claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
+        
 
         initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
         votesForInitiativeSnapshot[_initiative] = votesForInitiativeSnapshot_; // implicitly prevents double claiming
 
-        bold.safeTransfer(_initiative, claim);
+        bold.safeTransfer(_initiative, claimableAmount);
 
-        emit ClaimForInitiative(_initiative, claim, votesSnapshot_.forEpoch);
+        emit ClaimForInitiative(_initiative, claimableAmount, votesSnapshot_.forEpoch);
 
-        try IInitiative(_initiative).onClaimForInitiative(votesSnapshot_.forEpoch, claim) {} catch {}
+        try IInitiative(_initiative).onClaimForInitiative(votesSnapshot_.forEpoch, claimableAmount) {} catch {}
 
-        return claim;
+        return claimableAmount;
     }
 }
