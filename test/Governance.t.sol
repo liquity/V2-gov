@@ -567,6 +567,7 @@ contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
+    // TODO: Broken: Fix it by simplifying most likely
     function test_unregisterInitiative() public {
         vm.startPrank(user);
 
@@ -736,6 +737,152 @@ contract GovernanceTest is Test {
         assertEq(counted, 0);
 
         vm.stopPrank();
+    }
+
+    // Test: You can always remove allocation
+    // forge test --match-test test_crit_accounting_mismatch -vv
+    function test_crit_accounting_mismatch() public {
+        // User setup
+        vm.startPrank(user);
+        address userProxy = governance.deployUserProxy();
+
+        lqty.approve(address(userProxy), 1_000e18);
+        governance.depositLQTY(1_000e18);
+
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
+        /// Setup and vote for 2 initiatives, 0.1% vs 99.9%
+        address[] memory initiatives = new address[](2);
+        initiatives[0] = baseInitiative1;
+        initiatives[1] = baseInitiative2;
+        int176[] memory deltaLQTYVotes = new int176[](2);
+        deltaLQTYVotes[0] = 1e18;
+        deltaLQTYVotes[1] = 999e18;
+        int176[] memory deltaLQTYVetos = new int176[](2);
+
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+        (uint256 allocatedLQTY,) = governance.userStates(user);
+        assertEq(allocatedLQTY, 1_000e18);
+
+        (
+            uint88 voteLQTY1,
+            ,
+            uint32 averageStakingTimestampVoteLQTY1,
+            ,
+            uint16 counted1, 
+        ) = governance.initiativeStates(baseInitiative1);
+
+        (
+            uint88 voteLQTY2,
+            ,
+            ,
+            ,
+            uint16 counted2, 
+        ) = governance.initiativeStates(baseInitiative2);
+
+        // Get power at time of vote
+        uint256 votingPower = governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
+        assertGt(votingPower, 0, "Non zero power");
+        
+        /// @audit TODO Fully digest and explain the bug
+        // Warp to end so we check the threshold against future threshold
+        
+        {
+            vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
+            (IGovernance.VoteSnapshot memory snapshot, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1) = governance.snapshotVotesForInitiative(baseInitiative1);
+            (, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot2) = governance.snapshotVotesForInitiative(baseInitiative2);
+
+
+        (
+            ,
+            ,
+            ,
+            ,
+            uint16 counted1again, 
+        ) = governance.initiativeStates(baseInitiative1);
+            assertEq(counted1, 1, "1 is counted inspite below voting");
+            assertEq(counted1again, 1, "Counted is true");
+            uint256 threshold = governance.calculateVotingThreshold();
+            assertEq(initiativeVoteSnapshot1.votes, 0, "it didn't get votes");
+
+            uint256 votingPowerWithProjection = governance.lqtyToVotes(voteLQTY1, governance.epochStart() + governance.EPOCH_DURATION(), averageStakingTimestampVoteLQTY1);
+            assertLt(votingPower, threshold, "Current Power is not enough - Desynch A");
+            assertLt(votingPowerWithProjection, threshold, "Future Power is also not enough - Desynch B");
+
+            assertEq(counted1, counted2, "both counted");
+        }
+    }
+
+    // TODO: test_canAlwaysRemoveAllocation
+    // Same setup as above (but no need for bug)
+    // Show that you cannot withdraw
+    // forge test --match-test test_canAlwaysRemoveAllocation -vv
+    function test_canAlwaysRemoveAllocation() public {
+        // User setup
+        vm.startPrank(user);
+        address userProxy = governance.deployUserProxy();
+
+        lqty.approve(address(userProxy), 1_000e18);
+        governance.depositLQTY(1_000e18);
+
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
+        /// Setup and vote for 2 initiatives, 0.1% vs 99.9%
+        address[] memory initiatives = new address[](2);
+        initiatives[0] = baseInitiative1;
+        initiatives[1] = baseInitiative2;
+        int176[] memory deltaLQTYVotes = new int176[](2);
+        deltaLQTYVotes[0] = 1e18;
+        deltaLQTYVotes[1] = 999e18;
+        int176[] memory deltaLQTYVetos = new int176[](2);
+
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+    
+        // Warp to end so we check the threshold against future threshold
+        
+        {
+            vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
+            (IGovernance.VoteSnapshot memory snapshot, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1) = governance.snapshotVotesForInitiative(baseInitiative1);
+
+            uint256 threshold = governance.calculateVotingThreshold();
+            assertEq(initiativeVoteSnapshot1.votes, 0, "it didn't get votes");
+        }
+
+        // Roll for
+        vm.warp(block.timestamp + governance.UNREGISTRATION_AFTER_EPOCHS() * governance.EPOCH_DURATION());
+        governance.unregisterInitiative(baseInitiative1);
+
+        // @audit Warmup is not necessary
+        // Warmup would only work for urgent veto
+        // But urgent veto is not relevant here
+        // TODO: Check and prob separate
+
+        // CRIT - I want to remove my allocation
+        // I cannot
+        address[] memory removeInitiatives = new address[](1);
+        initiatives[0] = baseInitiative1;
+        int176[] memory removeDeltaLQTYVotes = new int176[](1);
+        deltaLQTYVotes[0] = -1e18;
+        int176[] memory removeDeltaLQTYVetos = new int176[](1);
+
+        /// @audit the next call MUST not revert - this is a critical bug
+        // vm.expectRevert("Governance: initiative-not-active");
+        governance.allocateLQTY(removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+
+
+        address[] memory reAddInitiatives = new address[](1);
+        initiatives[0] = baseInitiative1;
+        int176[] memory reAddDeltaLQTYVotes = new int176[](1);
+        deltaLQTYVotes[0] = -1e18;
+        int176[] memory reAddDeltaLQTYVetos = new int176[](1);
+
+        /// @audit This MUST revert, an initiative should not be re-votable once disabled
+        vm.expectRevert("Governance: initiative-not-active");
+        governance.allocateLQTY(reAddInitiatives, reAddDeltaLQTYVotes, reAddDeltaLQTYVetos);
     }
 
     function test_allocateLQTY() public {
@@ -959,7 +1106,7 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + 365 days);
 
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
-
+        /// @audit needs overflow tests!!
         vm.stopPrank();
     }
 
