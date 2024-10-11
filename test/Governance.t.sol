@@ -1126,14 +1126,11 @@ contract GovernanceTest is Test {
 
         // should compute the claim and transfer it to the initiative
         assertEq(governance.claimForInitiative(baseInitiative1), 5000e18);
-
-        vm.expectRevert("Governance: already-claimed"); /// @audit TODO: Decide if we should not revert
-        governance.claimForInitiative(baseInitiative1);
+        // 2nd claim = 0
+        assertEq(governance.claimForInitiative(baseInitiative1), 0);
 
         assertEq(governance.claimForInitiative(baseInitiative2), 5000e18);
-
-        vm.expectRevert("Governance: already-claimed");
-        governance.claimForInitiative(baseInitiative2);
+        assertEq(governance.claimForInitiative(baseInitiative2), 0);
 
         assertEq(lusd.balanceOf(baseInitiative2), 5000e18);
 
@@ -1154,21 +1151,13 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
         assertEq(governance.claimForInitiative(baseInitiative1), 10000e18);
+        assertEq(governance.claimForInitiative(baseInitiative1), 0);
 
-        vm.expectRevert("Governance: already-claimed");
-        governance.claimForInitiative(baseInitiative1);
 
         assertEq(lusd.balanceOf(baseInitiative1), 15000e18);
 
-        // TODO: This should most likely either return 0 or we accept the claim not met
-        /// Claim not met is kind of a weird thing to return tbh
-        /// @audit THIS FAILS ON PURPOSE
-        /// TODO: Let's fix this by fixing single claiming
-        /// Let's decide how to handle 0 rewards case and then decide
         assertEq(governance.claimForInitiative(baseInitiative2), 0);
-
-        vm.expectRevert("Governance: already-claimed");
-        governance.claimForInitiative(baseInitiative2);
+        assertEq(governance.claimForInitiative(baseInitiative2), 0);
 
         assertEq(lusd.balanceOf(baseInitiative2), 5000e18);
 

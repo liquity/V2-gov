@@ -581,13 +581,18 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState_) = _snapshotVotesForInitiative(_initiative);
 
-        /// Invariant: Must only claim once or unregister
-        require(initiativeState_.lastEpochClaim < epoch() - 1, "Governance: already-claimed"); /// TODO: Merge into rest
-        // TODO: We can do a early return instead
-
         // TODO: Return type from state FSM can be standardized
         (, bool canClaimRewards, ) = getInitiativeState(_initiative);
-        require(canClaimRewards, "Governance: claim-not-met");
+
+        /// @audit Return 0 if we cannot claim
+        /// INVARIANT:
+        /// We cannot claim only for 2 reasons:
+        /// We have already claimed
+        /// We do not meet the threshold
+        /// TODO: Enforce this with assertions
+        if(!canClaimRewards) {
+            return 0;
+        }
         // if(!canClaimRewards) {
         //     return 0;
         // }
