@@ -815,7 +815,6 @@ contract GovernanceTest is Test {
         }
     }
 
-    // TODO: test_canAlwaysRemoveAllocation
     // Same setup as above (but no need for bug)
     // Show that you cannot withdraw
     // forge test --match-test test_canAlwaysRemoveAllocation -vv
@@ -864,25 +863,87 @@ contract GovernanceTest is Test {
         // CRIT - I want to remove my allocation
         // I cannot
         address[] memory removeInitiatives = new address[](1);
-        initiatives[0] = baseInitiative1;
+        removeInitiatives[0] = baseInitiative1;
         int176[] memory removeDeltaLQTYVotes = new int176[](1);
-        deltaLQTYVotes[0] = -1e18;
+        removeDeltaLQTYVotes[0] = -1e18;
         int176[] memory removeDeltaLQTYVetos = new int176[](1);
 
         /// @audit the next call MUST not revert - this is a critical bug
-        // vm.expectRevert("Governance: initiative-not-active");
+        governance.allocateLQTY(removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+
+        // Security Check | TODO: MORE INVARIANTS
+        // I should not be able to remove votes again
+        vm.expectRevert(); // TODO: This is a panic
         governance.allocateLQTY(removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
 
 
         address[] memory reAddInitiatives = new address[](1);
-        initiatives[0] = baseInitiative1;
+        reAddInitiatives[0] = baseInitiative1;
         int176[] memory reAddDeltaLQTYVotes = new int176[](1);
-        deltaLQTYVotes[0] = -1e18;
+        reAddDeltaLQTYVotes[0] = 1e18;
         int176[] memory reAddDeltaLQTYVetos = new int176[](1);
 
         /// @audit This MUST revert, an initiative should not be re-votable once disabled
         vm.expectRevert("Governance: initiative-not-active");
         governance.allocateLQTY(reAddInitiatives, reAddDeltaLQTYVotes, reAddDeltaLQTYVetos);
+    }
+
+    // Just pass a negative value and see what happens
+    // forge test --match-test test_overflow_crit -vv
+    function test_overflow_crit() public {
+        // User setup
+        vm.startPrank(user);
+        address userProxy = governance.deployUserProxy();
+
+        lqty.approve(address(userProxy), 1_000e18);
+        governance.depositLQTY(1_000e18);
+
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
+        /// Setup and vote for 2 initiatives, 0.1% vs 99.9%
+        address[] memory initiatives = new address[](2);
+        initiatives[0] = baseInitiative1;
+        initiatives[1] = baseInitiative2;
+        int176[] memory deltaLQTYVotes = new int176[](2);
+        deltaLQTYVotes[0] = 1e18;
+        deltaLQTYVotes[1] = 999e18;
+        int176[] memory deltaLQTYVetos = new int176[](2);
+
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        (uint88 allocatedB4Test,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
+        console.log("allocatedB4Test", allocatedB4Test);
+
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
+        address[] memory removeInitiatives = new address[](1);
+        removeInitiatives[0] = baseInitiative1;
+        int176[] memory removeDeltaLQTYVotes = new int176[](1);
+        removeDeltaLQTYVotes[0] = int176(-1e18);
+        int176[] memory removeDeltaLQTYVetos = new int176[](1);
+
+        (uint88 allocatedB4Removal,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
+        console.log("allocatedB4Removal", allocatedB4Removal);
+
+        governance.allocateLQTY(removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+        (uint88 allocatedAfterRemoval,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
+        console.log("allocatedAfterRemoval", allocatedAfterRemoval);
+
+        vm.expectRevert();
+        governance.allocateLQTY(removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+        (uint88 allocatedAfter,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
+        console.log("allocatedAfter", allocatedAfter);
+    }
+
+    /// Find some random amount
+    /// Divide into chunks
+    /// Ensure chunks above 1 wei
+    /// Go ahead and remove
+    /// Ensure that at the end you remove 100%
+    function test_fuzz_canRemoveExtact() public {
+
     }
 
     function test_allocateLQTY() public {
