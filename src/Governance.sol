@@ -96,7 +96,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         require(_config.epochVotingCutoff < _config.epochDuration, "Gov: epoch-voting-cutoff-gt-epoch-duration");
         EPOCH_VOTING_CUTOFF = _config.epochVotingCutoff;
         for (uint256 i = 0; i < _initiatives.length; i++) {
-            initiativeStates[_initiatives[i]] = InitiativeState(0, 0, 0, 0, 0, 0);
+            initiativeStates[_initiatives[i]] = InitiativeState(0, 0, 0, 0, 0);
             registeredInitiatives[_initiatives[i]] = 1;
         }
     }
@@ -457,7 +457,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 initiativeState.vetoLQTY,
                 initiativeState.averageStakingTimestampVoteLQTY,
                 initiativeState.averageStakingTimestampVetoLQTY,
-                initiativeState.counted,
                 initiativeState.lastEpochClaim
             );
 
@@ -482,7 +481,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // determine if the initiative's allocated voting LQTY should be included in the vote count
             uint240 votesForInitiative =
                 lqtyToVotes(initiativeState.voteLQTY, block.timestamp, initiativeState.averageStakingTimestampVoteLQTY);
-            initiativeState.counted = 1; /// TODO: Remove counted and change tests
 
             // update the initiative's state
             initiativeStates[initiative] = initiativeState;

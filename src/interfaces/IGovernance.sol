@@ -124,7 +124,6 @@ interface IGovernance {
         uint88 vetoLQTY; // LQTY allocated vetoing the initiative
         uint32 averageStakingTimestampVoteLQTY; // Average staking timestamp of the voting LQTY for the initiative
         uint32 averageStakingTimestampVetoLQTY; // Average staking timestamp of the vetoing LQTY for the initiative
-        uint16 counted; // Whether votes should be counted in the next snapshot (in 'globalAllocation.countedLQTY')
         uint16 lastEpochClaim;
     }
 
@@ -144,7 +143,7 @@ interface IGovernance {
     /// @return vetoLQTY LQTY allocated vetoing the initiative
     /// @return averageStakingTimestampVoteLQTY // Average staking timestamp of the voting LQTY for the initiative
     /// @return averageStakingTimestampVetoLQTY // Average staking timestamp of the vetoing LQTY for the initiative
-    /// @return counted // Whether votes should be counted in the next snapshot (in 'globalAllocation.countedLQTY')
+    /// @return lastEpochClaim // Last epoch at which rewards were claimed
     function initiativeStates(address _initiative)
         external
         view
@@ -153,7 +152,6 @@ interface IGovernance {
             uint88 vetoLQTY,
             uint32 averageStakingTimestampVoteLQTY,
             uint32 averageStakingTimestampVetoLQTY,
-            uint16 counted,
             uint16 lastEpochClaim
         );
     /// @notice Returns the global state
