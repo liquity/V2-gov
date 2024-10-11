@@ -482,30 +482,28 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // determine if the initiative's allocated voting LQTY should be included in the vote count
             uint240 votesForInitiative =
                 lqtyToVotes(initiativeState.voteLQTY, block.timestamp, initiativeState.averageStakingTimestampVoteLQTY);
-            initiativeState.counted = (votesForInitiative >= votingThreshold) ? 1 : 0;
+            initiativeState.counted = 1; /// TODO: Remove counted and change tests
 
             // update the initiative's state
             initiativeStates[initiative] = initiativeState;
 
             // update the average staking timestamp for all counted voting LQTY
-            if (prevInitiativeState.counted == 1) {
-                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                    state.countedVoteLQTYAverageTimestamp,
-                    initiativeState.averageStakingTimestampVoteLQTY,
-                    state.countedVoteLQTY,
-                    state.countedVoteLQTY - prevInitiativeState.voteLQTY
-                );
-                state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
-            }
-            if (initiativeState.counted == 1) {
-                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                    state.countedVoteLQTYAverageTimestamp,
-                    initiativeState.averageStakingTimestampVoteLQTY,
-                    state.countedVoteLQTY,
-                    state.countedVoteLQTY + initiativeState.voteLQTY
-                );
-                state.countedVoteLQTY += initiativeState.voteLQTY;
-            }
+            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                state.countedVoteLQTYAverageTimestamp,
+                initiativeState.averageStakingTimestampVoteLQTY,
+                state.countedVoteLQTY,
+                state.countedVoteLQTY - prevInitiativeState.voteLQTY
+            );
+            state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
+
+            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                state.countedVoteLQTYAverageTimestamp,
+                initiativeState.averageStakingTimestampVoteLQTY,
+                state.countedVoteLQTY,
+                state.countedVoteLQTY + initiativeState.voteLQTY
+            );
+            state.countedVoteLQTY += initiativeState.voteLQTY;
+
 
 
             // allocate the voting and vetoing LQTY to the initiative
@@ -569,16 +567,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         ); /// @audit TODO: Differential review of this vs `mustUnregister`
 
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
-        if (initiativeState.counted == 1) {
-            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                state.countedVoteLQTYAverageTimestamp,
-                initiativeState.averageStakingTimestampVoteLQTY,
-                state.countedVoteLQTY,
-                state.countedVoteLQTY - initiativeState.voteLQTY
-            );
-            state.countedVoteLQTY -= initiativeState.voteLQTY;
-            globalState = state;
-        }
+        state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+            state.countedVoteLQTYAverageTimestamp,
+            initiativeState.averageStakingTimestampVoteLQTY,
+            state.countedVoteLQTY,
+            state.countedVoteLQTY - initiativeState.voteLQTY
+        );
+        state.countedVoteLQTY -= initiativeState.voteLQTY;
+        globalState = state;
 
         /// @audit removal math causes issues
         // delete initiativeStates[_initiative]; 
