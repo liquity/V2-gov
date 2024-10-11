@@ -279,7 +279,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
             // if the votes didn't meet the voting threshold then no votes qualify
             if (votes >= votingThreshold && votes >= vetos) {
-                initiativeSnapshot.votes = uint224(votes);
+                initiativeSnapshot.votes = uint224(votes); /// @audit TODO: We should change this to check the treshold, we should instead use the snapshot to just report all the valid data
                 initiativeSnapshot.lastCountedEpoch = currentEpoch - 1;
             } else {
                 initiativeSnapshot.votes = 0;
