@@ -102,9 +102,9 @@ contract BribeInitiativeTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
-        int96[] memory deltaVoteLQTY = new int96[](1);
+        int88[] memory deltaVoteLQTY = new int88[](1);
         deltaVoteLQTY[0] = 1e18;
-        int96[] memory deltaVetoLQTY = new int96[](1);
+        int88[] memory deltaVetoLQTY = new int88[](1);
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
         assertEq(bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch()), 1e18);
         assertEq(bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch()), 1e18);

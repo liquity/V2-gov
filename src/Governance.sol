@@ -381,8 +381,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     function allocateLQTY(
         address[] calldata _initiatives,
-        int96[] calldata _deltaLQTYVotes,
-        int96[] calldata _deltaLQTYVetos
+        int88[] calldata _deltaLQTYVotes,
+        int88[] calldata _deltaLQTYVetos
     ) external nonReentrant {
         require(
             _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
@@ -398,13 +398,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];
-            int96 deltaLQTYVotes = _deltaLQTYVotes[i];
-            int96 deltaLQTYVetos = _deltaLQTYVetos[i];
-
-            require(
-                abs(deltaLQTYVotes) <= type(uint88).max && abs(deltaLQTYVetos) <= type(uint88).max,
-                "Governance: deltas-too-large"
-            );
+            int88 deltaLQTYVotes = _deltaLQTYVotes[i];
+            int88 deltaLQTYVetos = _deltaLQTYVetos[i];
 
             // only allow vetoing post the voting cutoff
             require(
