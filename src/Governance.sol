@@ -384,63 +384,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function unregisterInitiative(address _initiative) external nonReentrant {
-        uint16 registrationEpoch = registeredInitiatives[_initiative];
-        require(registrationEpoch != 0, "Governance: initiative-not-registered");
-        uint16 currentEpoch = epoch();
-        require(registrationEpoch + REGISTRATION_WARM_UP_PERIOD < currentEpoch, "Governance: initiative-in-warm-up");
-
-        (, GlobalState memory state) = _snapshotVotes();
-        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
-            _snapshotVotesForInitiative(_initiative);
-
-        /// Invariant: Must only claim once or unregister
-        require(initiativeState.lastEpochClaim < epoch() - 1);
-
-        (bool mustUnregister, , ) = getInitiativeState(_initiative);
-        require(mustUnregister, "Governance: cannot-unregister-initiative");
-
-
-        uint256 vetosForInitiative =
-            lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestampVetoLQTY);
-
-        // an initiative can be unregistered if it has no votes and has been inactive for 'UNREGISTRATION_AFTER_EPOCHS'
-        // epochs or if it has received more vetos than votes and the vetos are more than
-        // 'UNREGISTRATION_THRESHOLD_FACTOR' times the voting threshold
-        require(
-            (votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < currentEpoch)
-                || (
-                    vetosForInitiative > votesForInitiativeSnapshot_.votes
-                        && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
-                ),
-            "Governance: cannot-unregister-initiative"
-        ); /// @audit TODO: Differential review of this vs `mustUnregister`
-
-        // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
-        if (initiativeState.counted == 1) {
-            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                state.countedVoteLQTYAverageTimestamp,
-                initiativeState.averageStakingTimestampVoteLQTY,
-                state.countedVoteLQTY,
-                state.countedVoteLQTY - initiativeState.voteLQTY
-            );
-            state.countedVoteLQTY -= initiativeState.voteLQTY;
-            globalState = state;
-        }
-
-        /// @audit removal math causes issues
-        // delete initiativeStates[_initiative]; 
-
-        /// @audit Should not delete this
-        /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
-        registeredInitiatives[_initiative] = UNREGISTERED_INITIATIVE; 
-
-        emit UnregisterInitiative(_initiative, currentEpoch);
-
-        try IInitiative(_initiative).onUnregisterInitiative(currentEpoch) {} catch {}
-    }
-
-    /// @inheritdoc IGovernance
     function allocateLQTY(
         address[] calldata _initiatives,
         int176[] calldata _deltaLQTYVotes,
@@ -574,6 +517,63 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         globalState = state;
         userStates[msg.sender] = userState;
+    }
+
+    /// @inheritdoc IGovernance
+    function unregisterInitiative(address _initiative) external nonReentrant {
+        uint16 registrationEpoch = registeredInitiatives[_initiative];
+        require(registrationEpoch != 0, "Governance: initiative-not-registered");
+        uint16 currentEpoch = epoch();
+        require(registrationEpoch + REGISTRATION_WARM_UP_PERIOD < currentEpoch, "Governance: initiative-in-warm-up");
+
+        (, GlobalState memory state) = _snapshotVotes();
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
+            _snapshotVotesForInitiative(_initiative);
+
+        /// Invariant: Must only claim once or unregister
+        require(initiativeState.lastEpochClaim < epoch() - 1);
+
+        (bool mustUnregister, , ) = getInitiativeState(_initiative);
+        require(mustUnregister, "Governance: cannot-unregister-initiative");
+
+
+        uint256 vetosForInitiative =
+            lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestampVetoLQTY);
+
+        // an initiative can be unregistered if it has no votes and has been inactive for 'UNREGISTRATION_AFTER_EPOCHS'
+        // epochs or if it has received more vetos than votes and the vetos are more than
+        // 'UNREGISTRATION_THRESHOLD_FACTOR' times the voting threshold
+        require(
+            (votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < currentEpoch)
+                || (
+                    vetosForInitiative > votesForInitiativeSnapshot_.votes
+                        && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
+                ),
+            "Governance: cannot-unregister-initiative"
+        ); /// @audit TODO: Differential review of this vs `mustUnregister`
+
+        // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
+        if (initiativeState.counted == 1) {
+            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                state.countedVoteLQTYAverageTimestamp,
+                initiativeState.averageStakingTimestampVoteLQTY,
+                state.countedVoteLQTY,
+                state.countedVoteLQTY - initiativeState.voteLQTY
+            );
+            state.countedVoteLQTY -= initiativeState.voteLQTY;
+            globalState = state;
+        }
+
+        /// @audit removal math causes issues
+        // delete initiativeStates[_initiative]; 
+
+        /// @audit Should not delete this
+        /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
+        registeredInitiatives[_initiative] = UNREGISTERED_INITIATIVE; 
+
+        emit UnregisterInitiative(_initiative, currentEpoch);
+
+        try IInitiative(_initiative).onUnregisterInitiative(currentEpoch) {} catch {}
     }
 
     /// @inheritdoc IGovernance
