@@ -278,14 +278,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             uint240 vetos =
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
             // if the votes didn't meet the voting threshold then no votes qualify
-            if (votes >= votingThreshold && votes >= vetos) {
-                initiativeSnapshot.votes = uint224(votes); /// @audit TODO: We should change this to check the treshold, we should instead use the snapshot to just report all the valid data
-                initiativeSnapshot.lastCountedEpoch = currentEpoch - 1;
-            } else {
-                initiativeSnapshot.votes = 0;
-            }
+            /// @audit TODO TEST THIS
+            /// The change means that all logic for votes and rewards must be done in `getInitiativeState`
+            initiativeSnapshot.votes = uint224(votes); /// @audit TODO: We should change this to check the treshold, we should instead use the snapshot to just report all the valid data
+
             initiativeSnapshot.vetos = uint224(vetos); /// @audit TODO: Overflow + order of operations
-            initiativeSnapshot.forEpoch = currentEpoch - 1;
+
+            initiativeSnapshot.forEpoch = currentEpoch - 1; 
+
+            /// @audit Conditional
+            /// If we meet the threshold then we increase this
+            /// TODO: Either simplify, or use this for the state machine as well
+            if(
+                initiativeSnapshot.votes > initiativeSnapshot.vetos &&
+                initiativeSnapshot.votes >= votingThreshold
+            ) {
+                initiativeSnapshot.lastCountedEpoch = currentEpoch - 1; /// @audit This updating makes it so that we lose track | TODO: Find a better way
+            }
+
             votesForInitiativeSnapshot[_initiative] = initiativeSnapshot;
             emit SnapshotVotesForInitiative(_initiative, initiativeSnapshot.votes, initiativeSnapshot.forEpoch);
         }
@@ -336,11 +346,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             return (InitiativeStatus.DISABLED, lastEpochClaim, 0); /// @audit By definition it must have zero rewards
         }
 
-        
 
         // == Unregister Condition == //
         /// @audit epoch() - 1 because we can have Now - 1 and that's not a removal case | TODO: Double check | Worst case QA, off by one epoch
-        if((votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1) 
+        // TODO: IMO we can use the claimed variable here
+        /// This shifts the logic by 1 epoch
+        if((votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
             ||  votesForInitiativeSnapshot_.vetos > votesForInitiativeSnapshot_.votes
                         && votesForInitiativeSnapshot_.vetos > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
@@ -351,26 +362,28 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // They must have votes / totalVotes AND meet the Requirement AND not be vetoed
         /// @audit if we already are above, then why are we re-computing this?
         // Ultimately the checkpoint logic for initiative is fine, so we can skip this
+        
+        // TODO: Where does this fit exactly?
+        // Edge case of 0 votes
+        if(votesSnapshot_.votes == 0) {
+            return (InitiativeStatus.SKIP, lastEpochClaim, 0);
+        }
 
 
         // == Vetoed this Epoch Condition == //
-        if(votesForInitiativeSnapshot_.vetos > votesForInitiativeSnapshot_.votes) {
+        if(votesForInitiativeSnapshot_.vetos >= votesForInitiativeSnapshot_.votes) {
             return (InitiativeStatus.SKIP, lastEpochClaim, 0); /// @audit Technically VETOED
         }
 
-        uint256 claim;
+        // == Not meeting threshold Condition == //
 
-        // == Should have Rewards Conditions == //
-        if (votesSnapshot_.votes == 0 || votesForInitiativeSnapshot_.votes == 0) {
-            claim = 0;
+        if(calculateVotingThreshold() > votesForInitiativeSnapshot_.votes) {
             return (InitiativeStatus.SKIP, lastEpochClaim, 0);
-        } else {
-            claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
-            return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
 
-        /// Unrecheable state, we should be covering all possible states
-        assert(false); 
+        // == Rewards Conditions (votes can be zero, logic is the same) == //
+        uint256 claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
+        return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
     }
 
     /// @inheritdoc IGovernance
@@ -576,7 +589,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState_) = _snapshotVotesForInitiative(_initiative);
 
         // TODO: Return type from state FSM can be standardized
-        (InitiativeStatus status, , uint256 claimableAmount )= getInitiativeState(_initiative);
+        (InitiativeStatus status, , uint256 claimableAmount ) = getInitiativeState(_initiative);
 
         /// @audit Return 0 if we cannot claim
         /// INVARIANT:

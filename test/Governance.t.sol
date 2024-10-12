@@ -611,8 +611,10 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + 365 days);
 
         // should revert if the initiative is still active or the vetos don't meet the threshold
-        vm.expectRevert("Governance: cannot-unregister-initiative");
-        governance.unregisterInitiative(baseInitiative3);
+        /// @audit TO REVIEW, this never got any votes, so it seems correct to remove
+        // No votes = can be kicked
+        // vm.expectRevert("Governance: cannot-unregister-initiative");
+        // governance.unregisterInitiative(baseInitiative3);
 
         snapshot = IGovernance.VoteSnapshot(1e18, governance.epoch() - 1);
         vm.store(
@@ -712,12 +714,8 @@ contract GovernanceTest is Test {
             (IGovernance.VoteSnapshot memory snapshot, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1) = governance.snapshotVotesForInitiative(baseInitiative1);
             (, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot2) = governance.snapshotVotesForInitiative(baseInitiative2);
 
-
-            /// @audit TODO: No longer counted
-            // assertEq(counted1, 1, "1 is counted inspite below voting");
-            // assertEq(counted1again, 1, "Counted is true");
             uint256 threshold = governance.calculateVotingThreshold();
-            assertEq(initiativeVoteSnapshot1.votes, 0, "it didn't get votes");
+            assertLt(initiativeVoteSnapshot1.votes, threshold, "it didn't get rewards");
 
             uint256 votingPowerWithProjection = governance.lqtyToVotes(voteLQTY1, governance.epochStart() + governance.EPOCH_DURATION(), averageStakingTimestampVoteLQTY1);
             assertLt(votingPower, threshold, "Current Power is not enough - Desynch A");
@@ -760,7 +758,7 @@ contract GovernanceTest is Test {
             (IGovernance.VoteSnapshot memory snapshot, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1) = governance.snapshotVotesForInitiative(baseInitiative1);
 
             uint256 threshold = governance.calculateVotingThreshold();
-            assertEq(initiativeVoteSnapshot1.votes, 0, "it didn't get votes");
+            assertLt(initiativeVoteSnapshot1.votes, threshold, "it didn't get rewards");
         }
 
         // Roll for
@@ -1116,11 +1114,12 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
         // should compute the claim and transfer it to the initiative
-        assertEq(governance.claimForInitiative(baseInitiative1), 5000e18);
+
+        assertEq(governance.claimForInitiative(baseInitiative1), 5000e18, "first claim");
         // 2nd claim = 0
         assertEq(governance.claimForInitiative(baseInitiative1), 0);
 
-        assertEq(governance.claimForInitiative(baseInitiative2), 5000e18);
+        assertEq(governance.claimForInitiative(baseInitiative2), 5000e18, "first claim 2");
         assertEq(governance.claimForInitiative(baseInitiative2), 0);
 
         assertEq(lusd.balanceOf(baseInitiative2), 5000e18);
@@ -1150,10 +1149,18 @@ contract GovernanceTest is Test {
 
         assertEq(lusd.balanceOf(baseInitiative1), 14950e18);
 
-        assertEq(governance.claimForInitiative(baseInitiative2), 0);
-        assertEq(governance.claimForInitiative(baseInitiative2), 0);
+        (Governance.InitiativeStatus status, , uint256 claimable) = governance.getInitiativeState(baseInitiative2);
+        console.log("res", uint8(status));
+        console.log("claimable", claimable);
+        (uint224 votes, , , uint224 vetos) = governance.votesForInitiativeSnapshot(baseInitiative2);
+        console.log("snapshot votes", votes);
+        console.log("snapshot vetos", vetos);
 
-        assertEq(lusd.balanceOf(baseInitiative2), 5000e18);
+        console.log("governance.calculateVotingThreshold()", governance.calculateVotingThreshold());
+        assertEq(governance.claimForInitiative(baseInitiative2), 0, "zero 2");
+        assertEq(governance.claimForInitiative(baseInitiative2), 0, "zero 3");
+
+        assertEq(lusd.balanceOf(baseInitiative2), 5000e18, "zero bal");
 
         vm.stopPrank();
     }
