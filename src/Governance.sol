@@ -335,7 +335,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
 
         // TODO: Should this be start - 1? | QA at most
-        uint256 vetosForInitiative =
+        /// @audit this is always wrong unless we allow an urgent veto to also exist
+        uint256 vetosForInitiative = /// @audit this needs to be the snapshot man else we can't do this
             lqtyToVotes(initiativeState.vetoLQTY, epochStart(), initiativeState.averageStakingTimestampVetoLQTY);
         
 

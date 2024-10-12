@@ -625,7 +625,7 @@ contract GovernanceTest is Test {
         assertEq(forEpoch, governance.epoch() - 1);
 
         IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot =
-            IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0);
+            IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0, 0);
         vm.store(
             address(governance),
             keccak256(abi.encode(baseInitiative3, uint256(3))),
@@ -637,7 +637,7 @@ contract GovernanceTest is Test {
                 )
             )
         );
-        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch) =
+        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch, ) =
             governance.votesForInitiativeSnapshot(baseInitiative3);
         assertEq(votes_, 0);
         assertEq(forEpoch_, governance.epoch() - 1);
@@ -918,7 +918,7 @@ contract GovernanceTest is Test {
         // should snapshot the global and initiatives votes if there hasn't been a snapshot in the current epoch yet
         (, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(forEpoch, governance.epoch() - 1);
-        (, forEpoch,) = governance.votesForInitiativeSnapshot(baseInitiative1);
+        (, forEpoch, ,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(forEpoch, governance.epoch() - 1);
 
         vm.stopPrank();
@@ -1254,7 +1254,7 @@ contract GovernanceTest is Test {
         assertEq(forEpoch, governance.epoch() - 1);
 
         IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot =
-            IGovernance.InitiativeVoteSnapshot(1, governance.epoch() - 1, governance.epoch() - 1);
+            IGovernance.InitiativeVoteSnapshot(1, governance.epoch() - 1, governance.epoch() - 1, 0);
         vm.store(
             address(governance),
             keccak256(abi.encode(address(mockInitiative), uint256(3))),
@@ -1266,7 +1266,7 @@ contract GovernanceTest is Test {
                 )
             )
         );
-        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch) =
+        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch, ) =
             governance.votesForInitiativeSnapshot(address(mockInitiative));
         assertEq(votes_, 1);
         assertEq(forEpoch_, governance.epoch() - 1);
@@ -1276,7 +1276,7 @@ contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
-        initiativeSnapshot = IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0);
+        initiativeSnapshot = IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0, 0);
         vm.store(
             address(governance),
             keccak256(abi.encode(address(mockInitiative), uint256(3))),
@@ -1288,7 +1288,7 @@ contract GovernanceTest is Test {
                 )
             )
         );
-        (votes_, forEpoch_, lastCountedEpoch) = governance.votesForInitiativeSnapshot(address(mockInitiative));
+        (votes_, forEpoch_, lastCountedEpoch, ) = governance.votesForInitiativeSnapshot(address(mockInitiative));
         assertEq(votes_, 0);
         assertEq(forEpoch_, governance.epoch() - 1);
         assertEq(lastCountedEpoch, 0);

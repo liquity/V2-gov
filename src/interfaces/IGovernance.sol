@@ -92,6 +92,7 @@ interface IGovernance {
         uint224 votes; // Votes at epoch transition
         uint16 forEpoch; // Epoch for which the votes are counted
         uint16 lastCountedEpoch; // Epoch at which which the votes where counted last in the global snapshot
+        uint224 vetos; // Vetos at epoch transition
     }
 
     /// @notice Returns the vote count snapshot of the previous epoch
@@ -106,7 +107,7 @@ interface IGovernance {
     function votesForInitiativeSnapshot(address _initiative)
         external
         view
-        returns (uint224 votes, uint16 forEpoch, uint16 lastCountedEpoch);
+        returns (uint224 votes, uint16 forEpoch, uint16 lastCountedEpoch, uint224 vetos);
 
     struct Allocation {
         uint88 voteLQTY; // LQTY allocated vouching for the initiative
