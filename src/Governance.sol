@@ -284,6 +284,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             } else {
                 initiativeSnapshot.votes = 0;
             }
+            initiativeSnapshot.vetos = uint224(vetos); /// @audit TODO: Overflow + order of operations
             initiativeSnapshot.forEpoch = currentEpoch - 1;
             votesForInitiativeSnapshot[_initiative] = initiativeSnapshot;
             emit SnapshotVotesForInitiative(_initiative, initiativeSnapshot.votes, initiativeSnapshot.forEpoch);
@@ -323,29 +324,25 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
 
+        // == Already Claimed Condition == //
         if(lastEpochClaim >= epoch() - 1) {
             // early return, we have already claimed
             return (InitiativeStatus.CLAIMED, lastEpochClaim, claimableAmount);
         }
 
+        // == Disabled Condition == //
         // TODO: If a initiative is disabled, we return false and the last epoch claim
         if(registeredInitiatives[_initiative] == UNREGISTERED_INITIATIVE) {
             return (InitiativeStatus.DISABLED, lastEpochClaim, 0); /// @audit By definition it must have zero rewards
         }
 
-
-        // TODO: Should this be start - 1? | QA at most
-        /// @audit this is always wrong unless we allow an urgent veto to also exist
-        uint256 vetosForInitiative = /// @audit this needs to be the snapshot man else we can't do this
-            lqtyToVotes(initiativeState.vetoLQTY, epochStart(), initiativeState.averageStakingTimestampVetoLQTY);
         
 
-        // Unregister Condition
-        // TODO: Figure out `UNREGISTRATION_AFTER_EPOCHS`
-        /// @audit epoch() - 1 because we can have Now - 1 and that's not a removal case
+        // == Unregister Condition == //
+        /// @audit epoch() - 1 because we can have Now - 1 and that's not a removal case | TODO: Double check | Worst case QA, off by one epoch
         if((votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1) 
-            ||  vetosForInitiative > votesForInitiativeSnapshot_.votes
-                        && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
+            ||  votesForInitiativeSnapshot_.vetos > votesForInitiativeSnapshot_.votes
+                        && votesForInitiativeSnapshot_.vetos > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
             return (InitiativeStatus.UNREGISTERABLE, lastEpochClaim, 0);
         }
@@ -355,11 +352,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         /// @audit if we already are above, then why are we re-computing this?
         // Ultimately the checkpoint logic for initiative is fine, so we can skip this
 
-        /// @audit TODO: Add Votes vs Vetos
-        // For now the code always returns Votes iif votes > vetos, so we can trust it
+
+        // == Vetoed this Epoch Condition == //
+        if(votesForInitiativeSnapshot_.vetos > votesForInitiativeSnapshot_.votes) {
+            return (InitiativeStatus.SKIP, lastEpochClaim, 0);
+        }
 
         uint256 claim;
 
+        // == Should have Rewards Conditions == //
         if (votesSnapshot_.votes == 0 || votesForInitiativeSnapshot_.votes == 0) {
             claim = 0;
             return (InitiativeStatus.SKIP, lastEpochClaim, 0);
