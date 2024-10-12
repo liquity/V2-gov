@@ -480,10 +480,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             initiativeState.voteLQTY = add(initiativeState.voteLQTY, deltaLQTYVotes);
             initiativeState.vetoLQTY = add(initiativeState.vetoLQTY, deltaLQTYVetos);
 
-            // determine if the initiative's allocated voting LQTY should be included in the vote count
-            uint240 votesForInitiative =
-                lqtyToVotes(initiativeState.voteLQTY, block.timestamp, initiativeState.averageStakingTimestampVoteLQTY);
-
             // update the initiative's state
             initiativeStates[initiative] = initiativeState;
 
