@@ -355,7 +355,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // == Vetoed this Epoch Condition == //
         if(votesForInitiativeSnapshot_.vetos > votesForInitiativeSnapshot_.votes) {
-            return (InitiativeStatus.SKIP, lastEpochClaim, 0);
+            return (InitiativeStatus.SKIP, lastEpochClaim, 0); /// @audit Technically VETOED
         }
 
         uint256 claim;
