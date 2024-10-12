@@ -546,21 +546,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (InitiativeStatus status, , )= getInitiativeState(_initiative);
         require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
 
-
-        uint256 vetosForInitiative =
-            lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestampVetoLQTY);
-
-        // an initiative can be unregistered if it has no votes and has been inactive for 'UNREGISTRATION_AFTER_EPOCHS'
-        // epochs or if it has received more vetos than votes and the vetos are more than
-        // 'UNREGISTRATION_THRESHOLD_FACTOR' times the voting threshold
-        require(
-            (votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < currentEpoch)
-                || (
-                    vetosForInitiative > votesForInitiativeSnapshot_.votes
-                        && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
-                ),
-            "Governance: cannot-unregister-initiative"
-        ); /// @audit TODO: Differential review of this vs `mustUnregister`
+        /// @audit TODO: Verify that the FSM here is correct
 
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
         state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
