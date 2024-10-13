@@ -19,11 +19,11 @@ abstract contract Setup is BaseSetup {
     MockERC20Tester internal lqty;
     MockERC20Tester internal lusd;
     IInitiative internal initiative1;
-    IInitiative internal initiative2;
 
     address internal user = address(this);
     // derived using makeAddrAndKey
     address internal user2 = address(0x537C8f3d3E18dF5517a58B3fB9D9143697996802);
+    address[] internal users = new address[](2); 
     uint256 internal user2Pk = 23868421370328131711506074113045611601786642648093516849953535378706721142721; 
     address internal stakingV1;
     address internal userProxy;
@@ -40,13 +40,11 @@ abstract contract Setup is BaseSetup {
     uint32 internal constant EPOCH_DURATION = 604800;
     uint32 internal constant EPOCH_VOTING_CUTOFF = 518400;
 
-    // TODO:
-    // 1. mint liquity to user x
-    // 2. mock staking tokens x
-    // 3. deploy Governance x
-    // 4. deploy Proposal x
-    // 5. set proposal on governance x
+
   function setup() internal virtual override {
+      users.push(user);
+      users.push(user2);
+
       uint256 initialMintAmount = type(uint88).max;
       lqty = new MockERC20Tester(user, initialMintAmount, "Liquity", "LQTY", 18);
       lusd = new MockERC20Tester(user, initialMintAmount, "Liquity USD", "LUSD", 18);
@@ -85,19 +83,21 @@ abstract contract Setup is BaseSetup {
 
       // register one of the initiatives, leave the other for registering/unregistering via TargetFunction
       initiative1 = IInitiative(address(new MaliciousInitiative()));
-      initiative2 = IInitiative(address(new MaliciousInitiative()));
       deployedInitiatives.push(address(initiative1));
-      deployedInitiatives.push(address(initiative2));
 
       governance.registerInitiative(address(initiative1));
   }
 
-  function _getDeployedInitiative(uint8 index) public returns (address initiative) {
+  function _getDeployedInitiative(uint8 index) internal returns (address initiative) {
     return deployedInitiatives[index % deployedInitiatives.length];
   }
 
-  function _getClampedTokenBalance(address token, address holder) public returns (uint256 balance) {
+  function _getClampedTokenBalance(address token, address holder) internal returns (uint256 balance) {
     return IERC20(token).balanceOf(holder);
+  }
+
+  function _getRandomUser(uint8 index) internal returns (address randomUser) { 
+    return users[index % users.length];
   }
   
 }

@@ -25,4 +25,8 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     function test_registerInitiative_crytic() public {
         governance_registerInitiative(1);
     }
+
+    function test_deployInitiative_crytic() public {
+        governance_deployInitiative();
+    }
 }

@@ -9,7 +9,9 @@ import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensi
 import {console2} from "forge-std/Test.sol";
 import {BeforeAfter} from "./BeforeAfter.sol";
 import {Properties} from "./Properties.sol";
+import {MaliciousInitiative} from "../mocks/MaliciousInitiative.sol";
 import {ILQTYStaking} from "../../src/interfaces/ILQTYStaking.sol";
+import {IInitiative} from "../../src/interfaces/IInitiative.sol";
 import {IUserProxy} from "../../src/interfaces/IUserProxy.sol";
 import {PermitParams} from "../../src/utils/Types.sol";
 
@@ -31,24 +33,27 @@ abstract contract TargetFunctions is BaseTargetFunctions, Properties, BeforeAfte
         governance.allocateLQTY(initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
     }
 
-    function governance_allocateLQTY(uint8 initiativesIndex, int176[] calldata _deltaLQTYVotes, int176[] calldata _deltaLQTYVetos) public {
+    function governance_allocateLQTY(int176[] calldata _deltaLQTYVotes, int176[] calldata _deltaLQTYVetos) public {
         governance.allocateLQTY(deployedInitiatives, _deltaLQTYVotes, _deltaLQTYVetos);
     }
 
-    function governance_claimForInitiative(address _initiative) public {
-        governance.claimForInitiative(_initiative);
+    function governance_claimForInitiative(uint8 initiativeIndex) public {
+        address initiative = _getDeployedInitiative(initiativeIndex);
+        governance.claimForInitiative(initiative);
     }
 
-    function governance_claimFromStakingV1(address _rewardRecipient) public {
-        governance.claimFromStakingV1(_rewardRecipient);
+    function governance_claimFromStakingV1(uint8 recipientIndex) public {
+        address rewardRecipient = _getRandomUser(recipientIndex);
+        governance.claimFromStakingV1(rewardRecipient);
     }
 
     function governance_deployUserProxy() public {
         governance.deployUserProxy();
     }
 
-    function governance_depositLQTY(uint88 _lqtyAmount) public {
-        governance.depositLQTY(_lqtyAmount);
+    function governance_depositLQTY(uint88 lqtyAmount) public {
+        lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
+        governance.depositLQTY(lqtyAmount);
     }
 
     function governance_depositLQTYViaPermit(uint88 _lqtyAmount) public {
@@ -108,5 +113,11 @@ abstract contract TargetFunctions is BaseTargetFunctions, Properties, BeforeAfte
 
     function governance_withdrawLQTY(uint88 _lqtyAmount) public {
         governance.withdrawLQTY(_lqtyAmount);
+    }
+
+    // helper to deploy initiatives for registering that results in more bold transferred to the Governance contract
+    function governance_deployInitiative() public {
+        address initiative = address(new MaliciousInitiative());
+        deployedInitiatives.push(initiative);
     }
 }
