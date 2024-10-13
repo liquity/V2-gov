@@ -10,3 +10,8 @@ docs/
 
 # Dotenv file
 .env
+
+# Fuzzing
+echidna/
+medusa/
+crytic-export/
