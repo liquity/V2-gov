@@ -2,40 +2,63 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.0;
 
+import {Test} from "forge-std/Test.sol";
 import {BaseTargetFunctions} from "@chimera/BaseTargetFunctions.sol";
 import {vm} from "@chimera/Hevm.sol";
 
 import {IInitiative} from "../../src/interfaces/IInitiative.sol";
+import {IBribeInitiative} from "../../src/interfaces/IBribeInitiative.sol";
 import {BeforeAfter} from "./BeforeAfter.sol";
 import {Properties} from "./Properties.sol";
-import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
 
-abstract contract TargetFunctions is BaseTargetFunctions, Properties, BeforeAfter {
 
-    function initiative_onRegisterInitiative(uint16 epoch) public {
-        bool callWithMinGas = safeCallWithMinGas(address(initiative), MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onRegisterInitiative, (epoch)));
+abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties, BeforeAfter {
+    function initiative_depositBribe(uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch) public {
+        // clamp token amounts using user balance
+        boldAmount = uint128(boldAmount % lusd.balanceOf(user));
+        bribeTokenAmount = uint128(bribeTokenAmount % lqty.balanceOf(user));
+
+        initiative.depositBribe(boldAmount, bribeTokenAmount, epoch);
+    }
+
+    function initiative_claimBribes(uint16 epoch, uint16 prevAllocationEpoch, uint16 prevTotalAllocationEpoch) public {        
+        // clamp epochs by using the current governance epoch
+        epoch = epoch % governance.epoch();
+        prevAllocationEpoch = prevAllocationEpoch % governance.epoch();
+        prevTotalAllocationEpoch = prevTotalAllocationEpoch % governance.epoch();
+
+        IBribeInitiative.ClaimData[] memory claimData = new IBribeInitiative.ClaimData[](1); 
+        claimData[0] =  IBribeInitiative.ClaimData({
+            epoch: epoch,
+            prevLQTYAllocationEpoch: prevAllocationEpoch,
+            prevTotalLQTYAllocationEpoch: prevTotalAllocationEpoch
+        });
+
+        initiative.claimBribes(claimData);
+    }
+
+    // NOTE: governance function for setting allocations that's needed to test claims
+    function initiative_onAfterAllocateLQTY(bool vote, uint88 voteLQTY, uint88 vetoLQTY) public {
+        uint16 currentEpoch = governance.epoch();
+        // use this bool to replicate user decision to vote or veto so that fuzzer doesn't do both since this is blocked by governance
+        if(vote) {
+            voteLQTY = uint88(voteLQTY % lqty.balanceOf(user));
+            vetoLQTY = 0;
+        } else {
+            vetoLQTY = uint88(voteLQTY % lqty.balanceOf(user));
+            voteLQTY = 0;
+        }
         
-        t(callWithMinGas, "call to onRegisterInitiative reverts with minimum gas");
+        vm.prank(address(governance));
+        IInitiative(address(initiative)).onAfterAllocateLQTY(currentEpoch, user, voteLQTY, vetoLQTY);
     }
-    
-    function intiative_onUnregisterInitiative(uint16 epoch) public {
-        bool callWithMinGas = safeCallWithMinGas(address(initiative), MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onUnregisterInitiative, (epoch)));
+
+    // allows the fuzzer to change the governance epoch for more realistic testing
+    function governance_setEpoch(uint16 epoch) public {
+        // only allow epoch to increase to not cause issues
+        epoch = uint16(bound(epoch, governance.epoch(), type(uint16).max));
+        require(epoch > governance.epoch()); // added check for potential issues with downcasting from uint256 to uint16
         
-        t(callWithMinGas, "call to onUnregisterInitiative reverts with minimum gas");
+        governance.setEpoch(epoch);
     }
-    
-    function initiative_onAfterAllocateLQTY(uint16 currentEpoch, address user, uint88 voteLQTY, uint88 vetoLQTY) public {
-        bool callWithMinGas = safeCallWithMinGas(address(initiative), MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onAfterAllocateLQTY, (currentEpoch, user, voteLQTY, vetoLQTY)));
-
-        t(callWithMinGas, "call to onAfterAllocateLQTY reverts with minimum gas");
-    }
-
-    function initiative_onClaimForInitiative(uint16 claimEpoch, uint256 bold) public {
-        bool callWithMinGas = safeCallWithMinGas(address(initiative), MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onClaimForInitiative, (claimEpoch, bold)));
-        
-        t(callWithMinGas, "call to onClaimForInitiative reverts with minimum gas");
-    }
-
-
-
 }

@@ -9,26 +9,18 @@ import {TargetFunctions} from "./TargetFunctions.sol";
 import {MaliciousInitiative} from "../mocks/MaliciousInitiative.sol";
 
 
-contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
+contract CryticToFoundry is TargetFunctions, FoundryAsserts {
     function setUp() public {
         setup();
     }
 
-    function test_initiative_onRegisterInitiative() public {
-        initiative_onRegisterInitiative(5);
-    }
+    function test_claimBribe() public {
+        governance_setEpoch(2);
 
-    function test_intiative_onUnregisterInitiative() public {
-        initiative_onRegisterInitiative(5);
-        intiative_onUnregisterInitiative(8);
-    }
+        initiative_depositBribe(4e18, 4e18, 4);
 
-    function test_initiative_onAfterAllocateLQTY() public {
-        maliciousInitiative.setRevertBehaviour(MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.OOG);
-        initiative_onAfterAllocateLQTY(5, address(0x101112), uint88(10), uint88(15));
-    }
+        governance_setEpoch(6);
 
-    function test_initiative_onClaimForInitiative() public {
-        initiative_onClaimForInitiative(5, 50);
+        initiative_claimBribes(4, 2, 2);
     }
 }

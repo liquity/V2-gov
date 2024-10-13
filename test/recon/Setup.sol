@@ -4,25 +4,29 @@ pragma solidity ^0.8.0;
 
 import {BaseSetup} from "@chimera/BaseSetup.sol";
 
-import {IInitiative} from "../../src/interfaces/IInitiative.sol";
-import {MaliciousInitiative} from "../mocks/MaliciousInitiative.sol";
+import {BribeInitiative} from "../../src/BribeInitiative.sol";
+import {IBribeInitiative} from "../../src/interfaces/IBribeInitiative.sol";
+import {MockGovernance} from "../mocks/MockGovernance.sol";
+import {MockERC20Tester} from "../mocks/MockERC20Tester.sol";
 
 abstract contract Setup is BaseSetup {
+  MockGovernance internal governance;
+  MockERC20Tester internal lqty;
+  MockERC20Tester internal lusd;
+  IBribeInitiative internal initiative;
 
-    IInitiative initiative;
-    MaliciousInitiative maliciousInitiative;
+  address internal user = address(this);
 
-    address actor = address(this);
-    address dummyBold = address(0x123);
-    address dummyBribe = address(0x456);
+  function setup() internal virtual override {
+      uint256 initialMintAmount = type(uint88).max;
+      lqty = new MockERC20Tester(user, initialMintAmount, "Liquity", "LQTY", 18);
+      lusd = new MockERC20Tester(user, initialMintAmount, "Liquity USD", "LUSD", 18); // BOLD
 
-    uint256 constant MIN_GAS_TO_HOOK = 350_000;
+      governance = new MockGovernance();
+      initiative = IBribeInitiative(address(new BribeInitiative(address(governance), address(lusd), address(lqty))));
 
-    function setup() internal virtual override {
-        maliciousInitiative = new MaliciousInitiative();
-        initiative = IInitiative(address(maliciousInitiative)); 
-
-        // sets an example out of gas revert reason on the Initiative
-        maliciousInitiative.setRevertBehaviour(MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.OOG);
-    }
+      // approve BribeInitiative for user's tokens
+      lqty.approve(address(initiative), initialMintAmount);
+      lusd.approve(address(initiative), initialMintAmount);
+  }
 }
