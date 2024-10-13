@@ -677,10 +677,10 @@ contract GovernanceTest is Test {
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
-        int176[] memory deltaLQTYVotes = new int176[](2);
+        int88[] memory deltaLQTYVotes = new int88[](2);
         deltaLQTYVotes[0] = 1e18;
         deltaLQTYVotes[1] = 999e18;
-        int176[] memory deltaLQTYVetos = new int176[](2);
+        int88[] memory deltaLQTYVetos = new int88[](2);
 
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
@@ -742,10 +742,10 @@ contract GovernanceTest is Test {
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
-        int176[] memory deltaLQTYVotes = new int176[](2);
+        int88[] memory deltaLQTYVotes = new int88[](2);
         deltaLQTYVotes[0] = 1e18;
         deltaLQTYVotes[1] = 999e18;
-        int176[] memory deltaLQTYVetos = new int176[](2);
+        int88[] memory deltaLQTYVetos = new int88[](2);
 
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
@@ -774,9 +774,9 @@ contract GovernanceTest is Test {
         // I cannot
         address[] memory removeInitiatives = new address[](1);
         removeInitiatives[0] = baseInitiative1;
-        int176[] memory removeDeltaLQTYVotes = new int176[](1);
+        int88[] memory removeDeltaLQTYVotes = new int88[](1);
         removeDeltaLQTYVotes[0] = -1e18;
-        int176[] memory removeDeltaLQTYVetos = new int176[](1);
+        int88[] memory removeDeltaLQTYVetos = new int88[](1);
 
         /// @audit the next call MUST not revert - this is a critical bug
         governance.allocateLQTY(removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
@@ -789,9 +789,9 @@ contract GovernanceTest is Test {
 
         address[] memory reAddInitiatives = new address[](1);
         reAddInitiatives[0] = baseInitiative1;
-        int176[] memory reAddDeltaLQTYVotes = new int176[](1);
+        int88[] memory reAddDeltaLQTYVotes = new int88[](1);
         reAddDeltaLQTYVotes[0] = 1e18;
-        int176[] memory reAddDeltaLQTYVetos = new int176[](1);
+        int88[] memory reAddDeltaLQTYVetos = new int88[](1);
 
         /// @audit This MUST revert, an initiative should not be re-votable once disabled
         vm.expectRevert("Governance: initiative-not-active");
@@ -814,10 +814,10 @@ contract GovernanceTest is Test {
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
-        int176[] memory deltaLQTYVotes = new int176[](2);
+        int88[] memory deltaLQTYVotes = new int88[](2);
         deltaLQTYVotes[0] = 1e18;
         deltaLQTYVotes[1] = 999e18;
-        int176[] memory deltaLQTYVetos = new int176[](2);
+        int88[] memory deltaLQTYVetos = new int88[](2);
 
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
         (uint88 allocatedB4Test,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
@@ -830,9 +830,9 @@ contract GovernanceTest is Test {
 
         address[] memory removeInitiatives = new address[](1);
         removeInitiatives[0] = baseInitiative1;
-        int176[] memory removeDeltaLQTYVotes = new int176[](1);
-        removeDeltaLQTYVotes[0] = int176(-1e18);
-        int176[] memory removeDeltaLQTYVetos = new int176[](1);
+        int88[] memory removeDeltaLQTYVotes = new int88[](1);
+        removeDeltaLQTYVotes[0] = int88(-1e18);
+        int88[] memory removeDeltaLQTYVetos = new int88[](1);
 
         (uint88 allocatedB4Removal,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
         console.log("allocatedB4Removal", allocatedB4Removal);
