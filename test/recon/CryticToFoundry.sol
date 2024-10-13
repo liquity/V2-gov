@@ -29,4 +29,8 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     function test_deployInitiative_crytic() public {
         governance_deployInitiative();
     }
+
+    function test_accrueBold() public {
+        governance_accrueBold(500e18);
+    }
 }

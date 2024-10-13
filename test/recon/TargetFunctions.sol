@@ -120,4 +120,12 @@ abstract contract TargetFunctions is BaseTargetFunctions, Properties, BeforeAfte
         address initiative = address(new MaliciousInitiative());
         deployedInitiatives.push(initiative);
     }
+
+    // helper to simulate bold accrual in Governance contract
+    function governance_accrueBold(uint88 boldAmount) public {
+        boldAmount = uint88(boldAmount % lusd.balanceOf(user));
+        lusd.transfer(address(governance), boldAmount); // target contract is the user so it can transfer directly
+    }
+
+
 }
