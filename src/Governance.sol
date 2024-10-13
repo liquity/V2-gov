@@ -72,7 +72,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     mapping(address => uint16) public override registeredInitiatives;
 
-    error RegistrationFailed(address initiative);
+    uint16 constant UNREGISTERED_INITIATIVE = type(uint16).max;
 
     constructor(
         address _lqty,
@@ -282,13 +282,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             uint240 vetos =
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
             // if the votes didn't meet the voting threshold then no votes qualify
-            if (votes >= votingThreshold && votes >= vetos) {
-                initiativeSnapshot.votes = uint224(votes);
-                initiativeSnapshot.lastCountedEpoch = currentEpoch - 1;
-            } else {
-                initiativeSnapshot.votes = 0;
+            /// @audit TODO TEST THIS
+            /// The change means that all logic for votes and rewards must be done in `getInitiativeState`
+            initiativeSnapshot.votes = uint224(votes); /// @audit TODO: We should change this to check the treshold, we should instead use the snapshot to just report all the valid data
+
+            initiativeSnapshot.vetos = uint224(vetos); /// @audit TODO: Overflow + order of operations
+
+            initiativeSnapshot.forEpoch = currentEpoch - 1; 
+
+            /// @audit Conditional
+            /// If we meet the threshold then we increase this
+            /// TODO: Either simplify, or use this for the state machine as well
+            if(
+                initiativeSnapshot.votes > initiativeSnapshot.vetos &&
+                initiativeSnapshot.votes >= votingThreshold
+            ) {
+                initiativeSnapshot.lastCountedEpoch = currentEpoch - 1; /// @audit This updating makes it so that we lose track | TODO: Find a better way
             }
-            initiativeSnapshot.forEpoch = currentEpoch - 1;
+
             votesForInitiativeSnapshot[_initiative] = initiativeSnapshot;
             emit SnapshotVotesForInitiative(_initiative, initiativeSnapshot.votes, initiativeSnapshot.forEpoch);
         }
@@ -302,6 +313,81 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     {
         (voteSnapshot,) = _snapshotVotes();
         (initiativeVoteSnapshot,) = _snapshotVotesForInitiative(_initiative);
+    }
+
+
+    /// @notice Given an initiative, return whether the initiative will be unregisted, whether it can claim and which epoch it last claimed at
+    enum InitiativeStatus {
+        SKIP, /// This epoch will result in no rewards and no unregistering
+        CLAIMABLE, /// This epoch will result in claiming rewards
+        CLAIMED, /// The rewards for this epoch have been claimed
+        UNREGISTERABLE, /// Can be unregistered
+        DISABLED // It was already Unregistered
+    }
+    /**
+        FSM:
+            - Can claim (false, true, epoch - 1 - X)
+            - Has claimed (false, false, epoch - 1)
+            - Cannot claim and should not be kicked (false, false, epoch - 1 - [0, X])
+            - Should be kicked (true, false, epoch - 1 - [UNREGISTRATION_AFTER_EPOCHS, UNREGISTRATION_AFTER_EPOCHS + X])
+     */
+
+    function getInitiativeState(address _initiative) public returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount) {
+        (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(_initiative);
+
+        lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
+
+        // == Already Claimed Condition == //
+        if(lastEpochClaim >= epoch() - 1) {
+            // early return, we have already claimed
+            return (InitiativeStatus.CLAIMED, lastEpochClaim, claimableAmount);
+        }
+
+        // == Disabled Condition == //
+        // TODO: If a initiative is disabled, we return false and the last epoch claim
+        if(registeredInitiatives[_initiative] == UNREGISTERED_INITIATIVE) {
+            return (InitiativeStatus.DISABLED, lastEpochClaim, 0); /// @audit By definition it must have zero rewards
+        }
+
+
+        // == Unregister Condition == //
+        /// @audit epoch() - 1 because we can have Now - 1 and that's not a removal case | TODO: Double check | Worst case QA, off by one epoch
+        // TODO: IMO we can use the claimed variable here
+        /// This shifts the logic by 1 epoch
+        if((votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
+            ||  votesForInitiativeSnapshot_.vetos > votesForInitiativeSnapshot_.votes
+                        && votesForInitiativeSnapshot_.vetos > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
+        ) {
+            return (InitiativeStatus.UNREGISTERABLE, lastEpochClaim, 0);
+        }
+
+        // How do we know that they have canClaimRewards?
+        // They must have votes / totalVotes AND meet the Requirement AND not be vetoed
+        /// @audit if we already are above, then why are we re-computing this?
+        // Ultimately the checkpoint logic for initiative is fine, so we can skip this
+        
+        // TODO: Where does this fit exactly?
+        // Edge case of 0 votes
+        if(votesSnapshot_.votes == 0) {
+            return (InitiativeStatus.SKIP, lastEpochClaim, 0);
+        }
+
+
+        // == Vetoed this Epoch Condition == //
+        if(votesForInitiativeSnapshot_.vetos >= votesForInitiativeSnapshot_.votes) {
+            return (InitiativeStatus.SKIP, lastEpochClaim, 0); /// @audit Technically VETOED
+        }
+
+        // == Not meeting threshold Condition == //
+
+        if(calculateVotingThreshold() > votesForInitiativeSnapshot_.votes) {
+            return (InitiativeStatus.SKIP, lastEpochClaim, 0);
+        }
+
+        // == Rewards Conditions (votes can be zero, logic is the same) == //
+        uint256 claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
+        return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
     }
 
     /// @inheritdoc IGovernance
@@ -333,52 +419,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function unregisterInitiative(address _initiative) external nonReentrant {
-        uint16 registrationEpoch = registeredInitiatives[_initiative];
-        require(registrationEpoch != 0, "Governance: initiative-not-registered");
-        uint16 currentEpoch = epoch();
-        require(registrationEpoch + REGISTRATION_WARM_UP_PERIOD < currentEpoch, "Governance: initiative-in-warm-up");
-
-        (, GlobalState memory state) = _snapshotVotes();
-        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
-            _snapshotVotesForInitiative(_initiative);
-
-        uint256 vetosForInitiative =
-            lqtyToVotes(initiativeState.vetoLQTY, block.timestamp, initiativeState.averageStakingTimestampVetoLQTY);
-
-        // an initiative can be unregistered if it has no votes and has been inactive for 'UNREGISTRATION_AFTER_EPOCHS'
-        // epochs or if it has received more vetos than votes and the vetos are more than
-        // 'UNREGISTRATION_THRESHOLD_FACTOR' times the voting threshold
-        require(
-            (votesForInitiativeSnapshot_.lastCountedEpoch + UNREGISTRATION_AFTER_EPOCHS < currentEpoch)
-                || (
-                    vetosForInitiative > votesForInitiativeSnapshot_.votes
-                        && vetosForInitiative > calculateVotingThreshold() * UNREGISTRATION_THRESHOLD_FACTOR / WAD
-                ),
-            "Governance: cannot-unregister-initiative"
-        );
-
-        // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
-        if (initiativeState.counted == 1) {
-            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                state.countedVoteLQTYAverageTimestamp,
-                initiativeState.averageStakingTimestampVoteLQTY,
-                state.countedVoteLQTY,
-                state.countedVoteLQTY - initiativeState.voteLQTY
-            );
-            state.countedVoteLQTY -= initiativeState.voteLQTY;
-            globalState = state;
-        }
-
-        delete initiativeStates[_initiative];
-        delete registeredInitiatives[_initiative];
-
-        emit UnregisterInitiative(_initiative, currentEpoch);
-
-        try IInitiative(_initiative).onUnregisterInitiative(currentEpoch) {} catch {}
-    }
-
-    /// @inheritdoc IGovernance
     function allocateLQTY(
         address[] calldata _initiatives,
         int88[] calldata _deltaLQTYVotes,
@@ -401,18 +441,32 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             int88 deltaLQTYVotes = _deltaLQTYVotes[i];
             int88 deltaLQTYVetos = _deltaLQTYVetos[i];
 
+            // TODO: Better assertion
+            /// Can remove or add
+            /// But cannot add or remove both
+
             // only allow vetoing post the voting cutoff
             require(
                 deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsWithinEpoch() <= EPOCH_VOTING_CUTOFF,
                 "Governance: epoch-voting-cutoff"
             );
-
-            // only allow allocations to initiatives that are active
-            // an initiative becomes active in the epoch after it is registered
+            
             {
                 uint16 registeredAtEpoch = registeredInitiatives[initiative];
-                require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
+                if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
+                    require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
+                } /// @audit TODO: We must allow removals for Proposals that are disabled | Should use the flag u16
+                
+                if(registeredAtEpoch == UNREGISTERED_INITIATIVE) {
+                    require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
+                }
             }
+            // TODO: CHANGE
+            // Can add if active
+            // Can remove if inactive
+            // only allow allocations to initiatives that are active
+            // an initiative becomes active in the epoch after it is registered
+
 
             (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative);
 
@@ -422,7 +476,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 initiativeState.vetoLQTY,
                 initiativeState.averageStakingTimestampVoteLQTY,
                 initiativeState.averageStakingTimestampVetoLQTY,
-                initiativeState.counted
+                initiativeState.lastEpochClaim
             );
 
             // update the average staking timestamp for the initiative based on the user's average staking timestamp
@@ -443,33 +497,27 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             initiativeState.voteLQTY = add(initiativeState.voteLQTY, deltaLQTYVotes);
             initiativeState.vetoLQTY = add(initiativeState.vetoLQTY, deltaLQTYVetos);
 
-            // determine if the initiative's allocated voting LQTY should be included in the vote count
-            uint240 votesForInitiative =
-                lqtyToVotes(initiativeState.voteLQTY, block.timestamp, initiativeState.averageStakingTimestampVoteLQTY);
-            initiativeState.counted = (votesForInitiative >= votingThreshold) ? 1 : 0;
-
             // update the initiative's state
             initiativeStates[initiative] = initiativeState;
 
             // update the average staking timestamp for all counted voting LQTY
-            if (prevInitiativeState.counted == 1) {
-                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                    state.countedVoteLQTYAverageTimestamp,
-                    initiativeState.averageStakingTimestampVoteLQTY,
-                    state.countedVoteLQTY,
-                    state.countedVoteLQTY - prevInitiativeState.voteLQTY
-                );
-                state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
-            }
-            if (initiativeState.counted == 1) {
-                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                    state.countedVoteLQTYAverageTimestamp,
-                    initiativeState.averageStakingTimestampVoteLQTY,
-                    state.countedVoteLQTY,
-                    state.countedVoteLQTY + initiativeState.voteLQTY
-                );
-                state.countedVoteLQTY += initiativeState.voteLQTY;
-            }
+            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                state.countedVoteLQTYAverageTimestamp,
+                initiativeState.averageStakingTimestampVoteLQTY,
+                state.countedVoteLQTY,
+                state.countedVoteLQTY - prevInitiativeState.voteLQTY
+            );
+            state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
+
+            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                state.countedVoteLQTYAverageTimestamp,
+                initiativeState.averageStakingTimestampVoteLQTY,
+                state.countedVoteLQTY,
+                state.countedVoteLQTY + initiativeState.voteLQTY
+            );
+            state.countedVoteLQTY += initiativeState.voteLQTY;
+
+
 
             // allocate the voting and vetoing LQTY to the initiative
             Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
@@ -499,24 +547,76 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
+    function unregisterInitiative(address _initiative) external nonReentrant {
+        uint16 registrationEpoch = registeredInitiatives[_initiative];
+        require(registrationEpoch != 0, "Governance: initiative-not-registered");
+        uint16 currentEpoch = epoch();
+        require(registrationEpoch + REGISTRATION_WARM_UP_PERIOD < currentEpoch, "Governance: initiative-in-warm-up");
+
+        (, GlobalState memory state) = _snapshotVotes();
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
+            _snapshotVotesForInitiative(_initiative);
+
+        /// Invariant: Must only claim once or unregister
+        require(initiativeState.lastEpochClaim < epoch() - 1);
+        
+        (InitiativeStatus status, , )= getInitiativeState(_initiative);
+        require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
+
+        /// @audit TODO: Verify that the FSM here is correct
+
+        // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
+        state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+            state.countedVoteLQTYAverageTimestamp,
+            initiativeState.averageStakingTimestampVoteLQTY,
+            state.countedVoteLQTY,
+            state.countedVoteLQTY - initiativeState.voteLQTY
+        );
+        state.countedVoteLQTY -= initiativeState.voteLQTY;
+        globalState = state;
+
+        /// @audit removal math causes issues
+        // delete initiativeStates[_initiative]; 
+
+        /// @audit Should not delete this
+        /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
+        registeredInitiatives[_initiative] = UNREGISTERED_INITIATIVE; 
+
+        emit UnregisterInitiative(_initiative, currentEpoch);
+
+        try IInitiative(_initiative).onUnregisterInitiative(currentEpoch) {} catch {}
+    }
+
+    /// @inheritdoc IGovernance
     function claimForInitiative(address _initiative) external nonReentrant returns (uint256) {
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
-        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_,) = _snapshotVotesForInitiative(_initiative);
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState_) = _snapshotVotesForInitiative(_initiative);
 
-        // return 0 if the initiative has no votes
-        if (votesSnapshot_.votes == 0 || votesForInitiativeSnapshot_.votes == 0) return 0;
+        // TODO: Return type from state FSM can be standardized
+        (InitiativeStatus status, , uint256 claimableAmount ) = getInitiativeState(_initiative);
 
-        uint256 claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
+        /// @audit Return 0 if we cannot claim
+        /// INVARIANT:
+        /// We cannot claim only for 2 reasons:
+        /// We have already claimed
+        /// We do not meet the threshold
+        /// TODO: Enforce this with assertions
+        if(status != InitiativeStatus.CLAIMABLE) {
+            return 0;
+        }
+        
+        assert(votesSnapshot_.forEpoch == epoch() - 1); /// @audit INVARIANT: You can only claim for previous epoch
+        /// All unclaimed rewards are always recycled
 
-        votesForInitiativeSnapshot_.votes = 0;
+        initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
         votesForInitiativeSnapshot[_initiative] = votesForInitiativeSnapshot_; // implicitly prevents double claiming
 
-        bold.safeTransfer(_initiative, claim);
+        bold.safeTransfer(_initiative, claimableAmount);
 
-        emit ClaimForInitiative(_initiative, claim, votesSnapshot_.forEpoch);
+        emit ClaimForInitiative(_initiative, claimableAmount, votesSnapshot_.forEpoch);
 
-        try IInitiative(_initiative).onClaimForInitiative(votesSnapshot_.forEpoch, claim) {} catch {}
+        try IInitiative(_initiative).onClaimForInitiative(votesSnapshot_.forEpoch, claimableAmount) {} catch {}
 
-        return claim;
+        return claimableAmount;
     }
 }
