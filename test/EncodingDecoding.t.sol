@@ -35,4 +35,8 @@ contract EncodingDecodingTest is Test {
         assertEq(decodedLqty, decodedLqty2, "decoded lqty not equal");
         assertEq(decodedAverageTimestamp, decodedAverageTimestamp2, "decoded timestamps not equal");
     }
+
+    function test_encoding_not_equal_reproducer() public {
+        test_receive_undo_compare(18371677541005923091065047412368542483005086202);
+    }
 }
