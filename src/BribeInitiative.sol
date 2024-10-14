@@ -77,7 +77,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         uint16 _prevLQTYAllocationEpoch,
         uint16 _prevTotalLQTYAllocationEpoch
     ) internal returns (uint256 boldAmount, uint256 bribeTokenAmount) {
-        require(_epoch != governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
+        require(_epoch < governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
         require(!claimedBribeAtEpoch[_user][_epoch], "BribeInitiative: already-claimed");
 
         Bribe memory bribe = bribeByEpoch[_epoch];
