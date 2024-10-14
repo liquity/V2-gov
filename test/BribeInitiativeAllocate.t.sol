@@ -76,7 +76,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 0
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
         }
@@ -99,7 +99,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 0
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState2, allocation2, initiativeState2);
         }
@@ -132,7 +132,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(1),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 0
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
         }
@@ -171,7 +171,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 0
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
             (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
@@ -193,7 +193,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 0
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
             (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
@@ -225,7 +225,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 1,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 0
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
             (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
@@ -247,7 +247,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 1,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 0
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
             (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
@@ -287,7 +287,7 @@ contract BribeInitiativeAllocateTest is Test {
             vetoLQTY: 0,
             averageStakingTimestampVoteLQTY: uint32(block.timestamp),
             averageStakingTimestampVetoLQTY: 0,
-            counted: 1
+            lastEpochClaim: 0
         });
         bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
@@ -309,7 +309,7 @@ contract BribeInitiativeAllocateTest is Test {
             vetoLQTY: 1000e18,
             averageStakingTimestampVoteLQTY: uint32(block.timestamp),
             averageStakingTimestampVetoLQTY: uint32(block.timestamp),
-            counted: 1
+            lastEpochClaim: 0
         });
         bribeInitiative.onAfterAllocateLQTY(
             governance.epoch(), user, userStateVeto, allocationVeto, initiativeStateVeto
@@ -335,7 +335,7 @@ contract BribeInitiativeAllocateTest is Test {
             vetoLQTY: 1,
             averageStakingTimestampVoteLQTY: uint32(block.timestamp),
             averageStakingTimestampVetoLQTY: uint32(block.timestamp),
-            counted: 1
+            lastEpochClaim: 0
         });
         bribeInitiative.onAfterAllocateLQTY(
             governance.epoch(), user, userStateNewEpoch, allocationNewEpoch, initiativeStateNewEpoch
@@ -369,7 +369,7 @@ contract BribeInitiativeAllocateTest is Test {
             vetoLQTY: 0,
             averageStakingTimestampVoteLQTY: uint32(block.timestamp),
             averageStakingTimestampVetoLQTY: 0,
-            counted: 1
+            lastEpochClaim: 0
         });
         bribeInitiative.onAfterAllocateLQTY(
             governance.epoch(), user, userStateNewEpoch3, allocationNewEpoch3, initiativeStateNewEpoch3
@@ -410,7 +410,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
@@ -434,7 +434,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -460,7 +460,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -486,7 +486,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -522,7 +522,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
@@ -546,7 +546,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -570,7 +570,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -616,7 +616,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
@@ -640,7 +640,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -664,7 +664,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -712,7 +712,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
@@ -736,7 +736,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -760,7 +760,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -784,7 +784,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -824,7 +824,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
@@ -848,7 +848,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -872,7 +872,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
@@ -896,7 +896,7 @@ contract BribeInitiativeAllocateTest is Test {
                 vetoLQTY: 0,
                 averageStakingTimestampVoteLQTY: uint32(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
-                counted: 1
+                lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 

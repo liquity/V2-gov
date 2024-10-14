@@ -1395,7 +1395,7 @@ contract GovernanceTest is Test {
         deltaLQTYVetos[1] = 0;
 
         vm.warp(block.timestamp + 365 days);
-        vm.expectRevert("Governance: insufficient-or-unallocated-lqty");
+        vm.expectRevert("Governance: insufficient-or-allocated-lqty");
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         deltaLQTYVotes[0] = 0;
@@ -1403,7 +1403,7 @@ contract GovernanceTest is Test {
         deltaLQTYVetos[0] = 0;
         deltaLQTYVetos[1] = type(int88).max;
 
-        vm.expectRevert("Governance: insufficient-or-unallocated-lqty");
+        vm.expectRevert("Governance: insufficient-or-allocated-lqty");
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         vm.stopPrank();
