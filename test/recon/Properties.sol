@@ -48,4 +48,18 @@ abstract contract Properties is BeforeAfter {
         uint88 totalLQTYAllocatedAtEpoch = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
         eq(ghostTotalAllocationAtEpoch[currentEpoch], totalLQTYAllocatedAtEpoch, "BI-04: Accounting for total allocation amount is always correct");
     }
+
+    function property_BI05() public {
+        uint16 currentEpoch = governance.epoch();
+        // if the bool switches, the user has claimed their bribe for the epoch
+        if(_before.claimedBribeAtEpoch[user][currentEpoch] != _after.claimedBribeAtEpoch[user][currentEpoch]) {
+            // check that the remaining bribe amount left over is less than 100 million wei
+            uint256 bribeTokenBalanceInitiative = lqty.balanceOf(address(initiative));
+            uint256 boldTokenBalanceInitiative = lusd.balanceOf(address(initiative));
+
+            lte(bribeTokenBalanceInitiative, 1e8, "BI-05: Bribe token dust amount remaining after claiming should be less than 100 million wei");
+            lte(boldTokenBalanceInitiative, 1e8, "BI-05: Bold token dust amount remaining after claiming should be less than 100 million wei");
+        }
+    }
+
 }
