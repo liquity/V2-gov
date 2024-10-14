@@ -10,6 +10,10 @@ import {IBribeInitiative} from "./interfaces/IBribeInitiative.sol";
 
 import {DoubleLinkedList} from "./utils/DoubleLinkedList.sol";
 
+
+import {EncodingDecodingLib} from "src/utils/EncodingDecodingLib.sol";
+
+
 contract BribeInitiative is IInitiative, IBribeInitiative {
     using SafeERC20 for IERC20;
     using DoubleLinkedList for DoubleLinkedList.List;
@@ -162,8 +166,11 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         emit ModifyLQTYAllocation(_user, _epoch, _lqty, _averageTimestamp);
     }
 
+    function _encodeLQTYAllocation(uint88 _lqty, uint32 _averageTimestamp) private pure returns (uint224) {
+        return EncodingDecodingLib.encodeLQTYAllocation(_lqty, _averageTimestamp);
+    }
     function _decodeLQTYAllocation(uint224 _value) private pure returns (uint88, uint32) {
-        return (uint88(_value >> 32), uint32(_value));
+        return EncodingDecodingLib.decodeLQTYAllocation(_value);
     }
 
     function _loadTotalLQTYAllocation(uint16 _epoch) private view returns (uint88, uint32) {
