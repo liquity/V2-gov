@@ -573,16 +573,16 @@ contract BribeInitiativeTest is Test {
         vm.stopPrank();
     }
 
-    function _allocateLQTY(address staker, int176 deltaVoteLQTYAmt, int176 deltaVetoLQTYAmt) public {
+    function _allocateLQTY(address staker, int88 deltaVoteLQTYAmt, int88 deltaVetoLQTYAmt) public {
         vm.startPrank(staker);
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
 
         // voting in favor of the  initiative with half of user1's stake
-        int176[] memory deltaVoteLQTY = new int176[](1);
+        int88[] memory deltaVoteLQTY = new int88[](1);
         deltaVoteLQTY[0] = deltaVoteLQTYAmt;
 
-        int176[] memory deltaVetoLQTY = new int176[](1);
+        int88[] memory deltaVetoLQTY = new int88[](1);
         deltaVetoLQTY[0] = deltaVetoLQTYAmt;
 
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
