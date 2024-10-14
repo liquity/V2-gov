@@ -23,7 +23,7 @@ contract ForwardBribe is BribeInitiative {
         uint boldAmount = bold.balanceOf(address(this));
         uint bribeTokenAmount = bribeToken.balanceOf(address(this));
 
-        if (boldAmount != 0) bold.safeTransfer(receiver, boldAmount);
-        if (bribeTokenAmount != 0) bribeToken.safeTransfer(receiver, bribeTokenAmount);
+        if (boldAmount != 0) bold.transfer(receiver, boldAmount);
+        if (bribeTokenAmount != 0) bribeToken.transfer(receiver, bribeTokenAmount);
     }
 }

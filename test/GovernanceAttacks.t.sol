@@ -77,7 +77,7 @@ contract GovernanceTest is Test {
 
     }
 
-    // forge test --match-test test_deposit_attack -vv
+    // forge test --match-test test_all_revert_attacks_hardcoded -vv
     // All calls should never revert due to malicious initiative
     function test_all_revert_attacks_hardcoded() public {
         uint256 zeroSnapshot = vm.snapshot();
@@ -145,10 +145,10 @@ contract GovernanceTest is Test {
         address[] memory initiatives = new address[](2);
         initiatives[0] = address(maliciousInitiative2);
         initiatives[1] = address(eoaInitiative);
-        int176[] memory deltaVoteLQTY = new int176[](2);
+        int88[] memory deltaVoteLQTY = new int88[](2);
         deltaVoteLQTY[0] = 5e17;
         deltaVoteLQTY[1] = 5e17;
-        int176[] memory deltaVetoLQTY = new int176[](2);
+        int88[] memory deltaVetoLQTY = new int88[](2);
 
         /// === Allocate LQTY REVERTS === ///
         uint256 allocateSnapshot = vm.snapshot();
@@ -208,11 +208,11 @@ contract GovernanceTest is Test {
         initiatives[0] = address(maliciousInitiative2);
         initiatives[1] = address(eoaInitiative);
         initiatives[2] = address(maliciousInitiative1);
-        deltaVoteLQTY = new int176[](3);
+        deltaVoteLQTY = new int88[](3);
         deltaVoteLQTY[0] = -5e17;
         deltaVoteLQTY[1] = -5e17;
         deltaVoteLQTY[2] = 5e17;
-        deltaVetoLQTY = new int176[](3);
+        deltaVetoLQTY = new int88[](3);
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
 
         (Governance.VoteSnapshot memory v, Governance.InitiativeVoteSnapshot memory initData) = governance.snapshotVotesForInitiative(address(maliciousInitiative2));
@@ -222,7 +222,7 @@ contract GovernanceTest is Test {
         // Inactive for 4 epochs
         // Add another proposal
 
-        vm.warp(block.timestamp + governance.EPOCH_DURATION() * 4);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION() * 5); /// @audit needs 5?
         (v, initData) = governance.snapshotVotesForInitiative(address(maliciousInitiative2));
         assertEq(initData.lastCountedEpoch, currentEpoch - 1, "Epoch Matches"); /// @audit This fails if you have 0 votes, see QA
 
