@@ -346,6 +346,51 @@ contract BribeInitiativeTest is Test {
         assertEq(totalLQTYAllocated, 0);
     }
 
+    // forge test --match-test test_rationalFlow -vv
+    function test_rationalFlow() public {
+        vm.warp(block.timestamp + (EPOCH_DURATION)); // Initiative not active
+
+        // We are now at epoch
+
+        // Deposit
+        _stakeLQTY(user1, 1e18);
+
+        // Deposit Bribe for now
+        _allocateLQTY(user1, 5e17, 0); /// @audit Allocate b4 or after bribe should be irrelevant
+
+        /// @audit WTF
+        _depositBribe(1e18, 1e18, governance.epoch() + 1); /// @audit IMO this should also work
+
+        _allocateLQTY(user1, 5e17, 0); /// @audit Allocate b4 or after bribe should be irrelevant
+
+        // deposit bribe for Epoch + 2
+        _depositBribe(1e18, 1e18, governance.epoch() + 2);
+        
+
+        (uint88 totalLQTYAllocated,) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated,) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated, 1e18, "total allocation");
+        assertEq(userLQTYAllocated, 1e18, "user allocation");
+
+        vm.warp(block.timestamp + (EPOCH_DURATION));
+        // We are now at epoch + 1 // Should be able to claim epoch - 1
+
+        // user should receive bribe from their allocated stake
+        (uint256 boldAmount, uint256 bribeTokenAmount) = _claimBribe(user1, governance.epoch(), governance.epoch() - 1, governance.epoch() - 1);
+        assertEq(boldAmount, 1e18, "bold amount");
+        assertEq(bribeTokenAmount, 1e18, "bribe amount");
+
+        // decrease user allocation for the initiative
+        _allocateLQTY(user1, -1e18, 0);
+
+        (userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(userLQTYAllocated, 0, "total allocation");
+        assertEq(totalLQTYAllocated, 0, "user allocation");
+    }
+
     /** 
         Revert Cases
     */
