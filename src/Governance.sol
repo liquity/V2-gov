@@ -485,16 +485,16 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 
             // try IInitiative(initiative).onAfterAllocateLQTY(
-            //     currentEpoch, msg.sender, allocation.voteLQTY, allocation.vetoLQTY
+            //     currentEpoch, msg.sender, userState, allocation, initiativeState
             // ) {} catch {}
             // Replaces try / catch | Enforces sufficient gas is passed
-            safeCallWithMinGas(initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onAfterAllocateLQTY, (currentEpoch, msg.sender, allocation.voteLQTY, allocation.vetoLQTY)));
+            safeCallWithMinGas(initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onAfterAllocateLQTY, (currentEpoch, msg.sender, userState, allocation, initiativeState)));
         }
 
         require(
             userState.allocatedLQTY == 0
                 || userState.allocatedLQTY <= uint88(stakingV1.stakes(deriveUserProxyAddress(msg.sender))),
-            "Governance: insufficient-or-unallocated-lqty"
+            "Governance: insufficient-or-allocated-lqty"
         );
 
         globalState = state;

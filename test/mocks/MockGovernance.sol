@@ -15,4 +15,17 @@ contract MockGovernance {
     function epoch() external view returns (uint16) {
         return __epoch;
     }
+
+    function _averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) internal pure returns (uint32) {
+        if (_averageTimestamp == 0 || _currentTimestamp < _averageTimestamp) return 0;
+        return _currentTimestamp - _averageTimestamp;
+    }
+
+    function lqtyToVotes(uint88 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp)
+        public
+        pure
+        returns (uint240)
+    {
+        return uint240(_lqtyAmount) * _averageAge(uint32(_currentTimestamp), _averageTimestamp);
+    }
 }
