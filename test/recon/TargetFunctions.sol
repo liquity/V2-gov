@@ -7,7 +7,6 @@ import {vm} from "@chimera/Hevm.sol";
 import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 
 import {console2} from "forge-std/Test.sol";
-import {BeforeAfter} from "./BeforeAfter.sol";
 import {Properties} from "./Properties.sol";
 import {MaliciousInitiative} from "../mocks/MaliciousInitiative.sol";
 import {ILQTYStaking} from "../../src/interfaces/ILQTYStaking.sol";
@@ -16,10 +15,10 @@ import {IUserProxy} from "../../src/interfaces/IUserProxy.sol";
 import {PermitParams} from "../../src/utils/Types.sol";
 
 
-abstract contract TargetFunctions is BaseTargetFunctions, Properties, BeforeAfter {
+abstract contract TargetFunctions is BaseTargetFunctions, Properties {
 
     // clamps to a single initiative to ensure coverage in case both haven't been registered yet
-    function governance_allocateLQTY_clamped_single_initiative(uint8 initiativesIndex, uint96 deltaLQTYVotes, uint96 deltaLQTYVetos) public {
+    function governance_allocateLQTY_clamped_single_initiative(uint8 initiativesIndex, uint96 deltaLQTYVotes, uint96 deltaLQTYVetos) withChecks public {
         // clamp using the user's staked balance
         uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked();
         
@@ -33,30 +32,30 @@ abstract contract TargetFunctions is BaseTargetFunctions, Properties, BeforeAfte
         governance.allocateLQTY(initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
     }
 
-    function governance_allocateLQTY(int88[] calldata _deltaLQTYVotes, int88[] calldata _deltaLQTYVetos) public {
+    function governance_allocateLQTY(int88[] calldata _deltaLQTYVotes, int88[] calldata _deltaLQTYVetos) withChecks public {
         governance.allocateLQTY(deployedInitiatives, _deltaLQTYVotes, _deltaLQTYVetos);
     }
 
-    function governance_claimForInitiative(uint8 initiativeIndex) public {
+    function governance_claimForInitiative(uint8 initiativeIndex) withChecks public {
         address initiative = _getDeployedInitiative(initiativeIndex);
         governance.claimForInitiative(initiative);
     }
 
-    function governance_claimFromStakingV1(uint8 recipientIndex) public {
+    function governance_claimFromStakingV1(uint8 recipientIndex) withChecks public {
         address rewardRecipient = _getRandomUser(recipientIndex);
         governance.claimFromStakingV1(rewardRecipient);
     }
 
-    function governance_deployUserProxy() public {
+    function governance_deployUserProxy() withChecks public {
         governance.deployUserProxy();
     }
 
-    function governance_depositLQTY(uint88 lqtyAmount) public {
+    function governance_depositLQTY(uint88 lqtyAmount) withChecks public {
         lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
         governance.depositLQTY(lqtyAmount);
     }
 
-    function governance_depositLQTYViaPermit(uint88 _lqtyAmount) public {
+    function governance_depositLQTYViaPermit(uint88 _lqtyAmount) withChecks public {
          // Get the current block timestamp for the deadline
         uint256 deadline = block.timestamp + 1 hours;
 
@@ -97,32 +96,32 @@ abstract contract TargetFunctions is BaseTargetFunctions, Properties, BeforeAfte
         governance.depositLQTYViaPermit(_lqtyAmount, permitParams);
     }
 
-    function governance_registerInitiative(uint8 initiativeIndex) public {
+    function governance_registerInitiative(uint8 initiativeIndex) withChecks public {
         address initiative = _getDeployedInitiative(initiativeIndex);
         governance.registerInitiative(initiative);
     }
 
-    function governance_snapshotVotesForInitiative(address _initiative) public {
+    function governance_snapshotVotesForInitiative(address _initiative) withChecks public {
         governance.snapshotVotesForInitiative(_initiative);
     }
 
-    function governance_unregisterInitiative(uint8 initiativeIndex) public {
+    function governance_unregisterInitiative(uint8 initiativeIndex) withChecks public {
         address initiative = _getDeployedInitiative(initiativeIndex);
         governance.unregisterInitiative(initiative);
     }
 
-    function governance_withdrawLQTY(uint88 _lqtyAmount) public {
+    function governance_withdrawLQTY(uint88 _lqtyAmount) withChecks public {
         governance.withdrawLQTY(_lqtyAmount);
     }
 
     // helper to deploy initiatives for registering that results in more bold transferred to the Governance contract
-    function governance_deployInitiative() public {
+    function governance_deployInitiative() withChecks public {
         address initiative = address(new MaliciousInitiative());
         deployedInitiatives.push(initiative);
     }
 
     // helper to simulate bold accrual in Governance contract
-    function governance_accrueBold(uint88 boldAmount) public {
+    function governance_accrueBold(uint88 boldAmount) withChecks public {
         boldAmount = uint88(boldAmount % lusd.balanceOf(user));
         lusd.transfer(address(governance), boldAmount); // target contract is the user so it can transfer directly
     }
