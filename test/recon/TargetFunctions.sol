@@ -34,7 +34,15 @@ abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties, Befo
             prevTotalLQTYAllocationEpoch: prevTotalAllocationEpoch
         });
 
+        bool alreadyClaimed = initiative.claimedBribeAtEpoch(user, epoch);
+
         initiative.claimBribes(claimData);
+
+        // check if the bribe was already claimed at the given epoch
+        if(alreadyClaimed) {
+            // toggle canary that breaks the BI-02 property
+            claimedTwice = true;
+        }
     }
 
     // NOTE: governance function for setting allocations that's needed to test claims

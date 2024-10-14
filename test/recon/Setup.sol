@@ -16,6 +16,7 @@ abstract contract Setup is BaseSetup {
   IBribeInitiative internal initiative;
 
   address internal user = address(this);
+  bool internal claimedTwice;
 
   function setup() internal virtual override {
       uint256 initialMintAmount = type(uint88).max;
