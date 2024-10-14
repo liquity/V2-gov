@@ -6,10 +6,14 @@ import {BaseSetup} from "@chimera/BaseSetup.sol";
 
 import {BribeInitiative} from "../../src/BribeInitiative.sol";
 import {IBribeInitiative} from "../../src/interfaces/IBribeInitiative.sol";
+import {DoubleLinkedList} from "../../src/utils/DoubleLinkedList.sol";
 import {MockGovernance} from "../mocks/MockGovernance.sol";
 import {MockERC20Tester} from "../mocks/MockERC20Tester.sol";
 
+
 abstract contract Setup is BaseSetup {
+  using DoubleLinkedList for DoubleLinkedList.List;
+  
   MockGovernance internal governance;
   MockERC20Tester internal lqty;
   MockERC20Tester internal lusd;
@@ -17,6 +21,8 @@ abstract contract Setup is BaseSetup {
 
   address internal user = address(this);
   bool internal claimedTwice;
+  mapping(address => DoubleLinkedList.List) internal ghostLqtyAllocationByUserAtEpoch;
+  
 
   function setup() internal virtual override {
       uint256 initialMintAmount = type(uint88).max;

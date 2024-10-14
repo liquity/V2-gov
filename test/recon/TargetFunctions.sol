@@ -8,11 +8,14 @@ import {vm} from "@chimera/Hevm.sol";
 
 import {IInitiative} from "../../src/interfaces/IInitiative.sol";
 import {IBribeInitiative} from "../../src/interfaces/IBribeInitiative.sol";
+import {DoubleLinkedList} from "../../src/utils/DoubleLinkedList.sol";
 import {BeforeAfter} from "./BeforeAfter.sol";
 import {Properties} from "./Properties.sol";
 
 
 abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties, BeforeAfter {
+    using DoubleLinkedList for DoubleLinkedList.List;
+
     function initiative_depositBribe(uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch) public {
         // clamp token amounts using user balance
         boldAmount = uint128(boldAmount % lusd.balanceOf(user));
@@ -59,6 +62,23 @@ abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties, Befo
         
         vm.prank(address(governance));
         IInitiative(address(initiative)).onAfterAllocateLQTY(currentEpoch, user, voteLQTY, vetoLQTY);
+
+        // summing lqty allocations over all epochs
+        // @audit this doesn't account for double allocations in the same epoch
+        // lqtyAllocationByUserAccumulator += initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
+
+        // if the call was successful, update the ghost tracking variables for user allocations
+        if(vote) {
+            // user allocation only increases if the user voted, no allocation increase for vetoing
+            // read value from storage
+            uint16 mostRecentUserEpoch = ghostLqtyAllocationByUserAtEpoch[user].getHead();
+
+            if(mostRecentUserEpoch != currentEpoch) {
+                ghostLqtyAllocationByUserAtEpoch[user].insert(currentEpoch, voteLQTY, 0);
+            } else {
+                ghostLqtyAllocationByUserAtEpoch[user].items[currentEpoch].value = voteLQTY;
+            }
+        }
     }
 
     // allows the fuzzer to change the governance epoch for more realistic testing
