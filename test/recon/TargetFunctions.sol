@@ -63,10 +63,6 @@ abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties, Befo
         vm.prank(address(governance));
         IInitiative(address(initiative)).onAfterAllocateLQTY(currentEpoch, user, voteLQTY, vetoLQTY);
 
-        // summing lqty allocations over all epochs
-        // @audit this doesn't account for double allocations in the same epoch
-        // lqtyAllocationByUserAccumulator += initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
-
         // if the call was successful, update the ghost tracking variables for user allocations
         if(vote) {
             // user allocation only increases if the user voted, no allocation increase for vetoing
@@ -79,6 +75,9 @@ abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties, Befo
                 ghostLqtyAllocationByUserAtEpoch[user].items[currentEpoch].value = voteLQTY;
             }
         }
+        
+        // only have one user so just need to acccumulate for them
+        ghostTotalAllocationAtEpoch[currentEpoch] += initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
     }
 
     // allows the fuzzer to change the governance epoch for more realistic testing

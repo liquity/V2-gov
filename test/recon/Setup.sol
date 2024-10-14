@@ -13,7 +13,7 @@ import {MockERC20Tester} from "../mocks/MockERC20Tester.sol";
 
 abstract contract Setup is BaseSetup {
   using DoubleLinkedList for DoubleLinkedList.List;
-  
+
   MockGovernance internal governance;
   MockERC20Tester internal lqty;
   MockERC20Tester internal lusd;
@@ -21,6 +21,8 @@ abstract contract Setup is BaseSetup {
 
   address internal user = address(this);
   bool internal claimedTwice;
+
+  mapping(uint16 => uint88) internal ghostTotalAllocationAtEpoch;
   mapping(address => DoubleLinkedList.List) internal ghostLqtyAllocationByUserAtEpoch;
   
 

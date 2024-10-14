@@ -16,4 +16,10 @@ abstract contract Properties is Setup, Asserts {
         uint88 lqtyAllocatedByUserAtEpoch = initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
         eq(ghostLqtyAllocationByUserAtEpoch[user].items[currentEpoch].value, lqtyAllocatedByUserAtEpoch, "BI-03: Accounting for user allocation amount is always correct");
     }
+
+    function property_BI04() public {
+        uint16 currentEpoch = governance.epoch();
+        uint88 totalLQTYAllocatedAtEpoch = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
+        eq(ghostTotalAllocationAtEpoch[currentEpoch], totalLQTYAllocatedAtEpoch, "BI-04: Accounting for total allocation amount is always correct");
+    }
 }
