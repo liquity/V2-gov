@@ -49,6 +49,7 @@ abstract contract Properties is BeforeAfter {
         eq(ghostTotalAllocationAtEpoch[currentEpoch], totalLQTYAllocatedAtEpoch, "BI-04: Accounting for total allocation amount is always correct");
     }
 
+    // TODO: double check that this implementation is correct
     function property_BI05() public {
         uint16 currentEpoch = governance.epoch();
         // if the bool switches, the user has claimed their bribe for the epoch
