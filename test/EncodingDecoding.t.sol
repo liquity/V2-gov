@@ -34,7 +34,7 @@ contract EncodingDecodingTest is Test {
     
     
     /// We expect this test to fail as the encoding is ambigous past u120
-    function test_fail_encoding_not_equal_reproducer() public {
+    function testFail_encoding_not_equal_reproducer() public {
         _receive_undo_compare(18371677541005923091065047412368542483005086202);
     }
 
