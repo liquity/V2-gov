@@ -36,7 +36,7 @@ contract UserProxy is IUserProxy {
 
     /// @inheritdoc IUserProxy
     function stake(uint256 _amount, address _lqtyFrom) public onlyStakingV2 {
-        lqty.transferFrom(_lqtyFrom, address(this), _amount);
+        lqty.safeTransferFrom(_lqtyFrom, address(this), _amount);
         lqty.approve(address(stakingV1), _amount);
         stakingV1.stake(_amount);
         emit Stake(_amount, _lqtyFrom);
@@ -75,7 +75,7 @@ contract UserProxy is IUserProxy {
         ethAmount = address(this).balance;
         if (ethAmount > 0) {
             (bool success,) = payable(_lusdEthRecipient).call{value: ethAmount}("");
-            success;
+            require(success, "UserProxy: eth-fail");
         }
 
         emit Unstake(_amount, _lqtyRecipient, _lusdEthRecipient, lusdAmount, ethAmount);
