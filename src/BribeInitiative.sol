@@ -56,8 +56,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     /// @inheritdoc IBribeInitiative
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external {
-        bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
-        bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
 
         uint16 epoch = governance.epoch();
         require(_epoch > epoch, "BribeInitiative: only-future-epochs");
@@ -68,6 +66,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         bribeByEpoch[_epoch] = bribe;
 
         emit DepositBribe(msg.sender, _boldAmount, _bribeTokenAmount, _epoch);
+
+        bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
+        bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
     }
 
     function _claimBribe(
