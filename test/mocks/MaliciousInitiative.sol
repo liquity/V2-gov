@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 import {IInitiative} from "src/interfaces/IInitiative.sol";
+import {IGovernance} from "src/interfaces/IGovernance.sol";
 
 contract MaliciousInitiative is IInitiative {
 
@@ -37,7 +38,7 @@ contract MaliciousInitiative is IInitiative {
     }
 
 
-    function onAfterAllocateLQTY(uint16 _currentEpoch, address _user, uint88 _voteLQTY, uint88 _vetoLQTY) external override {
+    function onAfterAllocateLQTY(uint16 _currentEpoch, address _user, IGovernance.UserState calldata _userState, IGovernance.Allocation calldata _allocation, IGovernance.InitiativeState calldata _initiativeState) external override {
         _performRevertBehaviour(revertBehaviours[FunctionType.ALLOCATE]);
     }
 
