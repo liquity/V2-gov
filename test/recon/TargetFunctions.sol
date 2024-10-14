@@ -9,14 +9,13 @@ import {vm} from "@chimera/Hevm.sol";
 import {IInitiative} from "../../src/interfaces/IInitiative.sol";
 import {IBribeInitiative} from "../../src/interfaces/IBribeInitiative.sol";
 import {DoubleLinkedList} from "../../src/utils/DoubleLinkedList.sol";
-import {BeforeAfter} from "./BeforeAfter.sol";
 import {Properties} from "./Properties.sol";
 
 
-abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties, BeforeAfter {
+abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties {
     using DoubleLinkedList for DoubleLinkedList.List;
 
-    function initiative_depositBribe(uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch) public {
+    function initiative_depositBribe(uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch) withChecks public {
         // clamp token amounts using user balance
         boldAmount = uint128(boldAmount % lusd.balanceOf(user));
         bribeTokenAmount = uint128(bribeTokenAmount % lqty.balanceOf(user));
@@ -24,7 +23,7 @@ abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties, Befo
         initiative.depositBribe(boldAmount, bribeTokenAmount, epoch);
     }
 
-    function initiative_claimBribes(uint16 epoch, uint16 prevAllocationEpoch, uint16 prevTotalAllocationEpoch) public {        
+    function initiative_claimBribes(uint16 epoch, uint16 prevAllocationEpoch, uint16 prevTotalAllocationEpoch) withChecks public {        
         // clamp epochs by using the current governance epoch
         epoch = epoch % governance.epoch();
         prevAllocationEpoch = prevAllocationEpoch % governance.epoch();
@@ -49,7 +48,7 @@ abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties, Befo
     }
 
     // NOTE: governance function for setting allocations that's needed to test claims
-    function initiative_onAfterAllocateLQTY(bool vote, uint88 voteLQTY, uint88 vetoLQTY) public {
+    function initiative_onAfterAllocateLQTY(bool vote, uint88 voteLQTY, uint88 vetoLQTY) withChecks public {
         uint16 currentEpoch = governance.epoch();
         // use this bool to replicate user decision to vote or veto so that fuzzer doesn't do both since this is blocked by governance
         if(vote) {
@@ -75,7 +74,7 @@ abstract contract TargetFunctions is Test, BaseTargetFunctions, Properties, Befo
                 ghostLqtyAllocationByUserAtEpoch[user].items[currentEpoch].value = voteLQTY;
             }
         }
-        
+
         // only have one user so just need to acccumulate for them
         ghostTotalAllocationAtEpoch[currentEpoch] += initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
     }
