@@ -29,7 +29,7 @@ contract EncodingDecodingTest is Test {
         (uint88 decodedLqty, uint32 decodedAverageTimestamp) = EncodingDecoding.decodeLQTYAllocation(encodedValue);
 
         uint224 encodedValue2 = EncodingDecoding.encodeLQTYAllocation(decodedLqty, decodedAverageTimestamp);
-        (uint88 decodedLqty2, uint32 decodedAverageTimestamp2) = EncodingDecoding.decodeLQTYAllocation(encodedValue);
+        (uint88 decodedLqty2, uint32 decodedAverageTimestamp2) = EncodingDecoding.decodeLQTYAllocation(encodedValue2);
 
         assertEq(encodedValue, encodedValue2, "encoded values not equal");
         assertEq(decodedLqty, decodedLqty2, "decoded lqty not equal");
