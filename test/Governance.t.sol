@@ -356,7 +356,7 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestamp, block.timestamp);
     }
 
-     function test_depositLQTYViaPermit_withdrawLQTY() public {
+    function test_depositLQTYViaPermit_withdrawLQTY() public {
         uint256 timeIncrease = 86400 * 30;
         vm.warp(block.timestamp + timeIncrease);
 
@@ -474,6 +474,23 @@ contract GovernanceTest is Test {
         assertEq(governance.epochStart(), block.timestamp);
         vm.warp(block.timestamp + 1);
         assertEq(governance.epochStart(), block.timestamp - 1);
+    }
+
+    function test_epochStart_other_epochs() public {
+        // check that initial epoch timestamp is correct
+        assertEq(governance.epochStart(), block.timestamp, "first epoch start check is incorrect");
+
+        // warp to the next epoch
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
+        // block.timestamp  +   EPOCH_DURATION      EPOCH_DURATION      block.timestamp  +   EPOCH_DURATION
+        //                                      |      epoch 1       |
+        uint32 initialEpochStart = governance.epochStart();
+        assertEq(initialEpochStart, block.timestamp, "second epoch start check is incorrect"); // block.timestamp is currently at the start of epoch 1
+
+        // warp to the end of this epoch
+        vm.warp(block.timestamp + governance.EPOCH_DURATION() - 1);
+        assertEq(governance.epochStart(), initialEpochStart, "third epoch start check is incorrect"); // block.timestamp is currently at the start of epoch 1
     }
 
     // should not revert under any block.timestamp >= EPOCH_START
