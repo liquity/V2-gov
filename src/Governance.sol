@@ -592,8 +592,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (InitiativeStatus status, , )= getInitiativeState(_initiative);
         require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
 
-        /// @audit TODO: Verify that the FSM here is correct
-
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
         state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
             state.countedVoteLQTYAverageTimestamp,
@@ -616,8 +614,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     function claimForInitiative(address _initiative) external nonReentrant returns (uint256) {
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
-        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState_) = _snapshotVotesForInitiative(_initiative);
-
         (InitiativeStatus status, , uint256 claimableAmount ) = getInitiativeState(_initiative);
 
         /// INVARIANT:
@@ -635,7 +631,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         /// Invariant `lastEpochClaim` is < epoch() - 1; | 
         /// If `lastEpochClaim` is older than epoch() - 1 it means the initiative couldn't claim any rewards this epoch
         initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
-        votesForInitiativeSnapshot[_initiative] = votesForInitiativeSnapshot_; // implicitly prevents double claiming
 
         bold.safeTransfer(_initiative, claimableAmount);
 

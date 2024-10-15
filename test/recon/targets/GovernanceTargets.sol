@@ -54,6 +54,24 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         governance.claimForInitiative(initiative);
     }
 
+    function governance_claimForInitiativeFuzzTest(uint8 initiativeIndex) withChecks public {
+        address initiative = _getDeployedInitiative(initiativeIndex);
+
+        // TODO Use view functions to get initiative and snapshot data
+        // Pass those and verify the claim amt matches received
+        // Check if we can claim
+
+        // TODO: Check FSM as well, the initiative can be CLAIMABLE
+        // And must become CLAIMED right after
+
+
+        uint256 received = governance.claimForInitiative(initiative);
+        uint256 secondReceived = governance.claimForInitiative(initiative);
+        if(received != 0) {
+            eq(secondReceived, 0, "Cannot claim twice");
+        }
+    }
+
     function governance_claimFromStakingV1(uint8 recipientIndex) withChecks public {
         address rewardRecipient = _getRandomUser(recipientIndex);
         governance.claimFromStakingV1(rewardRecipient);
