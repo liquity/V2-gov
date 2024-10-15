@@ -4,9 +4,9 @@ pragma solidity ^0.8.0;
 
 import {Asserts} from "@chimera/Asserts.sol";
 import {Setup} from "./Setup.sol";
-import {IGovernance} from "../../src/interfaces/IGovernance.sol";
-import {IBribeInitiative} from "../../src/interfaces/IBribeInitiative.sol";
-import {Governance} from "../../src/Governance.sol";
+import {IGovernance} from "src/interfaces/IGovernance.sol";
+import {IBribeInitiative} from "src/interfaces/IBribeInitiative.sol";
+import {Governance} from "src/Governance.sol";
 
 
 abstract contract BeforeAfter is Setup, Asserts {
