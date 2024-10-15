@@ -1368,6 +1368,42 @@ contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
+    function test_allocateLQTY_to_unregistered_initiative() public {
+        vm.startPrank(user);
+
+        address userProxy = governance.deployUserProxy();
+
+        lqty.approve(address(userProxy), 1e18);
+        governance.depositLQTY(1e18);
+
+        (uint88 allocatedLQTY, uint32 averageStakingTimestampUser) = governance
+            .userStates(user);
+        assertEq(allocatedLQTY, 0);
+        (uint88 countedVoteLQTY, ) = governance.globalState();
+        assertEq(countedVoteLQTY, 0);
+
+        address baseInitiative4 = address(
+            new BribeInitiative(
+                address(governance),
+                address(lusd),
+                address(lqty)
+            )
+        );
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = baseInitiative4;
+        int88[] memory deltaLQTYVotes = new int88[](1);
+        deltaLQTYVotes[0] = 1e18; //this should be 0
+        int88[] memory deltaLQTYVetos = new int88[](1);
+
+        vm.warp(block.timestamp + 365 days);
+        vm.expectRevert("Governance: initiative-not-active");
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+        (allocatedLQTY, ) = governance.userStates(user);
+        assertEq(allocatedLQTY, 0);
+    }
+
     function test_allocateLQTY_multiple() public {
         vm.startPrank(user);
 
