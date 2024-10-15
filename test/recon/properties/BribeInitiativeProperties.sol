@@ -26,8 +26,8 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
                 uint88 lusdPercentageOfBribe88 = uint88(lusdPercentageOfBribe >> 40);
 
                 // calculate user allocation percentage of total for this epoch
-                uint88 lqtyAllocatedByUserAtEpoch = IBribeInitiative(initiative).lqtyAllocatedByUserAtEpoch(user, currentEpoch);
-                uint88 totalLQTYAllocatedAtEpoch = IBribeInitiative(initiative).totalLQTYAllocatedByEpoch(currentEpoch);
+                (uint88 lqtyAllocatedByUserAtEpoch, ) = IBribeInitiative(initiative).lqtyAllocatedByUserAtEpoch(user, currentEpoch);
+                (uint88 totalLQTYAllocatedAtEpoch, ) = IBribeInitiative(initiative).totalLQTYAllocatedByEpoch(currentEpoch);
                 uint88 allocationPercentageOfTotal = (lqtyAllocatedByUserAtEpoch / totalLQTYAllocatedAtEpoch) * 10_000;
 
                 // check that allocation percentage and received bribe percentage match
@@ -45,7 +45,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         uint16 currentEpoch = governance.epoch();
         for(uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
-            uint88 lqtyAllocatedByUserAtEpoch = initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
+            (uint88 lqtyAllocatedByUserAtEpoch, ) = initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
             eq(ghostLqtyAllocationByUserAtEpoch[user], lqtyAllocatedByUserAtEpoch, "BI-03: Accounting for user allocation amount is always correct");
         }
     }
@@ -54,7 +54,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         uint16 currentEpoch = governance.epoch();
         for(uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
-            uint88 totalLQTYAllocatedAtEpoch = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
+            (uint88 totalLQTYAllocatedAtEpoch, ) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
             eq(ghostTotalAllocationAtEpoch[currentEpoch], totalLQTYAllocatedAtEpoch, "BI-04: Accounting for total allocation amount is always correct");
         }
     }
