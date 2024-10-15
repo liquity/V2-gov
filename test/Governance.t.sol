@@ -1373,9 +1373,11 @@ contract GovernanceTest is Test {
             )
         );
         (votes_, forEpoch_, lastCountedEpoch, ) = governance.votesForInitiativeSnapshot(address(mockInitiative));
-        assertEq(votes_, 0);
-        assertEq(forEpoch_, governance.epoch() - 1);
-        assertEq(lastCountedEpoch, 0);
+        assertEq(votes_, 0, "votes");
+        assertEq(forEpoch_, governance.epoch() - 1, "forEpoch_");
+        assertEq(lastCountedEpoch, 0, "lastCountedEpoch");
+
+        vm.warp(block.timestamp + governance.EPOCH_DURATION() * 4);
 
         governance.unregisterInitiative(address(mockInitiative));
     }
