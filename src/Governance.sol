@@ -513,7 +513,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // update the average staking timestamp for all counted voting LQTY
             state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
                 state.countedVoteLQTYAverageTimestamp,
-                initiativeState.averageStakingTimestampVoteLQTY,
+                prevInitiativeState.averageStakingTimestampVoteLQTY, /// @audit TODO Write tests that fail from this bug
                 state.countedVoteLQTY,
                 state.countedVoteLQTY - prevInitiativeState.voteLQTY
             );
