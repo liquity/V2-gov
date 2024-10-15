@@ -444,7 +444,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
 
         require(_initiative != address(0), "Governance: zero-address");
-        require(registeredInitiatives[_initiative] == 0, "Governance: initiative-already-registered");
+        (InitiativeStatus status, ,) = getInitiativeState(_initiative);
+        require(status == InitiativeStatus.NONEXISTENT, "Governance: initiative-already-registered");
 
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
         (VoteSnapshot memory snapshot,) = _snapshotVotes();
@@ -495,14 +496,20 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsWithinEpoch() <= EPOCH_VOTING_CUTOFF,
                 "Governance: epoch-voting-cutoff"
             );
+
+            (InitiativeStatus status, ,) = getInitiativeState(initiative);
             
             {
                 uint16 registeredAtEpoch = registeredInitiatives[initiative];
                 if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
+
                     require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
+                    /// @audit Experimental FSM based check | This one is slightly clearer
+                    require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED  || status == InitiativeStatus.UNREGISTERABLE, "Governance: Vote FSM");
+
                 }
                 
-                if(registeredAtEpoch == UNREGISTERED_INITIATIVE) {
+                if(status == InitiativeStatus.DISABLED) {
                     require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
                 }
             }
@@ -596,7 +603,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         /// Invariant: Must only claim once or unregister
         require(initiativeState.lastEpochClaim < epoch() - 1);
-        
+        /// @audit Can remove a bunch of stuff
         (InitiativeStatus status, , )= getInitiativeState(_initiative);
         require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
 
