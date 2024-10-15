@@ -61,7 +61,7 @@ contract UserProxy is IUserProxy {
     }
 
     /// @inheritdoc IUserProxy
-    function unstake(uint256 _amount, address _lqtyRecipient, address _lusdEthRecipient)
+    function unstake(uint256 _amount, address _recipient)
         public
         onlyStakingV2
         returns (uint256 lusdAmount, uint256 ethAmount)
@@ -69,16 +69,16 @@ contract UserProxy is IUserProxy {
         stakingV1.unstake(_amount);
 
         uint256 lqtyAmount = lqty.balanceOf(address(this));
-        if (lqtyAmount > 0) lqty.safeTransfer(_lqtyRecipient, lqtyAmount);
+        if (lqtyAmount > 0) lqty.safeTransfer(_recipient, lqtyAmount);
         lusdAmount = lusd.balanceOf(address(this));
-        if (lusdAmount > 0) lusd.safeTransfer(_lusdEthRecipient, lusdAmount);
+        if (lusdAmount > 0) lusd.safeTransfer(_recipient, lusdAmount);
         ethAmount = address(this).balance;
         if (ethAmount > 0) {
-            (bool success,) = payable(_lusdEthRecipient).call{value: ethAmount}("");
+            (bool success,) = payable(_recipient).call{value: ethAmount}("");
             require(success, "UserProxy: eth-fail");
         }
 
-        emit Unstake(_amount, _lqtyRecipient, _lusdEthRecipient, lusdAmount, ethAmount);
+        emit Unstake(_amount, _recipient, lusdAmount, ethAmount);
     }
 
     /// @inheritdoc IUserProxy
