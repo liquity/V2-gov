@@ -474,18 +474,18 @@ contract GovernanceTest is Test {
         uint88 lqtyAmount = 1e18;
         _stakeLQTY(user, lqtyAmount);
 
-        // 2. user allocates for an epoch
+        // 2. user allocates in epoch 1 for initiative to be active
         vm.warp(block.timestamp + EPOCH_DURATION); // warp to first epoch
 
         _allocateLQTY(user, lqtyAmount);
 
-        // warp to second epoch and snapshot
+        // 3. warp to second epoch and snapshot
         vm.warp(block.timestamp + EPOCH_DURATION);
         governance.snapshotVotesForInitiative(baseInitiative1);
 
         (uint120 votes, uint16 forEpoch) = governance.votesSnapshot();
-        // assertEq(votes, 1e18, "votes");
-        // assertEq(forEpoch, 1, "for epoch");
+        assertGt(votes, 0, "no votes allocated for the epoch");
+        assertEq(2, forEpoch, "expected forEpoch is incorrect");
 
         uint256 boldAccrued = 1000e18;
         vm.store(
