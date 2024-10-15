@@ -11,6 +11,8 @@ import {MockERC20Tester} from "../mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "../mocks/MockStakingV1.sol";
 import {MaliciousInitiative} from "../mocks/MaliciousInitiative.sol";
 import {Governance} from "src/Governance.sol";
+import {BribeInitiative} from "../../src/BribeInitiative.sol";
+import {IBribeInitiative} from "../../src/interfaces/IBribeInitiative.sol";
 import {IGovernance} from "src/interfaces/IGovernance.sol";
 import {IInitiative} from "src/interfaces/IInitiative.sol";
 
@@ -18,16 +20,19 @@ abstract contract Setup is BaseSetup {
     Governance governance;
     MockERC20Tester internal lqty;
     MockERC20Tester internal lusd;
-    IInitiative internal initiative1;
+    IBribeInitiative internal initiative1;
 
     address internal user = address(this);
-    // derived using makeAddrAndKey
-    address internal user2 = address(0x537C8f3d3E18dF5517a58B3fB9D9143697996802);
-    address[] internal users = new address[](2); 
-    uint256 internal user2Pk = 23868421370328131711506074113045611601786642648093516849953535378706721142721; 
+    address internal user2 = address(0x537C8f3d3E18dF5517a58B3fB9D9143697996802); // derived using makeAddrAndKey
     address internal stakingV1;
     address internal userProxy;
+    address[] internal users = new address[](2); 
     address[] internal deployedInitiatives;
+    uint256 internal user2Pk = 23868421370328131711506074113045611601786642648093516849953535378706721142721; // derived using makeAddrAndKey
+    bool internal claimedTwice;
+    
+    mapping(uint16 => uint88) internal ghostTotalAllocationAtEpoch;
+    mapping(address => uint88) internal ghostLqtyAllocationByUserAtEpoch;
 
     uint128 internal constant REGISTRATION_FEE = 1e18;
     uint128 internal constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
@@ -82,7 +87,7 @@ abstract contract Setup is BaseSetup {
       lusd.approve(address(governance), initialMintAmount);
 
       // register one of the initiatives, leave the other for registering/unregistering via TargetFunction
-      initiative1 = IInitiative(address(new MaliciousInitiative()));
+      initiative1 = IBribeInitiative(address(new BribeInitiative(address(governance), address(lusd), address(lqty))));
       deployedInitiatives.push(address(initiative1));
 
       governance.registerInitiative(address(initiative1));
