@@ -496,16 +496,18 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsWithinEpoch() <= EPOCH_VOTING_CUTOFF,
                 "Governance: epoch-voting-cutoff"
             );
-
-            (InitiativeStatus status, ,) = getInitiativeState(initiative);
             
+            // Check FSM
+            // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states
+            // Force to remove votes if disabled
+            // Can remove votes and vetos in every stage
             {
+                (InitiativeStatus status, ,) = getInitiativeState(initiative);
+
                 uint16 registeredAtEpoch = registeredInitiatives[initiative];
                 if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
-
-                    require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
-                    /// @audit Experimental FSM based check | This one is slightly clearer
-                    require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED  || status == InitiativeStatus.UNREGISTERABLE, "Governance: Vote FSM");
+                    /// @audit FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives - Prob should fix
+                    require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED  || status == InitiativeStatus.UNREGISTERABLE, "Governance: active-vote-fsm");
 
                 }
                 
@@ -604,7 +606,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         /// Invariant: Must only claim once or unregister
         require(initiativeState.lastEpochClaim < epoch() - 1);
         /// @audit Can remove a bunch of stuff
-        (InitiativeStatus status, , )= getInitiativeState(_initiative);
+        (InitiativeStatus status, , ) = getInitiativeState(_initiative);
         require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
 
         /// @audit TODO: Verify that the FSM here is correct
