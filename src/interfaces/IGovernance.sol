@@ -9,16 +9,39 @@ import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
     event DepositLQTY(address user, uint256 depositedLQTY);
-    event WithdrawLQTY(address user, uint256 withdrawnLQTY, uint256 accruedLUSD, uint256 accruedETH);
+    event WithdrawLQTY(
+        address user,
+        uint256 withdrawnLQTY,
+        uint256 accruedLUSD,
+        uint256 accruedETH
+    );
 
     event SnapshotVotes(uint240 votes, uint16 forEpoch);
-    event SnapshotVotesForInitiative(address initiative, uint240 votes, uint16 forEpoch);
+    event SnapshotVotesForInitiative(
+        address initiative,
+        uint240 votes,
+        uint16 forEpoch
+    );
 
-    event RegisterInitiative(address initiative, address registrant, uint16 atEpoch);
+    event RegisterInitiative(
+        address initiative,
+        address registrant,
+        uint16 atEpoch
+    );
     event UnregisterInitiative(address initiative, uint16 atEpoch);
 
-    event AllocateLQTY(address user, address initiative, int256 deltaVoteLQTY, int256 deltaVetoLQTY, uint16 atEpoch);
-    event ClaimForInitiative(address initiative, uint256 bold, uint256 forEpoch);
+    event AllocateLQTY(
+        address user,
+        address initiative,
+        int256 deltaVoteLQTY,
+        int256 deltaVetoLQTY,
+        uint16 atEpoch
+    );
+    event ClaimForInitiative(
+        address initiative,
+        uint256 bold,
+        uint256 forEpoch
+    );
 
     struct Configuration {
         uint128 registrationFee;
@@ -51,7 +74,10 @@ interface IGovernance {
     function EPOCH_DURATION() external view returns (uint256 epochDuration);
     /// @notice Voting period of an epoch in seconds (e.g. 6 days)
     /// @return epochVotingCutoff Epoch voting cutoff
-    function EPOCH_VOTING_CUTOFF() external view returns (uint256 epochVotingCutoff);
+    function EPOCH_VOTING_CUTOFF()
+        external
+        view
+        returns (uint256 epochVotingCutoff);
     /// @notice Minimum BOLD amount that has to be claimed, if an initiative doesn't have enough votes to meet the
     /// criteria then it's votes a excluded from the vote count and distribution
     /// @return minClaim Minimum claim amount
@@ -65,19 +91,34 @@ interface IGovernance {
     function REGISTRATION_FEE() external view returns (uint256 registrationFee);
     /// @notice Share of all votes that are necessary to register a new initiative
     /// @return registrationThresholdFactor Threshold factor
-    function REGISTRATION_THRESHOLD_FACTOR() external view returns (uint256 registrationThresholdFactor);
+    function REGISTRATION_THRESHOLD_FACTOR()
+        external
+        view
+        returns (uint256 registrationThresholdFactor);
     /// @notice Multiple of the voting threshold in vetos that are necessary to unregister an initiative
     /// @return unregistrationThresholdFactor Unregistration threshold factor
-    function UNREGISTRATION_THRESHOLD_FACTOR() external view returns (uint256 unregistrationThresholdFactor);
+    function UNREGISTRATION_THRESHOLD_FACTOR()
+        external
+        view
+        returns (uint256 unregistrationThresholdFactor);
     /// @notice Number of epochs an initiative has to exist before it can be unregistered
     /// @return registrationWarmUpPeriod Number of epochs
-    function REGISTRATION_WARM_UP_PERIOD() external view returns (uint256 registrationWarmUpPeriod);
+    function REGISTRATION_WARM_UP_PERIOD()
+        external
+        view
+        returns (uint256 registrationWarmUpPeriod);
     /// @notice Number of epochs an initiative has to be inactive before it can be unregistered
     /// @return unregistrationAfterEpochs Number of epochs
-    function UNREGISTRATION_AFTER_EPOCHS() external view returns (uint256 unregistrationAfterEpochs);
+    function UNREGISTRATION_AFTER_EPOCHS()
+        external
+        view
+        returns (uint256 unregistrationAfterEpochs);
     /// @notice Share of all votes that are necessary for an initiative to be included in the vote count
     /// @return votingThresholdFactor Voting threshold factor
-    function VOTING_THRESHOLD_FACTOR() external view returns (uint256 votingThresholdFactor);
+    function VOTING_THRESHOLD_FACTOR()
+        external
+        view
+        returns (uint256 votingThresholdFactor);
 
     /// @notice Returns the amount of BOLD accrued since last epoch (last snapshot)
     /// @return boldAccrued BOLD accrued
@@ -91,23 +132,23 @@ interface IGovernance {
     struct InitiativeVoteSnapshot {
         uint120 votes; // Votes at epoch transition
         uint16 forEpoch; // Epoch for which the votes are counted
-        uint16 lastCountedEpoch; // Epoch at which which the votes where counted last in the global snapshot
         uint120 vetos; // Vetos at epoch transition
     }
 
     /// @notice Returns the vote count snapshot of the previous epoch
     /// @return votes Number of votes
     /// @return forEpoch Epoch for which the votes are counted
-    function votesSnapshot() external view returns (uint120 votes, uint16 forEpoch);
+    function votesSnapshot()
+        external
+        view
+        returns (uint120 votes, uint16 forEpoch);
     /// @notice Returns the vote count snapshot for an initiative of the previous epoch
     /// @param _initiative Address of the initiative
     /// @return votes Number of votes
     /// @return forEpoch Epoch for which the votes are counted
-    /// @return lastCountedEpoch Epoch at which which the votes where counted last in the global snapshot
-    function votesForInitiativeSnapshot(address _initiative)
-        external
-        view
-        returns (uint120 votes, uint16 forEpoch, uint16 lastCountedEpoch, uint120 vetos);
+    function votesForInitiativeSnapshot(
+        address _initiative
+    ) external view returns (uint120 votes, uint16 forEpoch, uint120 vetos);
 
     struct Allocation {
         uint88 voteLQTY; // LQTY allocated vouching for the initiative
@@ -137,7 +178,12 @@ interface IGovernance {
     /// @param _user Address of the user
     /// @return allocatedLQTY LQTY allocated by the user
     /// @return averageStakingTimestamp Average timestamp at which LQTY was staked (deposited) by the user
-    function userStates(address _user) external view returns (uint88 allocatedLQTY, uint32 averageStakingTimestamp);
+    function userStates(
+        address _user
+    )
+        external
+        view
+        returns (uint88 allocatedLQTY, uint32 averageStakingTimestamp);
     /// @notice Returns the initiative's state
     /// @param _initiative Address of the initiative
     /// @return voteLQTY LQTY allocated vouching for the initiative
@@ -145,7 +191,9 @@ interface IGovernance {
     /// @return averageStakingTimestampVoteLQTY // Average staking timestamp of the voting LQTY for the initiative
     /// @return averageStakingTimestampVetoLQTY // Average staking timestamp of the vetoing LQTY for the initiative
     /// @return lastEpochClaim // Last epoch at which rewards were claimed
-    function initiativeStates(address _initiative)
+    function initiativeStates(
+        address _initiative
+    )
         external
         view
         returns (
@@ -158,22 +206,30 @@ interface IGovernance {
     /// @notice Returns the global state
     /// @return countedVoteLQTY Total LQTY that is included in vote counting
     /// @return countedVoteLQTYAverageTimestamp Average timestamp: derived initiativeAllocation.averageTimestamp
-    function globalState() external view returns (uint88 countedVoteLQTY, uint32 countedVoteLQTYAverageTimestamp);
+    function globalState()
+        external
+        view
+        returns (
+            uint88 countedVoteLQTY,
+            uint32 countedVoteLQTYAverageTimestamp
+        );
     /// @notice Returns the amount of voting and vetoing LQTY a user allocated to an initiative
     /// @param _user Address of the user
     /// @param _initiative Address of the initiative
     /// @return voteLQTY LQTY allocated vouching for the initiative
     /// @return vetoLQTY LQTY allocated vetoing the initiative
     /// @return atEpoch Epoch at which the allocation was last updated
-    function lqtyAllocatedByUserToInitiative(address _user, address _initiative)
-        external
-        view
-        returns (uint88 voteLQTY, uint88 vetoLQTY, uint16 atEpoch);
+    function lqtyAllocatedByUserToInitiative(
+        address _user,
+        address _initiative
+    ) external view returns (uint88 voteLQTY, uint88 vetoLQTY, uint16 atEpoch);
 
     /// @notice Returns when an initiative was registered
     /// @param _initiative Address of the initiative
     /// @return atEpoch Epoch at which the initiative was registered
-    function registeredInitiatives(address _initiative) external view returns (uint16 atEpoch);
+    function registeredInitiatives(
+        address _initiative
+    ) external view returns (uint16 atEpoch);
 
     /*//////////////////////////////////////////////////////////////
                                 STAKING
@@ -186,7 +242,10 @@ interface IGovernance {
     /// @notice Deposits LQTY via Permit
     /// @param _lqtyAmount Amount of LQTY to deposit
     /// @param _permitParams Permit parameters
-    function depositLQTYViaPermit(uint88 _lqtyAmount, PermitParams memory _permitParams) external;
+    function depositLQTYViaPermit(
+        uint88 _lqtyAmount,
+        PermitParams memory _permitParams
+    ) external;
     /// @notice Withdraws LQTY and claims any accrued LUSD and ETH rewards from StakingV1
     /// @param _lqtyAmount Amount of LQTY to withdraw
     function withdrawLQTY(uint88 _lqtyAmount) external;
@@ -194,7 +253,9 @@ interface IGovernance {
     /// @param _rewardRecipient Address that will receive the rewards
     /// @return accruedLUSD Amount of LUSD accrued
     /// @return accruedETH Amount of ETH accrued
-    function claimFromStakingV1(address _rewardRecipient) external returns (uint256 accruedLUSD, uint256 accruedETH);
+    function claimFromStakingV1(
+        address _rewardRecipient
+    ) external returns (uint256 accruedLUSD, uint256 accruedETH);
 
     /*//////////////////////////////////////////////////////////////
                                  VOTING
@@ -208,30 +269,42 @@ interface IGovernance {
     function epochStart() external view returns (uint32 epochStart);
     /// @notice Returns the number of seconds that have gone by since the current epoch started
     /// @return secondsWithinEpoch Seconds within the current epoch
-    function secondsWithinEpoch() external view returns (uint32 secondsWithinEpoch);
+    function secondsWithinEpoch()
+        external
+        view
+        returns (uint32 secondsWithinEpoch);
     /// @notice Returns the number of votes per LQTY for a user
     /// @param _lqtyAmount Amount of LQTY to convert to votes
     /// @param _currentTimestamp Current timestamp
     /// @param _averageTimestamp Average timestamp at which the LQTY was staked
     /// @return votes Number of votes
-    function lqtyToVotes(uint88 _lqtyAmount, uint32 _currentTimestamp, uint32 _averageTimestamp)
-        external
-        pure
-        returns (uint120);
+    function lqtyToVotes(
+        uint88 _lqtyAmount,
+        uint32 _currentTimestamp,
+        uint32 _averageTimestamp
+    ) external pure returns (uint120);
 
     /// @notice Voting threshold is the max. of either:
     ///   - 4% of the total voting LQTY in the previous epoch
     ///   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
     /// @return votingThreshold Voting threshold
-    function calculateVotingThreshold() external view returns (uint256 votingThreshold);
+    function calculateVotingThreshold()
+        external
+        view
+        returns (uint256 votingThreshold);
 
     /// @notice Snapshots votes for the previous epoch and accrues funds for the current epoch
     /// @param _initiative Address of the initiative
     /// @return voteSnapshot Vote snapshot
     /// @return initiativeVoteSnapshot Vote snapshot of the initiative
-    function snapshotVotesForInitiative(address _initiative)
+    function snapshotVotesForInitiative(
+        address _initiative
+    )
         external
-        returns (VoteSnapshot memory voteSnapshot, InitiativeVoteSnapshot memory initiativeVoteSnapshot);
+        returns (
+            VoteSnapshot memory voteSnapshot,
+            InitiativeVoteSnapshot memory initiativeVoteSnapshot
+        );
 
     /// @notice Registers a new initiative
     /// @param _initiative Address of the initiative
@@ -247,11 +320,16 @@ interface IGovernance {
     /// @param _initiatives Addresses of the initiatives to allocate to
     /// @param _deltaLQTYVotes Delta LQTY to allocate to the initiatives as votes
     /// @param _deltaLQTYVetos Delta LQTY to allocate to the initiatives as vetos
-    function allocateLQTY(address[] memory _initiatives, int88[] memory _deltaLQTYVotes, int88[] memory _deltaLQTYVetos)
-        external;
+    function allocateLQTY(
+        address[] memory _initiatives,
+        int88[] memory _deltaLQTYVotes,
+        int88[] memory _deltaLQTYVetos
+    ) external;
 
     /// @notice Splits accrued funds according to votes received between all initiatives
     /// @param _initiative Addresse of the initiative
     /// @return claimed Amount of BOLD claimed
-    function claimForInitiative(address _initiative) external returns (uint256 claimed);
+    function claimForInitiative(
+        address _initiative
+    ) external returns (uint256 claimed);
 }
