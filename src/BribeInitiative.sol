@@ -58,11 +58,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     /// @inheritdoc IBribeInitiative
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external {
-        bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
-        bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
 
         uint16 epoch = governance.epoch();
-        require(_epoch > epoch, "BribeInitiative: only-future-epochs");
+        require(_epoch >= epoch, "BribeInitiative: only-future-epochs");
 
         Bribe memory bribe = bribeByEpoch[_epoch];
         bribe.boldAmount += _boldAmount;
@@ -70,6 +68,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         bribeByEpoch[_epoch] = bribe;
 
         emit DepositBribe(msg.sender, _boldAmount, _bribeTokenAmount, _epoch);
+
+        bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
+        bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
     }
 
     function _claimBribe(
@@ -78,7 +79,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         uint16 _prevLQTYAllocationEpoch,
         uint16 _prevTotalLQTYAllocationEpoch
     ) internal returns (uint256 boldAmount, uint256 bribeTokenAmount) {
-        require(_epoch != governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
+        require(_epoch < governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
         require(!claimedBribeAtEpoch[_user][_epoch], "BribeInitiative: already-claimed");
 
         Bribe memory bribe = bribeByEpoch[_epoch];
