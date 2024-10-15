@@ -86,11 +86,22 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         bold = IERC20(_bold);
         require(_config.minClaim <= _config.minAccrual, "Gov: min-claim-gt-min-accrual");
         REGISTRATION_FEE = _config.registrationFee;
+
+        // Registration threshold must be below 100% of votes
+        require(_config.registrationThresholdFactor < WAD, "Gov: registration-config");
         REGISTRATION_THRESHOLD_FACTOR = _config.registrationThresholdFactor;
+
+        // Unregistration must be X times above the `votingThreshold`
+        require(_config.unregistrationThresholdFactor > WAD, "Gov: unregistration-config");
         UNREGISTRATION_THRESHOLD_FACTOR = _config.unregistrationThresholdFactor;
+
         REGISTRATION_WARM_UP_PERIOD = _config.registrationWarmUpPeriod;
         UNREGISTRATION_AFTER_EPOCHS = _config.unregistrationAfterEpochs;
+
+        // Voting threshold must be below 100% of votes
+        require(_config.votingThresholdFactor < WAD, "Gov: voting-config");
         VOTING_THRESHOLD_FACTOR = _config.votingThresholdFactor;
+
         MIN_CLAIM = _config.minClaim;
         MIN_ACCRUAL = _config.minAccrual;
         EPOCH_START = _config.epochStart;

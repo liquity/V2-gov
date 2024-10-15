@@ -477,6 +477,7 @@ contract GovernanceTest is Test {
         uint128 _votingThresholdFactor,
         uint88 _minClaim
     ) public {
+        _votingThresholdFactor = _votingThresholdFactor % 1e18; /// Clamp to prevent misconfig
         governance = new Governance(
             address(lqty),
             address(lusd),
