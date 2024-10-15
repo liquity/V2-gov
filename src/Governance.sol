@@ -466,7 +466,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         (, GlobalState memory state) = _snapshotVotes();
 
-        uint256 votingThreshold = getLatestVotingThreshold(); /// TODO: Delete
         uint16 currentEpoch = epoch();
 
         UserState memory userState = userStates[msg.sender];
