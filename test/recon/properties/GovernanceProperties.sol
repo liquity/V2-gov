@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import {BeforeAfter} from "../BeforeAfter.sol";
 import {Governance} from "src/Governance.sol";
+import {IGovernance} from "src/interfaces/IGovernance.sol";
 
 abstract contract GovernanceProperties is BeforeAfter {
     
@@ -44,5 +45,30 @@ abstract contract GovernanceProperties is BeforeAfter {
             }
         }
     }
+
+    // View vs non view must have same results
+    function property_viewTotalVotesAndStateEquivalency() public {
+        for(uint8 i; i < deployedInitiatives.length; i++) {
+            (IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot_view, , bool shouldUpdate) = governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
+            (, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot) = governance.snapshotVotesForInitiative(deployedInitiatives[i]);
+
+            eq(initiativeSnapshot_view.votes, initiativeVoteSnapshot.votes, "votes");
+            eq(initiativeSnapshot_view.forEpoch, initiativeVoteSnapshot.forEpoch, "forEpoch");
+            eq(initiativeSnapshot_view.lastCountedEpoch, initiativeVoteSnapshot.lastCountedEpoch, "lastCountedEpoch");
+            eq(initiativeSnapshot_view.vetos, initiativeVoteSnapshot.vetos, "vetos");
+        }
+    }
+
+    function property_viewCalculateVotingThreshold() public {
+        (, , bool shouldUpdate) = governance.getTotalVotesAndState();
+
+        if(!shouldUpdate) {
+            // If it's already synched it must match
+            uint256 latestKnownThreshold = governance.getLatestVotingThreshold();
+            uint256 calculated = governance.calculateVotingThreshold();
+            eq(latestKnownThreshold, calculated, "match");
+        }
+    }
+
 
 }
