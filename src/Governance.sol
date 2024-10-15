@@ -433,7 +433,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         emit RegisterInitiative(_initiative, msg.sender, currentEpoch);
 
-        // try IInitiative(_initiative).onRegisterInitiative(currentEpoch) {} catch {}
         // Replaces try / catch | Enforces sufficient gas is passed
         safeCallWithMinGas(_initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onRegisterInitiative, (currentEpoch)));
     }
@@ -461,10 +460,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             int88 deltaLQTYVotes = _deltaLQTYVotes[i];
             int88 deltaLQTYVetos = _deltaLQTYVetos[i];
 
-            // TODO: Better assertion
-            /// Can remove or add
-            /// But cannot add or remove both
-
             // only allow vetoing post the voting cutoff
             require(
                 deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsWithinEpoch() <= EPOCH_VOTING_CUTOFF,
@@ -475,17 +470,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 uint16 registeredAtEpoch = registeredInitiatives[initiative];
                 if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
                     require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
-                } /// @audit TODO: We must allow removals for Proposals that are disabled | Should use the flag u16
+                }
                 
                 if(registeredAtEpoch == UNREGISTERED_INITIATIVE) {
                     require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
                 }
             }
-            // TODO: CHANGE
-            // Can add if active
-            // Can remove if inactive
-            // only allow allocations to initiatives that are active
-            // an initiative becomes active in the epoch after it is registered
 
 
             (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative);
@@ -537,8 +527,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             );
             state.countedVoteLQTY += initiativeState.voteLQTY;
 
-
-
             // allocate the voting and vetoing LQTY to the initiative
             Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
             allocation.voteLQTY = add(allocation.voteLQTY, deltaLQTYVotes);
@@ -551,9 +539,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 
-            // try IInitiative(initiative).onAfterAllocateLQTY(
-            //     currentEpoch, msg.sender, userState, allocation, initiativeState
-            // ) {} catch {}
             // Replaces try / catch | Enforces sufficient gas is passed
             safeCallWithMinGas(initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onAfterAllocateLQTY, (currentEpoch, msg.sender, userState, allocation, initiativeState)));
         }
@@ -598,7 +583,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         globalState = state;
 
         /// @audit removal math causes issues
-        // delete initiativeStates[_initiative]; 
 
         /// @audit Should not delete this
         /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
@@ -606,7 +590,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         emit UnregisterInitiative(_initiative, currentEpoch);
 
-        // try IInitiative(_initiative).onUnregisterInitiative(currentEpoch) {} catch {}
         // Replaces try / catch | Enforces sufficient gas is passed
         safeCallWithMinGas(_initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onUnregisterInitiative, (currentEpoch)));
     }
@@ -640,7 +623,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         emit ClaimForInitiative(_initiative, claimableAmount, votesSnapshot_.forEpoch);
 
-        // try IInitiative(_initiative).onClaimForInitiative(votesSnapshot_.forEpoch, claimableAmount) {} catch {}
+
         // Replaces try / catch | Enforces sufficient gas is passed
         safeCallWithMinGas(_initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onClaimForInitiative, (votesSnapshot_.forEpoch, claimableAmount)));
 
