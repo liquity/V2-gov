@@ -427,15 +427,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         ) {
             return (InitiativeStatus.UNREGISTERABLE, lastEpochClaim, 0);
         }
-
-        // How do we know that they have canClaimRewards?
-        // They must have votes / totalVotes AND meet the Requirement AND not be vetoed
-        /// @audit if we already are above, then why are we re-computing this?
-        // Ultimately the checkpoint logic for initiative is fine, so we can skip this
         
         // == Not meeting threshold Condition == //
-
-
         return (InitiativeStatus.SKIP, lastEpochClaim, 0);
     }
 
