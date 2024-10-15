@@ -356,6 +356,76 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestamp, block.timestamp);
     }
 
+     function test_depositLQTYViaPermit_withdrawLQTY() public {
+        uint256 timeIncrease = 86400 * 30;
+        vm.warp(block.timestamp + timeIncrease);
+
+        vm.startPrank(user);
+        VmSafe.Wallet memory wallet = vm.createWallet(
+            uint256(keccak256(bytes("1")))
+        );
+        lqty.transfer(wallet.addr, 1e18);
+        vm.stopPrank();
+        vm.startPrank(wallet.addr);
+
+        // check address
+        address userProxy = governance.deriveUserProxyAddress(wallet.addr);
+
+        PermitParams memory permitParams = PermitParams({
+            owner: wallet.addr,
+            spender: address(userProxy),
+            value: 1e18,
+            deadline: block.timestamp + 86400,
+            v: 0,
+            r: "",
+            s: ""
+        });
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(
+            wallet.privateKey,
+            keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    ILQTY(address(lqty)).domainSeparator(),
+                    keccak256(
+                        abi.encode(
+                            0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9,
+                            permitParams.owner,
+                            permitParams.spender,
+                            permitParams.value,
+                            0,
+                            permitParams.deadline
+                        )
+                    )
+                )
+            )
+        );
+
+        permitParams.v = v;
+        permitParams.r = r;
+        permitParams.s = s;
+
+        vm.startPrank(wallet.addr);
+
+        // deploy and deposit 1 LQTY
+        governance.depositLQTYViaPermit(1e18, permitParams);
+        assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
+        (uint88 allocatedLQTY, uint32 averageStakingTimestamp) = governance
+            .userStates(wallet.addr);
+        assertEq(allocatedLQTY, 0);
+        assertEq(averageStakingTimestamp, block.timestamp);
+
+        // owner withdraws their LQTY
+        uint256 lqtyBalanceBefore = lqty.balanceOf(wallet.addr);
+        governance.withdrawLQTY(1e18);
+        uint256 lqtyBalanceAfter = lqty.balanceOf(wallet.addr);
+        
+        assertEq(UserProxy(payable(userProxy)).staked(), 0);
+        assertEq(lqtyBalanceAfter - lqtyBalanceBefore, 1e18, "owner does not receive lqty");
+
+        vm.stopPrank();
+    }
+
     function test_claimFromStakingV1() public {
         uint256 timeIncrease = 86400 * 30;
         vm.warp(block.timestamp + timeIncrease);
@@ -554,7 +624,7 @@ contract GovernanceTest is Test {
         );
     }
 
-    // // should not revert under any state
+    // should not revert under any state
     function test_calculateVotingThreshold_fuzz(
         uint88 _lqtyAmount,
         uint120 _votes,
