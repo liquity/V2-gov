@@ -388,7 +388,7 @@ contract GovernanceTest is Test {
         governance.lqtyToVotes(_lqtyAmount, _currentTimestamp, _averageTimestamp);
     }
 
-    function test_calculateVotingThreshold() public {
+    function test_getLatestVotingThreshold() public {
         governance = new Governance(
             address(lqty),
             address(lusd),
@@ -411,7 +411,7 @@ contract GovernanceTest is Test {
         );
 
         // is 0 when the previous epochs votes are 0
-        assertEq(governance.calculateVotingThreshold(), 0);
+        assertEq(governance.getLatestVotingThreshold(), 0);
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
@@ -428,7 +428,7 @@ contract GovernanceTest is Test {
         vm.store(address(governance), bytes32(uint256(1)), bytes32(abi.encode(boldAccrued)));
         assertEq(governance.boldAccrued(), 1000e18);
 
-        assertEq(governance.calculateVotingThreshold(), MIN_CLAIM / 1000);
+        assertEq(governance.getLatestVotingThreshold(), MIN_CLAIM / 1000);
 
         // check that votingThreshold is 4% of votes of previous epoch
         governance = new Governance(
@@ -466,7 +466,7 @@ contract GovernanceTest is Test {
         vm.store(address(governance), bytes32(uint256(1)), bytes32(abi.encode(boldAccrued)));
         assertEq(governance.boldAccrued(), 1000e18);
 
-        assertEq(governance.calculateVotingThreshold(), 10000e18 * 0.04);
+        assertEq(governance.getLatestVotingThreshold(), 10000e18 * 0.04);
     }
 
     // should not revert under any state
@@ -512,7 +512,7 @@ contract GovernanceTest is Test {
         vm.store(address(governance), bytes32(uint256(1)), bytes32(abi.encode(_boldAccrued)));
         assertEq(governance.boldAccrued(), _boldAccrued);
 
-        governance.calculateVotingThreshold();
+        governance.getLatestVotingThreshold();
     }
 
     function test_registerInitiative() public {
@@ -715,7 +715,7 @@ contract GovernanceTest is Test {
             (IGovernance.VoteSnapshot memory snapshot, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1) = governance.snapshotVotesForInitiative(baseInitiative1);
             (, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot2) = governance.snapshotVotesForInitiative(baseInitiative2);
 
-            uint256 threshold = governance.calculateVotingThreshold();
+            uint256 threshold = governance.getLatestVotingThreshold();
             assertLt(initiativeVoteSnapshot1.votes, threshold, "it didn't get rewards");
 
             uint256 votingPowerWithProjection = governance.lqtyToVotes(voteLQTY1, governance.epochStart() + governance.EPOCH_DURATION(), averageStakingTimestampVoteLQTY1);
@@ -758,7 +758,7 @@ contract GovernanceTest is Test {
 
             (IGovernance.VoteSnapshot memory snapshot, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1) = governance.snapshotVotesForInitiative(baseInitiative1);
 
-            uint256 threshold = governance.calculateVotingThreshold();
+            uint256 threshold = governance.getLatestVotingThreshold();
             assertLt(initiativeVoteSnapshot1.votes, threshold, "it didn't get rewards");
         }
 
@@ -1157,7 +1157,7 @@ contract GovernanceTest is Test {
         console.log("snapshot votes", votes);
         console.log("snapshot vetos", vetos);
 
-        console.log("governance.calculateVotingThreshold()", governance.calculateVotingThreshold());
+        console.log("governance.getLatestVotingThreshold()", governance.getLatestVotingThreshold());
         assertEq(governance.claimForInitiative(baseInitiative2), 0, "zero 2");
         assertEq(governance.claimForInitiative(baseInitiative2), 0, "zero 3");
 

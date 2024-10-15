@@ -248,8 +248,19 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function calculateVotingThreshold() public view returns (uint256) {
-        uint256 snapshotVotes = votesSnapshot.votes;
+    function getLatestVotingThreshold() public view returns (uint256) {
+        uint256 snapshotVotes = votesSnapshot.votes; /// @audit technically can be out of synch
+
+        return calculateVotingThreshold(snapshotVotes);
+    }
+
+    function calculateVotingThreshold() public returns (uint256) {
+        (VoteSnapshot memory snapshot, ) = _snapshotVotes();
+
+        return calculateVotingThreshold(snapshot.votes);
+    }
+
+    function calculateVotingThreshold(uint256 snapshotVotes) public view returns (uint256) {
         if (snapshotVotes == 0) return 0;
 
         uint256 minVotes; // to reach MIN_CLAIM: snapshotVotes * MIN_CLAIM / boldAccrued
@@ -359,6 +370,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(_initiative);
 
+        return getInitiativeState(_initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
+    }
+
+    function getInitiativeState(address _initiative, VoteSnapshot memory votesSnapshot_, InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) public view returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount) {
         lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
 
         // == Already Claimed Condition == //
@@ -368,12 +383,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
 
         // == Disabled Condition == //
-        // TODO: If a initiative is disabled, we return false and the last epoch claim
+        // If a initiative is disabled, we return false and the last epoch claim
         if(registeredInitiatives[_initiative] == UNREGISTERED_INITIATIVE) {
-            return (InitiativeStatus.DISABLED, lastEpochClaim, 0); /// @audit By definition it must have zero rewards
+            return (InitiativeStatus.DISABLED, lastEpochClaim, 0); /// By definition it has zero rewards
         }
 
-        uint256 votingTheshold = calculateVotingThreshold();
+        // NOTE: Pass the snapshot value so we get accurate result
+        uint256 votingTheshold = calculateVotingThreshold(votesSnapshot_.votes);
 
         // If it's voted and can get rewards
         // Votes > calculateVotingThreshold
@@ -450,7 +466,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         (, GlobalState memory state) = _snapshotVotes();
 
-        uint256 votingThreshold = calculateVotingThreshold();
         uint16 currentEpoch = epoch();
 
         UserState memory userState = userStates[msg.sender];
