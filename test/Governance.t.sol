@@ -214,18 +214,6 @@ contract GovernanceTest is Test {
 
         vm.startPrank(user);
 
-        // should revert with a 0 amount
-        vm.expectRevert("Governance: zero-lqty-amount");
-        governance.depositLQTY(0);
-
-        // should revert if the `_lqtyAmount` > `lqty.allowance(msg.sender, userProxy)`
-        vm.expectRevert("ERC20: transfer amount exceeds allowance");
-        governance.depositLQTY(1e18);
-
-        // should revert if the `_lqtyAmount` > `lqty.balanceOf(msg.sender)`
-        vm.expectRevert("ERC20: transfer amount exceeds balance");
-        governance.depositLQTY(type(uint88).max);
-
         // should not revert if the user doesn't have a UserProxy deployed yet
         address userProxy = governance.deriveUserProxyAddress(user);
         lqty.approve(address(userProxy), 1e18);
@@ -252,10 +240,121 @@ contract GovernanceTest is Test {
         // withdraw 0.5 half of LQTY
         vm.warp(block.timestamp + timeIncrease);
 
+        vm.startPrank(user);
+
+        governance.withdrawLQTY(1e18);
+        assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
+        (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
+        assertEq(allocatedLQTY, 0);
+        assertEq(
+            averageStakingTimestamp,
+            (block.timestamp - timeIncrease) - timeIncrease / 2
+        );
+
+        // withdraw remaining LQTY
+        governance.withdrawLQTY(1e18);
+        assertEq(UserProxy(payable(userProxy)).staked(), 0);
+        (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
+        assertEq(allocatedLQTY, 0);
+        assertEq(
+            averageStakingTimestamp,
+            (block.timestamp - timeIncrease) - timeIncrease / 2
+        );
+
+        vm.stopPrank();
+    }
+
+    function test_depositLQTY_withdrawLQTY_reverts_zero_deposit() public {
+        uint256 timeIncrease = 86400 * 30;
+        vm.warp(block.timestamp + timeIncrease);
+
+        vm.startPrank(user);
+
+        // should revert with a 0 amount
+        vm.expectRevert("Governance: zero-lqty-amount");
+        governance.depositLQTY(0);
+    }
+
+    function test_depositLQTY_withdrawLQTY_reverts_depositing_more_than_allowance() public {
+        uint256 timeIncrease = 86400 * 30;
+        vm.warp(block.timestamp + timeIncrease);
+
+        vm.startPrank(user);
+
+        // should revert if the `_lqtyAmount` > `lqty.allowance(msg.sender, userProxy)`
+        vm.expectRevert("ERC20: transfer amount exceeds allowance");
+        governance.depositLQTY(1e18);
+    }
+
+    function test_depositLQTY_withdrawLQTY_reverts_withdrawing_no_proxy() public {
+        uint256 timeIncrease = 86400 * 30;
+        vm.warp(block.timestamp + timeIncrease);
+
+        vm.startPrank(user);
+
+        // should not revert if the user doesn't have a UserProxy deployed yet
+        address userProxy = governance.deriveUserProxyAddress(user);
+        lqty.approve(address(userProxy), 1e18);
+
+        // deploy and deposit 1 LQTY
+        governance.depositLQTY(1e18);
+        assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
+        (uint88 allocatedLQTY, uint32 averageStakingTimestamp) = governance
+            .userStates(user);
+        assertEq(allocatedLQTY, 0);
+        // first deposit should have an averageStakingTimestamp if block.timestamp
+        assertEq(averageStakingTimestamp, block.timestamp);
+
+        vm.warp(block.timestamp + timeIncrease);
+
+        lqty.approve(address(userProxy), 1e18);
+        governance.depositLQTY(1e18);
+        assertEq(UserProxy(payable(userProxy)).staked(), 2e18);
+        (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
+        assertEq(allocatedLQTY, 0);
+        // subsequent deposits should have a stake weighted average
+        assertEq(averageStakingTimestamp, block.timestamp - timeIncrease / 2);
+
+        // withdraw 0.5 half of LQTY
+        vm.warp(block.timestamp + timeIncrease);
+
         vm.startPrank(address(this));
         vm.expectRevert("Governance: user-proxy-not-deployed");
         governance.withdrawLQTY(1e18);
         vm.stopPrank();
+    }
+
+    function test_depositLQTY_withdrawLQTY_reverts_withdrawing_more_than_deposited() public {
+        uint256 timeIncrease = 86400 * 30;
+        vm.warp(block.timestamp + timeIncrease);
+
+        vm.startPrank(user);
+
+        // should not revert if the user doesn't have a UserProxy deployed yet
+        address userProxy = governance.deriveUserProxyAddress(user);
+        lqty.approve(address(userProxy), 1e18);
+        // vm.expectEmit("DepositLQTY", abi.encode(user, 1e18));
+        // deploy and deposit 1 LQTY
+        governance.depositLQTY(1e18);
+        assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
+        (uint88 allocatedLQTY, uint32 averageStakingTimestamp) = governance
+            .userStates(user);
+        assertEq(allocatedLQTY, 0);
+        // first deposit should have an averageStakingTimestamp if block.timestamp
+        assertEq(averageStakingTimestamp, block.timestamp);
+
+        vm.warp(block.timestamp + timeIncrease);
+
+        lqty.approve(address(userProxy), 1e18);
+        governance.depositLQTY(1e18);
+        assertEq(UserProxy(payable(userProxy)).staked(), 2e18);
+        (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
+        assertEq(allocatedLQTY, 0);
+        // subsequent deposits should have a stake weighted average
+        assertEq(averageStakingTimestamp, block.timestamp - timeIncrease / 2);
+
+        // withdraw 0.5 half of LQTY
+        vm.warp(block.timestamp + timeIncrease);
 
         vm.startPrank(user);
 
@@ -447,6 +546,14 @@ contract GovernanceTest is Test {
 
         governance.claimFromStakingV1(user);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
+    }
+
+    function test_claimFromStakingV1_reverts_proxy_not_deployed() public {
+        uint256 timeIncrease = 86400 * 30;
+        vm.warp(block.timestamp + timeIncrease);
+
+        vm.expectRevert("Governance: user-proxy-not-deployed");
+        governance.claimFromStakingV1(address(this));
     }
 
     // should return the correct epoch for a given block.timestamp
