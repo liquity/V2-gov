@@ -84,21 +84,21 @@ interface IGovernance {
     function boldAccrued() external view returns (uint256 boldAccrued);
 
     struct VoteSnapshot {
-        uint240 votes; // Votes at epoch transition
+        uint120 votes; // Votes at epoch transition
         uint16 forEpoch; // Epoch for which the votes are counted
     }
 
     struct InitiativeVoteSnapshot {
-        uint224 votes; // Votes at epoch transition
+        uint120 votes; // Votes at epoch transition
         uint16 forEpoch; // Epoch for which the votes are counted
         uint16 lastCountedEpoch; // Epoch at which which the votes where counted last in the global snapshot
-        uint224 vetos; // Vetos at epoch transition
+        uint120 vetos; // Vetos at epoch transition
     }
 
     /// @notice Returns the vote count snapshot of the previous epoch
     /// @return votes Number of votes
     /// @return forEpoch Epoch for which the votes are counted
-    function votesSnapshot() external view returns (uint240 votes, uint16 forEpoch);
+    function votesSnapshot() external view returns (uint120 votes, uint16 forEpoch);
     /// @notice Returns the vote count snapshot for an initiative of the previous epoch
     /// @param _initiative Address of the initiative
     /// @return votes Number of votes
@@ -107,7 +107,7 @@ interface IGovernance {
     function votesForInitiativeSnapshot(address _initiative)
         external
         view
-        returns (uint224 votes, uint16 forEpoch, uint16 lastCountedEpoch, uint224 vetos);
+        returns (uint120 votes, uint16 forEpoch, uint16 lastCountedEpoch, uint120 vetos);
 
     struct Allocation {
         uint88 voteLQTY; // LQTY allocated vouching for the initiative
@@ -214,10 +214,10 @@ interface IGovernance {
     /// @param _currentTimestamp Current timestamp
     /// @param _averageTimestamp Average timestamp at which the LQTY was staked
     /// @return votes Number of votes
-    function lqtyToVotes(uint88 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp)
+    function lqtyToVotes(uint88 _lqtyAmount, uint32 _currentTimestamp, uint32 _averageTimestamp)
         external
         pure
-        returns (uint240);
+        returns (uint120);
 
     /// @notice Voting threshold is the max. of either:
     ///   - 4% of the total voting LQTY in the previous epoch

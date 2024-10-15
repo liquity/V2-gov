@@ -384,7 +384,7 @@ contract GovernanceTest is Test {
     }
 
     // should not revert under any input
-    function test_lqtyToVotes(uint88 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp) public {
+    function test_lqtyToVotes(uint88 _lqtyAmount, uint32 _currentTimestamp, uint32 _averageTimestamp) public {
         governance.lqtyToVotes(_lqtyAmount, _currentTimestamp, _averageTimestamp);
     }
 
@@ -411,22 +411,22 @@ contract GovernanceTest is Test {
         );
 
         // is 0 when the previous epochs votes are 0
-        assertEq(governance.calculateVotingThreshold(), 0);
+        assertEq(governance.calculateVotingThreshold(), 0, "threshold");
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint120(snapshot.votes), uint16(snapshot.forEpoch)))
         );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 1e18);
-        assertEq(forEpoch, 1);
+        (uint120 votes, uint16 forEpoch) = governance.votesSnapshot();
+        assertEq(votes, 1e18, "votes");
+        assertEq(forEpoch, 1, "for epoch");
 
         uint256 boldAccrued = 1000e18;
         vm.store(address(governance), bytes32(uint256(1)), bytes32(abi.encode(boldAccrued)));
-        assertEq(governance.boldAccrued(), 1000e18);
+        assertEq(governance.boldAccrued(), 1000e18, "vbold accrue");
 
         assertEq(governance.calculateVotingThreshold(), MIN_CLAIM / 1000);
 
@@ -456,22 +456,22 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
         (votes, forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 10000e18);
+        assertEq(votes, 10000e18, "??");
         assertEq(forEpoch, 1);
 
         boldAccrued = 1000e18;
         vm.store(address(governance), bytes32(uint256(1)), bytes32(abi.encode(boldAccrued)));
-        assertEq(governance.boldAccrued(), 1000e18);
+        assertEq(governance.boldAccrued(), 1000e18, "bold accrued");
 
         assertEq(governance.calculateVotingThreshold(), 10000e18 * 0.04);
     }
 
     // should not revert under any state
     function test_calculateVotingThreshold_fuzz(
-        uint128 _votes,
+        uint120 _votes,
         uint16 _forEpoch,
         uint88 _boldAccrued,
         uint128 _votingThresholdFactor,
@@ -503,9 +503,9 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
+        (uint120 votes, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(votes, _votes);
         assertEq(forEpoch, _forEpoch);
 
@@ -524,9 +524,9 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
-        (uint240 votes,) = governance.votesSnapshot();
+        (uint120 votes,) = governance.votesSnapshot();
         assertEq(votes, 1e18);
 
         // should revert if the `REGISTRATION_FEE` > `lqty.balanceOf(msg.sender)`
@@ -578,9 +578,9 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
+        (uint120 votes, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(votes, 1e18);
         assertEq(forEpoch, 1);
 
@@ -621,7 +621,7 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
         (votes, forEpoch) = governance.votesSnapshot();
         assertEq(votes, 1e18);
@@ -703,7 +703,7 @@ contract GovernanceTest is Test {
         ) = governance.initiativeStates(baseInitiative2);
 
         // Get power at time of vote
-        uint256 votingPower = governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
+        uint256 votingPower = governance.lqtyToVotes(voteLQTY1, uint32(block.timestamp), averageStakingTimestampVoteLQTY1);
         assertGt(votingPower, 0, "Non zero power");
         
         /// @audit TODO Fully digest and explain the bug
@@ -718,7 +718,7 @@ contract GovernanceTest is Test {
             uint256 threshold = governance.calculateVotingThreshold();
             assertLt(initiativeVoteSnapshot1.votes, threshold, "it didn't get rewards");
 
-            uint256 votingPowerWithProjection = governance.lqtyToVotes(voteLQTY1, governance.epochStart() + governance.EPOCH_DURATION(), averageStakingTimestampVoteLQTY1);
+            uint256 votingPowerWithProjection = governance.lqtyToVotes(voteLQTY1, uint32(governance.epochStart() + governance.EPOCH_DURATION()), averageStakingTimestampVoteLQTY1);
             assertLt(votingPower, threshold, "Current Power is not enough - Desynch A");
             assertLt(votingPowerWithProjection, threshold, "Future Power is also not enough - Desynch B");
 
@@ -932,7 +932,7 @@ contract GovernanceTest is Test {
         governance.depositLQTY(1e18);
 
         (, uint32 averageAge) = governance.userStates(user2);
-        assertEq(governance.lqtyToVotes(1e18, block.timestamp, averageAge), 0);
+        assertEq(governance.lqtyToVotes(1e18, uint32(block.timestamp), averageAge), 0);
 
         deltaLQTYVetos[0] = 1e18;
 
@@ -1296,9 +1296,9 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
+        (uint120 votes, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(votes, 1e18);
         assertEq(forEpoch, 1);
 
@@ -1331,7 +1331,7 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
         (votes, forEpoch) = governance.votesSnapshot();
         assertEq(votes, 1);
