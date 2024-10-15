@@ -419,7 +419,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // == Unregister Condition == //
         /// @audit epoch() - 1 because we can have Now - 1 and that's not a removal case | TODO: Double check | Worst case QA, off by one epoch
-        // TODO: IMO we can use the claimed variable here
         /// This shifts the logic by 1 epoch
         if((initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
             ||  votesForInitiativeSnapshot_.vetos > votesForInitiativeSnapshot_.votes
