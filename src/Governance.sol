@@ -262,16 +262,27 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     // Snapshots votes for the previous epoch and accrues funds for the current epoch
     function _snapshotVotes() internal returns (VoteSnapshot memory snapshot, GlobalState memory state) {
-        uint16 currentEpoch = epoch();
-        snapshot = votesSnapshot;
-        state = globalState;
-        if (snapshot.forEpoch < currentEpoch - 1) {
-            snapshot.votes = lqtyToVotes(state.countedVoteLQTY, epochStart(), state.countedVoteLQTYAverageTimestamp);
-            snapshot.forEpoch = currentEpoch - 1;
+        bool shouldUpdate;
+        (snapshot, state, shouldUpdate) = getTotalVotesAndState();
+
+        if(shouldUpdate) {
             votesSnapshot = snapshot;
             uint256 boldBalance = bold.balanceOf(address(this));
             boldAccrued = (boldBalance < MIN_ACCRUAL) ? 0 : boldBalance;
             emit SnapshotVotes(snapshot.votes, snapshot.forEpoch);
+        }
+    }
+
+    function getTotalVotesAndState() public view returns (VoteSnapshot memory snapshot, GlobalState memory state, bool shouldUpdate) {
+        uint16 currentEpoch = epoch();
+        snapshot = votesSnapshot;
+        state = globalState;
+        
+        if (snapshot.forEpoch < currentEpoch - 1) {
+            shouldUpdate = true;
+
+            snapshot.votes = lqtyToVotes(state.countedVoteLQTY, epochStart(), state.countedVoteLQTYAverageTimestamp);
+            snapshot.forEpoch = currentEpoch - 1;
         }
     }
 
@@ -281,37 +292,39 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         internal
         returns (InitiativeVoteSnapshot memory initiativeSnapshot, InitiativeState memory initiativeState)
     {
+        bool shouldUpdate;
+        (initiativeSnapshot, initiativeState, shouldUpdate) = getInitiativeSnapshotAndState(_initiative);
+
+        if(shouldUpdate) {
+            votesForInitiativeSnapshot[_initiative] = initiativeSnapshot;
+            emit SnapshotVotesForInitiative(_initiative, initiativeSnapshot.votes, initiativeSnapshot.forEpoch);
+        }
+    }
+
+    function getInitiativeSnapshotAndState(address _initiative)
+        public
+        view
+        returns (InitiativeVoteSnapshot memory initiativeSnapshot, InitiativeState memory initiativeState, bool shouldUpdate)
+    {
+        // Get the storage data
         uint16 currentEpoch = epoch();
         initiativeSnapshot = votesForInitiativeSnapshot[_initiative];
         initiativeState = initiativeStates[_initiative];
+
         if (initiativeSnapshot.forEpoch < currentEpoch - 1) {
-            uint256 votingThreshold = calculateVotingThreshold();
+            shouldUpdate = true;
+
+            // Update in memory data
+            // Safe as long as: Any time a initiative state changes, we first update the snapshot
             uint32 start = epochStart();
             uint240 votes =
                 lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.averageStakingTimestampVoteLQTY);
             uint240 vetos =
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
-            // if the votes didn't meet the voting threshold then no votes qualify
-            /// @audit TODO TEST THIS
-            /// The change means that all logic for votes and rewards must be done in `getInitiativeState`
-            initiativeSnapshot.votes = uint224(votes); /// @audit TODO: We should change this to check the treshold, we should instead use the snapshot to just report all the valid data
-
-            initiativeSnapshot.vetos = uint224(vetos); /// @audit TODO: Overflow + order of operations
+            initiativeSnapshot.votes = uint224(votes);
+            initiativeSnapshot.vetos = uint224(vetos);
 
             initiativeSnapshot.forEpoch = currentEpoch - 1; 
-
-            /// @audit Conditional
-            /// If we meet the threshold then we increase this
-            /// TODO: Either simplify, or use this for the state machine as well
-            if(
-                initiativeSnapshot.votes > initiativeSnapshot.vetos &&
-                initiativeSnapshot.votes >= votingThreshold
-            ) {
-                // initiativeSnapshot.lastCountedEpoch = currentEpoch - 1; /// @audit This updating makes it so that we lose track | TODO: Find a better way
-            }
-
-            votesForInitiativeSnapshot[_initiative] = initiativeSnapshot;
-            emit SnapshotVotesForInitiative(_initiative, initiativeSnapshot.votes, initiativeSnapshot.forEpoch);
         }
     }
 
