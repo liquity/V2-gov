@@ -300,16 +300,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             initiativeSnapshot.forEpoch = currentEpoch - 1; 
 
-            /// @audit Conditional
-            /// If we meet the threshold then we increase this
-            /// TODO: Either simplify, or use this for the state machine as well
-            if(
-                initiativeSnapshot.votes > initiativeSnapshot.vetos &&
-                initiativeSnapshot.votes >= votingThreshold
-            ) {
-                // initiativeSnapshot.lastCountedEpoch = currentEpoch - 1; /// @audit This updating makes it so that we lose track | TODO: Find a better way
-            }
-
             votesForInitiativeSnapshot[_initiative] = initiativeSnapshot;
             emit SnapshotVotesForInitiative(_initiative, initiativeSnapshot.votes, initiativeSnapshot.forEpoch);
         }
