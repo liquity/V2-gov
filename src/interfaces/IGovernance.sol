@@ -223,7 +223,7 @@ interface IGovernance {
     ///   - 4% of the total voting LQTY in the previous epoch
     ///   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
     /// @return votingThreshold Voting threshold
-    function calculateVotingThreshold() external view returns (uint256 votingThreshold);
+    function getLatestVotingThreshold() external view returns (uint256 votingThreshold);
 
     /// @notice Snapshots votes for the previous epoch and accrues funds for the current epoch
     /// @param _initiative Address of the initiative
