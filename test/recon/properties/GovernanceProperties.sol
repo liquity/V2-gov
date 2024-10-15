@@ -40,7 +40,6 @@ abstract contract GovernanceProperties is BeforeAfter {
                     }
                 }
 
-
                 eq(uint256(_before.initiativeStatus[initiative]), uint256(_after.initiativeStatus[initiative]), "GV-01: Initiative state should only return one state per epoch");
             }
         }

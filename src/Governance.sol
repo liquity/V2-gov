@@ -508,14 +508,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
                     /// @audit FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives - Prob should fix
                     require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED  || status == InitiativeStatus.UNREGISTERABLE, "Governance: active-vote-fsm");
-
                 }
                 
                 if(status == InitiativeStatus.DISABLED) {
                     require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
                 }
             }
-
 
             (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative);
 
@@ -594,22 +592,19 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function unregisterInitiative(address _initiative) external nonReentrant {
-        uint16 registrationEpoch = registeredInitiatives[_initiative];
-        require(registrationEpoch != 0, "Governance: initiative-not-registered");
+        (InitiativeStatus status, , ) = getInitiativeState(_initiative);
+        require(status != InitiativeStatus.NONEXISTENT, "Governance: initiative-not-registered");
+        require(status != InitiativeStatus.COOLDOWN, "Governance: initiative-in-warm-up");
+        require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
+
         uint16 currentEpoch = epoch();
-        require(registrationEpoch + REGISTRATION_WARM_UP_PERIOD < currentEpoch, "Governance: initiative-in-warm-up");
 
         (, GlobalState memory state) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
             _snapshotVotesForInitiative(_initiative);
 
-        /// Invariant: Must only claim once or unregister
-        require(initiativeState.lastEpochClaim < epoch() - 1);
-        /// @audit Can remove a bunch of stuff
-        (InitiativeStatus status, , ) = getInitiativeState(_initiative);
-        require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
-
-        /// @audit TODO: Verify that the FSM here is correct
+        /// @audit Invariant: Must only claim once or unregister
+        assert(initiativeState.lastEpochClaim < currentEpoch - 1);
 
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
         state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
