@@ -352,6 +352,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @notice Given an initiative, return whether the initiative will be unregisted, whether it can claim and which epoch it last claimed at
     enum InitiativeStatus {
+        NONEXISTENT, /// This Initiative Doesn't exist | This is never returned
+        COOLDOWN, /// This epoch was just registered
         SKIP, /// This epoch will result in no rewards and no unregistering
         CLAIMABLE, /// This epoch will result in claiming rewards
         CLAIMED, /// The rewards for this epoch have been claimed
@@ -375,6 +377,18 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     function getInitiativeState(address _initiative, VoteSnapshot memory votesSnapshot_, InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) public view returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount) {
         lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
+
+        // == Non existant Condition == //
+        // If a initiative is disabled, we return false and the last epoch claim
+        if(registeredInitiatives[_initiative] == 0) {
+            return (InitiativeStatus.NONEXISTENT, 0, 0); /// By definition it has zero rewards
+        }
+
+        // == Non existant Condition == //
+        // If a initiative is disabled, we return false and the last epoch claim
+        if(registeredInitiatives[_initiative] == epoch()) {
+            return (InitiativeStatus.COOLDOWN, 0, 0); /// Was registered this week
+        }
 
         // == Already Claimed Condition == //
         if(lastEpochClaim >= epoch() - 1) {

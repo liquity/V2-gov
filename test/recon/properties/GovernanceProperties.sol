@@ -6,6 +6,10 @@ import {Governance} from "src/Governance.sol";
 
 abstract contract GovernanceProperties is BeforeAfter {
     
+
+    /// A Initiative cannot change in status
+    /// Except for being unregistered
+    ///     Or claiming rewards
     function property_GV01() public {
         // first check that epoch hasn't changed after the operation
         if(_before.epoch == _after.epoch) {
@@ -24,6 +28,13 @@ abstract contract GovernanceProperties is BeforeAfter {
                 if(_before.initiativeStatus[initiative] == Governance.InitiativeStatus.CLAIMABLE) {
                     // ALLOW TO CLAIM
                     if(_after.initiativeStatus[initiative] == Governance.InitiativeStatus.CLAIMED) {
+                        return;
+                    }
+                }
+                
+                if(_before.initiativeStatus[initiative] == Governance.InitiativeStatus.NONEXISTENT) {
+                    // Registered -> SKIP is ok
+                    if(_after.initiativeStatus[initiative] == Governance.InitiativeStatus.COOLDOWN) {
                         return;
                     }
                 }
