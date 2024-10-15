@@ -101,10 +101,10 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         );
 
         (uint88 totalLQTY, uint32 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
-        uint240 totalVotes = governance.lqtyToVotes(totalLQTY, block.timestamp, totalAverageTimestamp);
+        uint240 totalVotes = governance.lqtyToVotes(totalLQTY, uint32(block.timestamp), totalAverageTimestamp);
         if (totalVotes != 0) {
             (uint88 lqty, uint32 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
-            uint240 votes = governance.lqtyToVotes(lqty, block.timestamp, averageTimestamp);
+            uint240 votes = governance.lqtyToVotes(lqty, uint32(block.timestamp), averageTimestamp);
             boldAmount = uint256(bribe.boldAmount) * uint256(votes) / uint256(totalVotes);
             bribeTokenAmount = uint256(bribe.bribeTokenAmount) * uint256(votes) / uint256(totalVotes);
         }

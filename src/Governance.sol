@@ -86,7 +86,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         bold = IERC20(_bold);
         require(_config.minClaim <= _config.minAccrual, "Gov: min-claim-gt-min-accrual");
         REGISTRATION_FEE = _config.registrationFee;
-
+ 
         // Registration threshold must be below 100% of votes
         require(_config.registrationThresholdFactor < WAD, "Gov: registration-config");
         REGISTRATION_THRESHOLD_FACTOR = _config.registrationThresholdFactor;
@@ -239,12 +239,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function lqtyToVotes(uint88 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp)
+    function lqtyToVotes(uint88 _lqtyAmount, uint32 _currentTimestamp, uint32 _averageTimestamp)
         public
         pure
-        returns (uint240)
+        returns (uint120)
     {
-        return uint240(_lqtyAmount) * _averageAge(uint32(_currentTimestamp), _averageTimestamp);
+        return uint120(_lqtyAmount) * uint120(_averageAge(_currentTimestamp, _averageTimestamp));
     }
 
     /// @inheritdoc IGovernance
@@ -287,16 +287,16 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         if (initiativeSnapshot.forEpoch < currentEpoch - 1) {
             uint256 votingThreshold = calculateVotingThreshold();
             uint32 start = epochStart();
-            uint240 votes =
+            uint120 votes =
                 lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.averageStakingTimestampVoteLQTY);
-            uint240 vetos =
+            uint120 vetos =
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
             // if the votes didn't meet the voting threshold then no votes qualify
             /// @audit TODO TEST THIS
             /// The change means that all logic for votes and rewards must be done in `getInitiativeState`
-            initiativeSnapshot.votes = uint224(votes); /// @audit TODO: We should change this to check the treshold, we should instead use the snapshot to just report all the valid data
+            initiativeSnapshot.votes = uint120(votes); /// @audit TODO: We should change this to check the treshold, we should instead use the snapshot to just report all the valid data
 
-            initiativeSnapshot.vetos = uint224(vetos); /// @audit TODO: Overflow + order of operations
+            initiativeSnapshot.vetos = uint120(vetos); /// @audit TODO: Overflow + order of operations
 
             initiativeSnapshot.forEpoch = currentEpoch - 1; 
 
@@ -414,7 +414,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
         // than the registration threshold derived from the previous epoch's total global votes
         require(
-            lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), block.timestamp, userState.averageStakingTimestamp)
+            lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), uint32(block.timestamp), userState.averageStakingTimestamp)
                 >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );
