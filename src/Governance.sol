@@ -582,9 +582,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         state.countedVoteLQTY -= initiativeState.voteLQTY;
         globalState = state;
 
-        /// @audit removal math causes issues
-
-        /// @audit Should not delete this
         /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
         registeredInitiatives[_initiative] = UNREGISTERED_INITIATIVE; 
 
@@ -599,20 +596,19 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState_) = _snapshotVotesForInitiative(_initiative);
 
-        // TODO: Return type from state FSM can be standardized
         (InitiativeStatus status, , uint256 claimableAmount ) = getInitiativeState(_initiative);
 
-        /// @audit Return 0 if we cannot claim
         /// INVARIANT:
         /// We cannot claim only for 2 reasons:
         /// We have already claimed
         /// We do not meet the threshold
-        /// TODO: Enforce this with assertions
         if(status != InitiativeStatus.CLAIMABLE) {
             return 0;
         }
         
-        assert(votesSnapshot_.forEpoch == epoch() - 1); /// @audit INVARIANT: You can only claim for previous epoch
+        /// @audit INVARIANT: You can only claim for previous epoch
+        assert(votesSnapshot_.forEpoch == epoch() - 1); 
+
         /// All unclaimed rewards are always recycled
         /// Invariant `lastEpochClaim` is < epoch() - 1; | 
         /// If `lastEpochClaim` is older than epoch() - 1 it means the initiative couldn't claim any rewards this epoch
