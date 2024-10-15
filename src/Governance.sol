@@ -376,18 +376,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     function getInitiativeState(address _initiative, VoteSnapshot memory votesSnapshot_, InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) public view returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount) {
-        lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
 
-        // == Non existant Condition == //
-        // If a initiative is disabled, we return false and the last epoch claim
+        // == Non existent Condition == //
         if(registeredInitiatives[_initiative] == 0) {
             return (InitiativeStatus.NONEXISTENT, 0, 0); /// By definition it has zero rewards
         }
 
-        // == Non existant Condition == //
+        // == Just Registered Condition == //
         // If a initiative is disabled, we return false and the last epoch claim
         if(registeredInitiatives[_initiative] == epoch()) {
-            return (InitiativeStatus.COOLDOWN, 0, 0); /// Was registered this week
+            return (InitiativeStatus.COOLDOWN, 0, 0); /// Was registered this week, cannot have rewards
+        }
+
+        // Fetch last epoch at which we claimed
+        lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
+
+        // == Disabled Condition == //
+        if(registeredInitiatives[_initiative] == UNREGISTERED_INITIATIVE) {
+            return (InitiativeStatus.DISABLED, lastEpochClaim, 0); /// By definition it has zero rewards
         }
 
         // == Already Claimed Condition == //
@@ -396,11 +402,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             return (InitiativeStatus.CLAIMED, lastEpochClaim, claimableAmount);
         }
 
-        // == Disabled Condition == //
-        // If a initiative is disabled, we return false and the last epoch claim
-        if(registeredInitiatives[_initiative] == UNREGISTERED_INITIATIVE) {
-            return (InitiativeStatus.DISABLED, lastEpochClaim, 0); /// By definition it has zero rewards
-        }
 
         // NOTE: Pass the snapshot value so we get accurate result
         uint256 votingTheshold = calculateVotingThreshold(votesSnapshot_.votes);
