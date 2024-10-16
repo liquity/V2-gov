@@ -544,6 +544,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // allocate the voting and vetoing LQTY to the initiative
             initiativeState.voteLQTY = add(initiativeState.voteLQTY, deltaLQTYVotes);
             initiativeState.vetoLQTY = add(initiativeState.vetoLQTY, deltaLQTYVetos);
+            // assert(initiativeState.voteLQTY != 0); // Votes are non zero
+            // assert(deltaLQTYVotes != 0) // Votes are non zero
 
             // update the initiative's state
             initiativeStates[initiative] = initiativeState;
@@ -583,7 +585,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             allocation.atEpoch = currentEpoch;
             require(!(allocation.voteLQTY != 0 && allocation.vetoLQTY != 0), "Governance: vote-and-veto");
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
-
+            
             userState.allocatedLQTY = add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
 
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
@@ -598,6 +600,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             "Governance: insufficient-or-allocated-lqty"
         );
 
+        // assert(state.countedVoteLQTY != 0);
+        // assert(state.countedVoteLQTYAverageTimestamp != 0);
+        /// Update storage
         globalState = state;
         userStates[msg.sender] = userState;
     }
@@ -630,6 +635,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             state.countedVoteLQTY - initiativeState.voteLQTY
         );
         state.countedVoteLQTY -= initiativeState.voteLQTY;
+        
         globalState = state;
 
         /// weeks * 2^16 > u32 so the contract will stop working before this is an issue

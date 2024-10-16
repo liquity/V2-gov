@@ -70,6 +70,83 @@ abstract contract GovernanceProperties is BeforeAfter {
     }
 
     // Function sound total math
+
+    /// The Sum of LQTY allocated by Users matches the global state
+    function property_sum_of_lqty_global_user_matches() public {
+        // Get state
+        // Get all users
+        // Sum up all voted users
+        // Total must match
+        (
+            uint88 totalCountedLQTY, 
+            // uint32 after_user_countedVoteLQTYAverageTimestamp // TODO: How do we do this?
+        ) = governance.globalState();
+
+        uint256 totalUserCountedLQTY;
+        for(uint256 i; i < users.length; i++) {
+            (uint88 user_allocatedLQTY, ) = governance.userStates(users[i]);
+            totalUserCountedLQTY += user_allocatedLQTY;
+        }
+
+        eq(totalCountedLQTY, totalUserCountedLQTY, "Global vs SUM(Users_lqty) must match");
+    }
+    
+    /// The Sum of LQTY allocated to Initiatives matches the Sum of LQTY allocated by users
+    function property_sum_of_lqty_initiative_user_matches() public {
+        // Get Initiatives
+        // Get all users
+        // Sum up all voted users & initiatives
+        // Total must match
+        uint256 totalInitiativesCountedLQTY;
+        for(uint256 i; i < deployedInitiatives.length; i++) {
+            (
+                uint88 after_user_voteLQTY,
+                ,
+                ,
+                ,
+                
+            ) = governance.initiativeStates(deployedInitiatives[i]);
+            totalInitiativesCountedLQTY += after_user_voteLQTY;
+        }
+
+
+        uint256 totalUserCountedLQTY;
+        for(uint256 i; i < users.length; i++) {
+            (uint88 user_allocatedLQTY, ) = governance.userStates(users[i]);
+            totalUserCountedLQTY += user_allocatedLQTY;
+        }
+
+        eq(totalInitiativesCountedLQTY, totalUserCountedLQTY, "SUM(Initiatives_lqty) vs SUM(Users_lqty) must match");
+    }
+    
+    /// The Sum of LQTY allocated to Initiatives matches the global state
+    function property_sum_of_lqty_global_initiatives_matches() public {
+        // Get Initiatives
+        // Get State
+        // Sum up all initiatives
+        // Total must match
+        (
+            uint88 totalCountedLQTY, 
+            // uint32 after_user_countedVoteLQTYAverageTimestamp // TODO: How do we do this?
+        ) = governance.globalState();
+
+        uint256 totalInitiativesCountedLQTY;
+        for(uint256 i; i < deployedInitiatives.length; i++) {
+            (
+                uint88 after_user_voteLQTY,
+                ,
+                ,
+                ,
+                
+            ) = governance.initiativeStates(deployedInitiatives[i]);
+            totalInitiativesCountedLQTY += after_user_voteLQTY;
+        }
+
+        eq(totalCountedLQTY, totalInitiativesCountedLQTY, "Global vs SUM(Initiatives_lqty) must match");
+
+    }
+
+    // TODO: also `lqtyAllocatedByUserToInitiative`
     
 
 
