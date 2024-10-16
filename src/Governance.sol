@@ -480,7 +480,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             "Governance: array-length-mismatch"
         );
 
-        (, GlobalState memory state) = _snapshotVotes();
+        (VoteSnapshot memory votesSnapshot_ , GlobalState memory state) = _snapshotVotes();
 
         uint16 currentEpoch = epoch();
 
@@ -501,10 +501,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states
             // Force to remove votes if disabled
             // Can remove votes and vetos in every stage
-            {
-                (InitiativeStatus status, ,) = getInitiativeState(initiative);
+            (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
+                _snapshotVotesForInitiative(initiative);
 
-                uint16 registeredAtEpoch = registeredInitiatives[initiative];
+            {
+                (InitiativeStatus status, , ) = getInitiativeState(initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
+
                 if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
                     /// @audit FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives - Prob should fix
                     require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED  || status == InitiativeStatus.UNREGISTERABLE, "Governance: active-vote-fsm");
@@ -515,7 +517,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 }
             }
 
-            (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative);
 
             // deep copy of the initiative's state before the allocation
             InitiativeState memory prevInitiativeState = InitiativeState(
@@ -592,6 +593,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function unregisterInitiative(address _initiative) external nonReentrant {
+        /// Enforce FSM
         (VoteSnapshot memory votesSnapshot_ , GlobalState memory state) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
             _snapshotVotesForInitiative(_initiative);
@@ -601,12 +603,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         require(status != InitiativeStatus.COOLDOWN, "Governance: initiative-in-warm-up");
         require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
 
+        // Remove weight from current state
         uint16 currentEpoch = epoch();
 
         /// @audit Invariant: Must only claim once or unregister
         assert(initiativeState.lastEpochClaim < currentEpoch - 1);
 
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
+        /// @audit CRIT HERE | The math on removing messes stuff up
+        /// Prob need to remove this
         state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
             state.countedVoteLQTYAverageTimestamp,
             initiativeState.averageStakingTimestampVoteLQTY,
