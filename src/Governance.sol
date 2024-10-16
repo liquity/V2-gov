@@ -425,8 +425,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
 
         // == Unregister Condition == //
-        /// @audit epoch() - 1 because we can have Now - 1 and that's not a removal case | TODO: Double check | Worst case QA, off by one epoch
-        /// This shifts the logic by 1 epoch
+        // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the 4th epoch flip that would result in SKIP, will result in the initiative being `UNREGISTERABLE`
         if((initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
             ||  votesForInitiativeSnapshot_.vetos > votesForInitiativeSnapshot_.votes
                         && votesForInitiativeSnapshot_.vetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD

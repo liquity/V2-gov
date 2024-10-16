@@ -45,11 +45,5 @@ function test_property_sum_of_lqty_global_user_matches_0() public {
    property_sum_of_lqty_global_user_matches();
 }
 
-    function _getInitiativeStatus(address _initiative) internal returns (uint256) {
-        (Governance.InitiativeStatus status, , ) = governance.getInitiativeState(_getDeployedInitiative(0)); 
-        return uint256(status);
-    }
-
-
 
 }

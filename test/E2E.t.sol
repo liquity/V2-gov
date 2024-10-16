@@ -120,6 +120,55 @@ contract E2ETests is Test {
         _allocate(address(0x123123), 1e18, 0);
     }
 
+
+    // forge test --match-test test_deregisterIsSound -vv
+    function test_deregisterIsSound() public {
+
+        // Deregistration works as follows:
+        // We stop voting
+        // We wait for `UNREGISTRATION_AFTER_EPOCHS`
+        // The initiative is removed
+        vm.startPrank(user);
+        // Check that we can vote on the first epoch, right after deployment
+        _deposit(1000e18);
+
+        console.log("epoch", governance.epoch());
+        _allocate(baseInitiative1, 1e18, 0); // Doesn't work due to cool down I think
+
+
+        // And for sanity, you cannot vote on new ones, they need to be added first
+        deal(address(lusd), address(user), REGISTRATION_FEE);
+        lusd.approve(address(governance), REGISTRATION_FEE);
+
+        address newInitiative = address(0x123123);
+        governance.registerInitiative(newInitiative); 
+        assertEq(uint256(Governance.InitiativeStatus.COOLDOWN) , _getInitiativeStatus(newInitiative), "Cooldown");
+
+        uint256 skipCount;
+
+        // Whereas in next week it will work
+        vm.warp(block.timestamp + EPOCH_DURATION); // 1
+        _allocate(newInitiative, 100, 0); // Will not meet the treshold
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP) ,_getInitiativeStatus(newInitiative), "SKIP");
+
+        // Cooldown on epoch Staert
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 2
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP) ,_getInitiativeStatus(newInitiative), "SKIP");
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 3
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP) ,_getInitiativeStatus(newInitiative), "SKIP");
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 4
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.UNREGISTERABLE) ,_getInitiativeStatus(newInitiative), "UNREGISTERABLE");
+
+        assertEq(skipCount, UNREGISTRATION_AFTER_EPOCHS, "Skipped exactly UNREGISTRATION_AFTER_EPOCHS");
+    }
+
     function _deposit(uint88 amt) internal {
         address userProxy = governance.deployUserProxy();
 
@@ -137,5 +186,10 @@ contract E2ETests is Test {
         
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
+
+    function _getInitiativeStatus(address _initiative) internal returns (uint256) {
+      (Governance.InitiativeStatus status, , ) = governance.getInitiativeState(_initiative); 
+      return uint256(status);
+  }
 
 }

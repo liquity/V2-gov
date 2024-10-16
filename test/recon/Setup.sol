@@ -107,5 +107,10 @@ abstract contract Setup is BaseSetup {
   function _getRandomUser(uint8 index) internal returns (address randomUser) { 
     return users[index % users.length];
   }
+
+    function _getInitiativeStatus(address _initiative) internal returns (uint256) {
+      (Governance.InitiativeStatus status, , ) = governance.getInitiativeState(_getDeployedInitiative(0)); 
+      return uint256(status);
+  }
   
 }
