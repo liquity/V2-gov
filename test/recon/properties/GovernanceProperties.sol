@@ -69,5 +69,8 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
     }
 
+    // Function sound total math
+    
+
 
 }
