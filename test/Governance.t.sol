@@ -1905,7 +1905,6 @@ contract GovernanceTest is Test {
     }
 
     // checking if allocating to same initiative modifies the average timestamp
-    /// forge-config: default.fuzz.runs = 50000
     function test_average_timestamp_allocate_same_initiative_fuzz(uint256 allocateAmount) public {
         // =========== epoch 1 ==================
         governance = new Governance(
