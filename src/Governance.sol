@@ -496,26 +496,27 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 "Governance: epoch-voting-cutoff"
             );
             
-            // Check FSM
+            /// === Check FSM === ///
             // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states
             // Force to remove votes if disabled
             // Can remove votes and vetos in every stage
             (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
                 _snapshotVotesForInitiative(initiative);
 
-            {
-                (InitiativeStatus status, , ) = getInitiativeState(initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
+            (InitiativeStatus status, , ) = getInitiativeState(initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
 
-                if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
-                    /// @audit FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives - Prob should fix
-                    require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED  || status == InitiativeStatus.UNREGISTERABLE, "Governance: active-vote-fsm");
-                }
-                
-                if(status == InitiativeStatus.DISABLED) {
-                    require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
-                }
+            if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
+                /// @audit FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives - Prob should fix
+                require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED  || status == InitiativeStatus.UNREGISTERABLE, "Governance: active-vote-fsm");
+            }
+            
+            if(status == InitiativeStatus.DISABLED) {
+                require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
             }
 
+            /// === UPDATE ACCOUNTING === ///
+
+            // == INITIATIVE STATE == //
 
             // deep copy of the initiative's state before the allocation
             InitiativeState memory prevInitiativeState = InitiativeState(
@@ -547,15 +548,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // update the initiative's state
             initiativeStates[initiative] = initiativeState;
 
+
+            // == GLOBAL STATE == //
+
             // update the average staking timestamp for all counted voting LQTY
-            /// Discount previous 
-            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                state.countedVoteLQTYAverageTimestamp,
-                prevInitiativeState.averageStakingTimestampVoteLQTY, /// @audit TODO Write tests that fail from this bug
-                state.countedVoteLQTY,
-                state.countedVoteLQTY - prevInitiativeState.voteLQTY
-            );
-            state.countedVoteLQTY -= prevInitiativeState.voteLQTY; /// @audit Overflow here MUST never happen2
+            /// Discount previous only if the initiative was not unregistered
+
+            /// @audit
+            if(status != InitiativeStatus.DISABLED) {
+                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                    state.countedVoteLQTYAverageTimestamp,
+                    prevInitiativeState.averageStakingTimestampVoteLQTY, /// @audit TODO Write tests that fail from this bug
+                    state.countedVoteLQTY,
+                    state.countedVoteLQTY - prevInitiativeState.voteLQTY
+                );
+                state.countedVoteLQTY -= prevInitiativeState.voteLQTY; /// @audit Overflow here MUST never happen2
+            }
+            /// @audit We cannot add on disabled so the change below is safe
+            // TODO More asserts? | Most likely need to assert strictly less voteLQTY here
 
             /// Add current
             state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
@@ -611,8 +621,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         assert(initiativeState.lastEpochClaim < currentEpoch - 1);
 
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
-        /// @audit CRIT HERE | The math on removing messes stuff up
-        /// Prob need to remove this
+        // / @audit CRIT HERE | The math on removing messes stuff up
+        // / Prob need to remove this
         state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
             state.countedVoteLQTYAverageTimestamp,
             initiativeState.averageStakingTimestampVoteLQTY,
