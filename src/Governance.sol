@@ -592,16 +592,16 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function unregisterInitiative(address _initiative) external nonReentrant {
-        (InitiativeStatus status, , ) = getInitiativeState(_initiative);
+        (VoteSnapshot memory votesSnapshot_ , GlobalState memory state) = _snapshotVotes();
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
+            _snapshotVotesForInitiative(_initiative);
+
+        (InitiativeStatus status, , ) = getInitiativeState(_initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
         require(status != InitiativeStatus.NONEXISTENT, "Governance: initiative-not-registered");
         require(status != InitiativeStatus.COOLDOWN, "Governance: initiative-in-warm-up");
         require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
 
         uint16 currentEpoch = epoch();
-
-        (, GlobalState memory state) = _snapshotVotes();
-        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
-            _snapshotVotesForInitiative(_initiative);
 
         /// @audit Invariant: Must only claim once or unregister
         assert(initiativeState.lastEpochClaim < currentEpoch - 1);
