@@ -15,59 +15,40 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     }
 		
 
-// forge test --match-test test_property_sum_of_user_initiative_allocations_0 -vv 
+// forge test --match-test test_property_sum_of_lqty_global_initiatives_matches_0 -vv 
  
-function test_property_sum_of_user_initiative_allocations_0() public {
+function test_property_sum_of_lqty_global_initiatives_matches_0() public {
   
-   vm.roll(2);
-   vm.warp(86000000 + 2);
-   vm.prank(0x0000000000000000000000000000000000010000);
-   helper_deployInitiative();
-  
-   vm.roll(20338);
-   vm.warp(86000000 + 359683);
+   vm.roll(13649);
+   vm.warp(999999999 + 274226);
    vm.prank(0x0000000000000000000000000000000000030000);
-   helper_deployInitiative();
+   governance_depositLQTY(132009924662042920942);
   
-   vm.roll(35511);
-   vm.warp(86000000 + 718072);
+   vm.roll(23204);
+   vm.warp(999999999 + 765086);
    vm.prank(0x0000000000000000000000000000000000030000);
-   helper_deployInitiative();
-  
-   vm.roll(94412);
-   vm.warp(86000000 + 999244);
-   vm.prank(0x0000000000000000000000000000000000010000);
-   helper_deployInitiative();
-  
-   vm.roll(161790);
-   vm.warp(86000000 + 2651694);
+   governance_allocateLQTY_clamped_single_initiative(0, 6936608807263793400734754831, 0);
+
+
+console.log("length", users.length);
+console.log("length", deployedInitiatives.length);
+   vm.roll(52745);
+   vm.warp(999999999 + 1351102);
    vm.prank(0x0000000000000000000000000000000000020000);
-   governance_depositLQTY(646169017059856542762865);
-  
-   vm.roll(186721);
-   vm.warp(86000000 + 2815428);
-   vm.prank(0x0000000000000000000000000000000000020000);
-   governance_registerInitiative(63);
-  
-   vm.roll(257296);
-   vm.warp(86000000 + 3261349);
-   vm.prank(0x0000000000000000000000000000000000020000);
-   helper_deployInitiative();
-  
-   vm.roll(333543);
-   vm.warp(86000000 + 4091708);
-   vm.prank(0x0000000000000000000000000000000000020000);
-   helper_deployInitiative();
-  
-   vm.roll(368758);
-   vm.warp(86000000 + 4314243);
-   vm.prank(0x0000000000000000000000000000000000020000);
-   governance_allocateLQTY_clamped_single_initiative(3, 29956350487679649024950075925, 0);
-  
-   vm.roll(375687);
-   vm.warp(86000000 + 4704876);
-   vm.prank(0x0000000000000000000000000000000000020000);
-   property_sum_of_user_initiative_allocations();
+   
+    (
+            uint88 totalCountedLQTY, 
+            // uint32 after_user_countedVoteLQTYAverageTimestamp // TODO: How do we do this?
+        ) = governance.globalState();
+
+   (uint88 user_voteLQTY, ) = _getAllUserAllocations(users[2]);
+   console.log("totalCountedLQTY", totalCountedLQTY);
+   console.log("user_voteLQTY", user_voteLQTY);
+
+   assertEq(user_voteLQTY, totalCountedLQTY, "Sum matches");
+
+   property_sum_of_lqty_global_user_matches();
 }
+		
 		
 }
