@@ -795,7 +795,7 @@ contract GovernanceTest is Test {
         int88[] memory reAddDeltaLQTYVetos = new int88[](1);
 
         /// @audit This MUST revert, an initiative should not be re-votable once disabled
-        vm.expectRevert("Governance: initiative-not-active");
+        vm.expectRevert("Governance: active-vote-fsm");
         governance.allocateLQTY(reAddInitiatives, reAddDeltaLQTYVotes, reAddDeltaLQTYVetos);
     }
 
@@ -877,7 +877,7 @@ contract GovernanceTest is Test {
         int88[] memory deltaLQTYVetos = new int88[](1);
 
         // should revert if the initiative has been registered in the current epoch
-        vm.expectRevert("Governance: initiative-not-active");
+        vm.expectRevert("Governance: active-vote-fsm");
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         vm.warp(block.timestamp + 365 days);

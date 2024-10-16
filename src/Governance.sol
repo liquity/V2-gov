@@ -443,7 +443,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
 
         require(_initiative != address(0), "Governance: zero-address");
-        require(registeredInitiatives[_initiative] == 0, "Governance: initiative-already-registered");
+        (InitiativeStatus status, ,) = getInitiativeState(_initiative);
+        require(status == InitiativeStatus.NONEXISTENT, "Governance: initiative-already-registered");
 
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
         (VoteSnapshot memory snapshot,) = _snapshotVotes();
@@ -478,7 +479,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             "Governance: array-length-mismatch"
         );
 
-        (, GlobalState memory state) = _snapshotVotes();
+        (VoteSnapshot memory votesSnapshot_ , GlobalState memory state) = _snapshotVotes();
 
         uint16 currentEpoch = epoch();
 
@@ -495,19 +496,26 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 "Governance: epoch-voting-cutoff"
             );
             
+            // Check FSM
+            // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states
+            // Force to remove votes if disabled
+            // Can remove votes and vetos in every stage
+            (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
+                _snapshotVotesForInitiative(initiative);
+
             {
-                uint16 registeredAtEpoch = registeredInitiatives[initiative];
+                (InitiativeStatus status, , ) = getInitiativeState(initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
+
                 if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
-                    require(currentEpoch > registeredAtEpoch && registeredAtEpoch != 0, "Governance: initiative-not-active");
+                    /// @audit FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives - Prob should fix
+                    require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED  || status == InitiativeStatus.UNREGISTERABLE, "Governance: active-vote-fsm");
                 }
                 
-                if(registeredAtEpoch == UNREGISTERED_INITIATIVE) {
+                if(status == InitiativeStatus.DISABLED) {
                     require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
                 }
             }
 
-
-            (, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(initiative);
 
             // deep copy of the initiative's state before the allocation
             InitiativeState memory prevInitiativeState = InitiativeState(
@@ -586,24 +594,25 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function unregisterInitiative(address _initiative) external nonReentrant {
-        uint16 registrationEpoch = registeredInitiatives[_initiative];
-        require(registrationEpoch != 0, "Governance: initiative-not-registered"); /// @audit use FSM
-        uint16 currentEpoch = epoch();
-        /// @audit Can delete this and refactor to not be necessary
-        require(registrationEpoch + REGISTRATION_WARM_UP_PERIOD < currentEpoch, "Governance: initiative-in-warm-up"); /// @audit use FSM
-
-        /// @audit GAS -> Use memory vals for `getInitiativeState`
-        (, GlobalState memory state) = _snapshotVotes();
+        /// Enforce FSM
+        (VoteSnapshot memory votesSnapshot_ , GlobalState memory state) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
             _snapshotVotesForInitiative(_initiative);
 
-        /// Invariant: Must only claim once or unregister
-        require(initiativeState.lastEpochClaim < epoch() - 1);
-        
-        (InitiativeStatus status, , ) = getInitiativeState(_initiative); /// @audit use FSM
+        (InitiativeStatus status, , ) = getInitiativeState(_initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
+        require(status != InitiativeStatus.NONEXISTENT, "Governance: initiative-not-registered");
+        require(status != InitiativeStatus.COOLDOWN, "Governance: initiative-in-warm-up");
         require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
 
+        // Remove weight from current state
+        uint16 currentEpoch = epoch();
+
+        /// @audit Invariant: Must only claim once or unregister
+        assert(initiativeState.lastEpochClaim < currentEpoch - 1);
+
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
+        /// @audit CRIT HERE | The math on removing messes stuff up
+        /// Prob need to remove this
         state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
             state.countedVoteLQTYAverageTimestamp,
             initiativeState.averageStakingTimestampVoteLQTY,
@@ -624,9 +633,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function claimForInitiative(address _initiative) external nonReentrant returns (uint256) {
-        /// @audit GAS - initiative state vs snapshot
-        (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
-        (InitiativeStatus status, , uint256 claimableAmount ) = getInitiativeState(_initiative);
+        (VoteSnapshot memory votesSnapshot_ , GlobalState memory state) = _snapshotVotes();
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
+            _snapshotVotesForInitiative(_initiative);
+
+        (InitiativeStatus status, , uint256 claimableAmount) = getInitiativeState(_initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
 
         if(status != InitiativeStatus.CLAIMABLE) {
             return 0;
