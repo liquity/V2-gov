@@ -14,40 +14,36 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
         setup();
     }
 		
-
-// forge test --match-test test_property_sum_of_user_initiative_allocations_0 -vv 
-function test_property_sum_of_user_initiative_allocations_0() public {
+// forge test --match-test test_property_sum_of_lqty_global_user_matches_0 -vv 
+ 
+function test_property_sum_of_lqty_global_user_matches_0() public {
   
-   vm.roll(39122);
-   vm.warp(999999999 +285913);
+   vm.roll(161622);
+   vm.warp(9999999999 + 1793404);
+   vm.prank(0x0000000000000000000000000000000000030000);
+   property_sum_of_lqty_global_user_matches();
+  
+   vm.roll(273284);
+   vm.warp(9999999999 + 3144198);
    vm.prank(0x0000000000000000000000000000000000020000);
-   governance_depositLQTY(42075334510194471637767337);
+   governance_depositLQTY(3501478328989062228745782);
   
-   vm.roll(39152);
-   vm.warp(999999999 +613771);
+   vm.roll(273987);
+   vm.warp(9999999999 + 3148293);
    vm.prank(0x0000000000000000000000000000000000030000);
-   helper_deployInitiative();
+   governance_allocateLQTY_clamped_single_initiative(0, 5285836763643083359055120749, 0);
   
-   vm.roll(69177);
-   vm.warp(999999999 +936185);
+   vm.roll(303163);
+   vm.warp(9999999999 + 3234641);
    vm.prank(0x0000000000000000000000000000000000030000);
-   governance_allocateLQTY_clamped_single_initiative(0, 0, 1696172787721902493372875218);
+   governance_unregisterInitiative(0);
   
-   vm.roll(76883);
-   vm.warp(999999999 +1310996);
-   vm.prank(0x0000000000000000000000000000000000030000);
-   helper_deployInitiative();
-  
-   vm.roll(94823);
-   vm.warp(999999999 +1329974);
+   vm.roll(303170);
+   vm.warp(9999999999 + 3234929);
    vm.prank(0x0000000000000000000000000000000000010000);
-   helper_deployInitiative();
-  
-   vm.roll(94907);
-   vm.warp(999999999 +1330374);
-   vm.prank(0x0000000000000000000000000000000000030000);
-
+   property_sum_of_lqty_global_user_matches();
 }
+		
 		
 		
 		
