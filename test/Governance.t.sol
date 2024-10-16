@@ -606,7 +606,7 @@ contract GovernanceTest is Test {
         assertEq(atEpoch, governance.epoch());
 
         // should revert if the initiative is still in the registration warm up period
-        vm.expectRevert("Governance: initiative-in-warm-up");
+        vm.expectRevert("Governance: initiative-in-warm-up"); /// @audit should fail due to not waiting enough time
         governance.unregisterInitiative(baseInitiative3);
 
         vm.warp(block.timestamp + 365 days);
