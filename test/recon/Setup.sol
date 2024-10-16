@@ -47,6 +47,9 @@ abstract contract Setup is BaseSetup {
 
 
   function setup() internal virtual override {
+      // Random TS that is realistic
+      vm.warp(1729087439);
+      vm.roll(block.number + 1);
       users.push(user);
       users.push(user2);
 
