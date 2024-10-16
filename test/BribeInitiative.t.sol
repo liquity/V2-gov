@@ -346,6 +346,54 @@ contract BribeInitiativeTest is Test {
         assertEq(totalLQTYAllocated, 0);
     }
 
+    // forge test --match-test test_rationalFlow -vvvv
+    function test_rationalFlow() public {
+        vm.warp(block.timestamp + (EPOCH_DURATION)); // Initiative not active
+
+        // We are now at epoch
+
+        // Deposit
+        _stakeLQTY(user1, 1e18);
+
+        // Deposit Bribe for now
+        _allocateLQTY(user1, 5e17, 0); /// @audit Allocate b4 or after bribe should be irrelevant
+
+        /// @audit WTF
+        _depositBribe(1e18, 1e18, governance.epoch()); /// @audit IMO this should also work
+
+        _allocateLQTY(user1, 5e17, 0); /// @audit Allocate b4 or after bribe should be irrelevant
+
+        // deposit bribe for Epoch + 2
+        _depositBribe(1e18, 1e18, governance.epoch() + 1);
+        
+
+        (uint88 totalLQTYAllocated,) =
+            bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint88 userLQTYAllocated,) =
+            bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(totalLQTYAllocated, 1e18, "total allocation");
+        assertEq(userLQTYAllocated, 1e18, "user allocation");
+
+        vm.warp(block.timestamp + (EPOCH_DURATION));
+        // We are now at epoch + 1 // Should be able to claim epoch - 1
+
+        // user should receive bribe from their allocated stake
+        (uint256 boldAmount, uint256 bribeTokenAmount) = _claimBribe(user1, governance.epoch() - 1, governance.epoch() - 1, governance.epoch() - 1);
+        assertEq(boldAmount, 1e18, "bold amount");
+        assertEq(bribeTokenAmount, 1e18, "bribe amount");
+
+        // And they cannot claim the one that is being added currently
+        _claimBribe(user1, governance.epoch(), governance.epoch() - 1, governance.epoch() - 1, true);
+
+        // decrease user allocation for the initiative
+        _allocateLQTY(user1, -1e18, 0);
+
+        (userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        assertEq(userLQTYAllocated, 0, "total allocation");
+        assertEq(totalLQTYAllocated, 0, "user allocation");
+    }
+
     /** 
         Revert Cases
     */
@@ -573,16 +621,16 @@ contract BribeInitiativeTest is Test {
         vm.stopPrank();
     }
 
-    function _allocateLQTY(address staker, int176 deltaVoteLQTYAmt, int176 deltaVetoLQTYAmt) public {
+    function _allocateLQTY(address staker, int88 deltaVoteLQTYAmt, int88 deltaVetoLQTYAmt) public {
         vm.startPrank(staker);
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
 
         // voting in favor of the  initiative with half of user1's stake
-        int176[] memory deltaVoteLQTY = new int176[](1);
+        int88[] memory deltaVoteLQTY = new int88[](1);
         deltaVoteLQTY[0] = deltaVoteLQTYAmt;
 
-        int176[] memory deltaVetoLQTY = new int176[](1);
+        int88[] memory deltaVetoLQTY = new int88[](1);
         deltaVetoLQTY[0] = deltaVetoLQTYAmt;
 
         governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
@@ -598,11 +646,18 @@ contract BribeInitiativeTest is Test {
     }
 
     function _claimBribe(address claimer, uint16 epoch, uint16 prevLQTYAllocationEpoch, uint16 prevTotalLQTYAllocationEpoch) public returns (uint256 boldAmount, uint256 bribeTokenAmount){
+        return _claimBribe(claimer, epoch, prevLQTYAllocationEpoch, prevTotalLQTYAllocationEpoch, false);
+    }
+
+    function _claimBribe(address claimer, uint16 epoch, uint16 prevLQTYAllocationEpoch, uint16 prevTotalLQTYAllocationEpoch, bool expectRevert) public returns (uint256 boldAmount, uint256 bribeTokenAmount){
         vm.startPrank(claimer);
         BribeInitiative.ClaimData[] memory epochs = new BribeInitiative.ClaimData[](1);
         epochs[0].epoch = epoch;
         epochs[0].prevLQTYAllocationEpoch = prevLQTYAllocationEpoch;
         epochs[0].prevTotalLQTYAllocationEpoch = prevTotalLQTYAllocationEpoch;
+        if(expectRevert) {
+            vm.expectRevert();
+        }
         (boldAmount, bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
         vm.stopPrank();
     }

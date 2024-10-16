@@ -82,8 +82,8 @@ contract UserProxy is IUserProxy {
     }
 
     /// @inheritdoc IUserProxy
-    function staked() external view returns (uint96) {
-        return uint96(stakingV1.stakes(address(this)));
+    function staked() external view returns (uint88) {
+        return uint88(stakingV1.stakes(address(this)));
     }
 
     receive() external payable {}

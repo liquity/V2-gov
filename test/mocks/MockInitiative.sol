@@ -30,8 +30,8 @@ contract MockInitiative is IInitiative {
         IGovernance.InitiativeState calldata
     ) external virtual {
         address[] memory initiatives = new address[](0);
-        int176[] memory deltaLQTYVotes = new int176[](0);
-        int176[] memory deltaLQTYVetos = new int176[](0);
+        int88[] memory deltaLQTYVotes = new int88[](0);
+        int88[] memory deltaLQTYVetos = new int88[](0);
         governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {console} from "forge-std/console.sol";
-
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -11,6 +9,10 @@ import {IInitiative} from "./interfaces/IInitiative.sol";
 import {IBribeInitiative} from "./interfaces/IBribeInitiative.sol";
 
 import {DoubleLinkedList} from "./utils/DoubleLinkedList.sol";
+
+
+import {EncodingDecodingLib} from "src/utils/EncodingDecodingLib.sol";
+
 
 contract BribeInitiative is IInitiative, IBribeInitiative {
     using SafeERC20 for IERC20;
@@ -56,11 +58,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     /// @inheritdoc IBribeInitiative
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external {
-        bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
-        bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
 
         uint16 epoch = governance.epoch();
-        require(_epoch > epoch, "BribeInitiative: only-future-epochs");
+        require(_epoch >= epoch, "BribeInitiative: only-future-epochs");
 
         Bribe memory bribe = bribeByEpoch[_epoch];
         bribe.boldAmount += _boldAmount;
@@ -68,6 +68,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         bribeByEpoch[_epoch] = bribe;
 
         emit DepositBribe(msg.sender, _boldAmount, _bribeTokenAmount, _epoch);
+
+        bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
+        bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
     }
 
     function _claimBribe(
@@ -76,7 +79,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         uint16 _prevLQTYAllocationEpoch,
         uint16 _prevTotalLQTYAllocationEpoch
     ) internal returns (uint256 boldAmount, uint256 bribeTokenAmount) {
-        require(_epoch != governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
+        require(_epoch < governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
         require(!claimedBribeAtEpoch[_user][_epoch], "BribeInitiative: already-claimed");
 
         Bribe memory bribe = bribeByEpoch[_epoch];
@@ -164,8 +167,11 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         emit ModifyLQTYAllocation(_user, _epoch, _lqty, _averageTimestamp);
     }
 
+    function _encodeLQTYAllocation(uint88 _lqty, uint32 _averageTimestamp) private pure returns (uint224) {
+        return EncodingDecodingLib.encodeLQTYAllocation(_lqty, _averageTimestamp);
+    }
     function _decodeLQTYAllocation(uint224 _value) private pure returns (uint88, uint32) {
-        return (uint88(_value >> 32), uint32(_value));
+        return EncodingDecodingLib.decodeLQTYAllocation(_value);
     }
 
     function _loadTotalLQTYAllocation(uint16 _epoch) private view returns (uint88, uint32) {
