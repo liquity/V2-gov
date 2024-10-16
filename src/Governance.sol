@@ -515,7 +515,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             }
 
             /// === UPDATE ACCOUNTING === ///
-
             // == INITIATIVE STATE == //
 
             // deep copy of the initiative's state before the allocation
@@ -576,6 +575,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             );
             state.countedVoteLQTY += initiativeState.voteLQTY;
 
+            // == USER ALLOCATION == //
+
             // allocate the voting and vetoing LQTY to the initiative
             Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
             allocation.voteLQTY = add(allocation.voteLQTY, deltaLQTYVotes);
@@ -583,6 +584,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             allocation.atEpoch = currentEpoch;
             require(!(allocation.voteLQTY != 0 && allocation.vetoLQTY != 0), "Governance: vote-and-veto");
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
+
+            // == USER STATE == //
             
             userState.allocatedLQTY = add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
 
@@ -598,17 +601,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             "Governance: insufficient-or-allocated-lqty"
         );
 
-        /// Update storage
-        emit EmitState(globalState.countedVoteLQTY, globalState.countedVoteLQTYAverageTimestamp);
-        emit EmitState(state.countedVoteLQTY, state.countedVoteLQTYAverageTimestamp);
-
         globalState = state;
-        emit EmitState(globalState.countedVoteLQTY, globalState.countedVoteLQTYAverageTimestamp);
-        emit EmitState(state.countedVoteLQTY, state.countedVoteLQTYAverageTimestamp);
         userStates[msg.sender] = userState;
     }
-
-    event EmitState(uint88 countedVoteLQTY, uint32 countedVoteLQTYAverageTimestamp);
 
     /// @inheritdoc IGovernance
     function unregisterInitiative(address _initiative) external nonReentrant {
@@ -629,8 +624,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         assert(initiativeState.lastEpochClaim < currentEpoch - 1);
 
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
-        // / @audit CRIT HERE | The math on removing messes stuff up
-        // / Prob need to remove this
+        /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
+        // Removing votes from state desynchs the state until all users remove their votes from the initiative
+
         state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
             state.countedVoteLQTYAverageTimestamp,
             initiativeState.averageStakingTimestampVoteLQTY,
