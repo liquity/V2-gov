@@ -544,8 +544,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // allocate the voting and vetoing LQTY to the initiative
             initiativeState.voteLQTY = add(initiativeState.voteLQTY, deltaLQTYVotes);
             initiativeState.vetoLQTY = add(initiativeState.vetoLQTY, deltaLQTYVetos);
-            // assert(initiativeState.voteLQTY != 0); // Votes are non zero
-            // assert(deltaLQTYVotes != 0) // Votes are non zero
 
             // update the initiative's state
             initiativeStates[initiative] = initiativeState;
@@ -600,12 +598,17 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             "Governance: insufficient-or-allocated-lqty"
         );
 
-        // assert(state.countedVoteLQTY != 0);
-        // assert(state.countedVoteLQTYAverageTimestamp != 0);
         /// Update storage
+        emit EmitState(globalState.countedVoteLQTY, globalState.countedVoteLQTYAverageTimestamp);
+        emit EmitState(state.countedVoteLQTY, state.countedVoteLQTYAverageTimestamp);
+
         globalState = state;
+        emit EmitState(globalState.countedVoteLQTY, globalState.countedVoteLQTYAverageTimestamp);
+        emit EmitState(state.countedVoteLQTY, state.countedVoteLQTYAverageTimestamp);
         userStates[msg.sender] = userState;
     }
+
+    event EmitState(uint88 countedVoteLQTY, uint32 countedVoteLQTYAverageTimestamp);
 
     /// @inheritdoc IGovernance
     function unregisterInitiative(address _initiative) external nonReentrant {
