@@ -165,7 +165,7 @@ contract GovernanceTest is Test {
             ? _prevOuterAverageTimestamp
             : _newInnerAverageTimestamp;
         if (highestTimestamp > block.timestamp) vm.warp(highestTimestamp);
-        governanceInternal.calculateAverageTimestamp(
+         governanceInternal.calculateAverageTimestamp(
             _prevOuterAverageTimestamp, _newInnerAverageTimestamp, _prevLQTYBalance, _newLQTYBalance
         );
     }
@@ -1761,6 +1761,275 @@ contract GovernanceTest is Test {
         assertEq(votes, deltaInitiativeVotingPower, "voting power should increase by amount user allocated");
     }
 
+    // checking that voting power calculated from lqtyAllocatedByUserToInitiative is equivalent to the voting power using values returned by userStates 
+    function test_voting_power_lqtyAllocatedByUserToInitiative() public {
+        // =========== epoch 1 ==================
+        governance = new Governance(
+            address(lqty),
+            address(lusd),
+            address(stakingV1),
+            address(lusd),
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: uint32(block.timestamp),
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
+        );
+
+        // 1. user stakes lqty
+        uint88 lqtyAmount = 1e18;
+        _stakeLQTY(user, lqtyAmount);
+
+        // =========== epoch 2 (start) ==================
+        // 2. user allocates in epoch 2 for initiative to be active
+        vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
+
+        _allocateLQTY(user, lqtyAmount);
+
+        // get user voting power at start of epoch from lqtyAllocatedByUserToInitiative
+        (uint88 voteLQTY0,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
+        (uint88 allocatedLQTY, uint32 averageStakingTimestamp) = governance.userStates(user);
+        uint240 currentInitiativePowerFrom1 = governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestamp);
+        uint240 currentInitiativePowerFrom2 = governance.lqtyToVotes(allocatedLQTY, block.timestamp, averageStakingTimestamp);
+
+        assertEq(currentInitiativePowerFrom1, currentInitiativePowerFrom2, "currentInitiativePowerFrom1 != currentInitiativePowerFrom2");
+    }
+
+    // checking if allocating to a different initiative in a different epoch modifies the avgStakingTimestamp
+    function test_average_timestamp() public {
+        // =========== epoch 1 ==================
+        governance = new Governance(
+            address(lqty),
+            address(lusd),
+            address(stakingV1),
+            address(lusd),
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: uint32(block.timestamp),
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
+        );
+
+        // 1. user stakes lqty
+        uint88 lqtyAmount = 2e18;
+        _stakeLQTY(user, lqtyAmount);
+
+        // =========== epoch 2 (start) ==================
+        // 2. user allocates in epoch 2
+        vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
+
+        // user allocates to baseInitiative1
+        _allocateLQTY(user, 1e18);
+
+        // get user voting power at start of epoch 2 from lqtyAllocatedByUserToInitiative
+        (, uint32 averageStakingTimestamp1) = governance.userStates(user);
+        console2.log("averageStakingTimestamp1: ", averageStakingTimestamp1);
+
+        // =========== epoch 3 (start) ==================
+        // 3. user allocates to baseInitiative2 in epoch 3
+        vm.warp(block.timestamp + EPOCH_DURATION); // warp to third epoch
+
+        _allocateLQTYToInitiative(user, baseInitiative2, 1e18);
+
+        // get user voting power at start of epoch 3 from lqtyAllocatedByUserToInitiative
+        (, uint32 averageStakingTimestamp2) = governance.userStates(user);
+        console2.log("averageStakingTimestamp2: ", averageStakingTimestamp2);
+    }
+
+    // checking if allocating to same initiative modifies the average timestamp
+    function test_average_timestamp_same_initiative() public {
+        // =========== epoch 1 ==================
+        governance = new Governance(
+            address(lqty),
+            address(lusd),
+            address(stakingV1),
+            address(lusd),
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: uint32(block.timestamp),
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
+        );
+
+        // 1. user stakes lqty
+        uint88 lqtyAmount = 2e18;
+        _stakeLQTY(user, lqtyAmount);
+
+        // =========== epoch 2 (start) ==================
+        // 2. user allocates in epoch 2
+        vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
+
+        // user allocates to baseInitiative1
+        _allocateLQTY(user, 1e18);
+
+        // get user voting power at start of epoch 2 from lqtyAllocatedByUserToInitiative
+        (, uint32 averageStakingTimestamp1) = governance.userStates(user);
+        console2.log("averageStakingTimestamp1: ", averageStakingTimestamp1);
+
+        // =========== epoch 3 (start) ==================
+        // 3. user allocates to baseInitiative1 in epoch 3
+        vm.warp(block.timestamp + EPOCH_DURATION + 200); // warp to third epoch
+
+        _allocateLQTY(user, 1e18);
+
+        // get user voting power at start of epoch 3 from lqtyAllocatedByUserToInitiative
+        (, uint32 averageStakingTimestamp2) = governance.userStates(user);
+        assertEq(averageStakingTimestamp1, averageStakingTimestamp2, "average timestamps differ");
+    }
+
+    // checking if allocating to same initiative modifies the average timestamp
+    /// forge-config: default.fuzz.runs = 50000
+    function test_average_timestamp_allocate_same_initiative_fuzz(uint256 allocateAmount) public {
+        // =========== epoch 1 ==================
+        governance = new Governance(
+            address(lqty),
+            address(lusd),
+            address(stakingV1),
+            address(lusd),
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: uint32(block.timestamp),
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
+        );
+
+        // 1. user stakes lqty
+        uint88 lqtyAmount = uint88(allocateAmount % lqty.balanceOf(user));
+        vm.assume(lqtyAmount > 0);
+        _stakeLQTY(user, lqtyAmount);
+
+        // =========== epoch 2 (start) ==================
+        // 2. user allocates in epoch 2
+        vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
+
+        // clamp lqtyAmount by half of what user staked 
+        uint88 lqtyAmount2 = uint88(bound(allocateAmount, 1, lqtyAmount));
+        _allocateLQTY(user, lqtyAmount2);
+
+        // get user voting power at start of epoch 2 from lqtyAllocatedByUserToInitiative
+        (, uint32 averageStakingTimestamp1) = governance.userStates(user);
+
+        // =========== epoch 3 (start) ==================
+        // 3. user allocates to baseInitiative1 in epoch 3
+        vm.warp(block.timestamp + EPOCH_DURATION); // warp to third epoch
+
+        // clamp lqtyAmount by amount user staked 
+        vm.assume(lqtyAmount > lqtyAmount2);
+        vm.assume(lqtyAmount - lqtyAmount2 > 1);
+        uint88 lqtyAmount3 = uint88(bound(allocateAmount, 1, lqtyAmount - lqtyAmount2));
+        _allocateLQTY(user, lqtyAmount3);
+
+        // get user voting power at start of epoch 3 from lqtyAllocatedByUserToInitiative
+        (, uint32 averageStakingTimestamp2) = governance.userStates(user);
+        assertEq(averageStakingTimestamp1, averageStakingTimestamp2, "averageStakingTimestamp1 != averageStakingTimestamp2");
+    }
+
+    function test_voting_snapshot_start_vs_end_epoch() public {
+        // =========== epoch 1 ==================
+        governance = new Governance(
+            address(lqty),
+            address(lusd),
+            address(stakingV1),
+            address(lusd),
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: uint32(block.timestamp),
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
+        );
+
+        // 1. user stakes lqty
+        uint88 lqtyAmount = 1e18;
+        _stakeLQTY(user, lqtyAmount);
+
+        // =========== epoch 2 (start) ==================
+        // 2. user allocates in epoch 2 
+        vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
+
+        // get initiative voting power at start of epoch 
+        (uint88 voteLQTY0,, uint32 averageStakingTimestampVoteLQTY0,,) = governance.initiativeStates(baseInitiative1);
+        uint240 currentInitiativePower0 = governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestampVoteLQTY0);
+        assertEq(currentInitiativePower0, 0, "initiative voting power is > 0");
+
+        _allocateLQTY(user, lqtyAmount);
+
+        uint256 stateBeforeSnapshottingVotes = vm.snapshot();
+
+        // =========== epoch 3 (start) ==================
+        // 3a. warp to start of third epoch
+        vm.warp(block.timestamp + EPOCH_DURATION);
+        assertEq(3, governance.epoch(), "not in 3rd epoch");
+        governance.snapshotVotesForInitiative(baseInitiative1);
+
+        // get initiative voting power at start of epoch
+        (uint88 voteLQTY1,, uint32 averageStakingTimestampVoteLQTY1,,) = governance.initiativeStates(baseInitiative1);
+        uint240 currentInitiativePower1 = governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
+
+        // 4a. votes from snapshotting at begging of epoch
+        (uint224 votes,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
+
+        console2.log("currentInitiativePower1: ", currentInitiativePower1);
+        console2.log("votes: ", votes);
+
+        // =========== epoch 3 (end) ==================
+        // revert EVM to state before snapshotting
+        vm.revertTo(stateBeforeSnapshottingVotes);
+
+        // 3b. warp to end of third epoch 
+        vm.warp(block.timestamp + (EPOCH_DURATION * 2) - 1);
+        assertEq(3, governance.epoch(), "not in 3rd epoch");
+        governance.snapshotVotesForInitiative(baseInitiative1);
+
+        // 4b. votes from snapshotting at end of epoch
+        (uint224 votes2,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
+        assertEq(votes, votes2, "votes from snapshot are dependent on time at snapshot");
+    }
+
     // checks that there's no difference to resulting voting power from allocating at start or end of epoch
     function test_voting_power_no_difference_in_allocating_start_or_end_of_epoch() public {
         // =========== epoch 1 ==================
@@ -1891,6 +2160,54 @@ contract GovernanceTest is Test {
         assertEq(votes3, 0, "voting power should be decreased in this epoch");
     }
 
+    // checking if deallocating changes the averageStakingTimestamp
+    function test_deallocating_decreases_avg_timestamp() public {
+        // =========== epoch 1 ==================
+        governance = new Governance(
+            address(lqty),
+            address(lusd),
+            address(stakingV1),
+            address(lusd),
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: uint32(block.timestamp),
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            initialInitiatives
+        );
+
+        // 1. user stakes lqty
+        uint88 lqtyAmount = 1e18;
+        _stakeLQTY(user, lqtyAmount);
+
+        // =========== epoch 2 (start) ==================
+        // 2. user allocates in epoch 2 for initiative
+        vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
+
+        _allocateLQTY(user, lqtyAmount);
+
+        // =========== epoch 3 ==================
+        // 3. warp to third epoch and check voting power
+        vm.warp(block.timestamp + EPOCH_DURATION);
+        console2.log("current epoch A: ", governance.epoch());
+        governance.snapshotVotesForInitiative(baseInitiative1);
+
+        (,uint32 averageStakingTimestampBefore) = governance.userStates(user);
+
+        _deAllocateLQTY(user, lqtyAmount);
+
+        (,uint32 averageStakingTimestampAfter) = governance.userStates(user);
+        assertEq(averageStakingTimestampBefore, averageStakingTimestampAfter);
+    }
+
     // vetoing shouldn't affect voting power of the initiative
     function test_vote_and_veto() public {
         // =========== epoch 1 ==================
@@ -1945,8 +2262,7 @@ contract GovernanceTest is Test {
         // 4. votes should not affect accounting for votes 
         (uint224 votes,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(votes, currentInitiativePower, "voting power of initiative should not be affected by vetos");
-    }
-
+    } 
 
     function _stakeLQTY(address staker, uint88 amount) internal {
         vm.startPrank(staker);
@@ -1962,6 +2278,19 @@ contract GovernanceTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
+        int88[] memory deltaLQTYVotes = new int88[](1);
+        deltaLQTYVotes[0] = int88(amount);
+        int88[] memory deltaLQTYVetos = new int88[](1);
+
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        vm.stopPrank();
+    }
+
+    function _allocateLQTYToInitiative(address allocator, address initiative, uint88 amount) internal {
+        vm.startPrank(allocator);
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = initiative;
         int88[] memory deltaLQTYVotes = new int88[](1);
         deltaLQTYVotes[0] = int88(amount);
         int88[] memory deltaLQTYVetos = new int88[](1);
