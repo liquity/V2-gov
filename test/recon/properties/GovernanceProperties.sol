@@ -129,27 +129,27 @@ abstract contract GovernanceProperties is BeforeAfter {
     // TODO: also `lqtyAllocatedByUserToInitiative`
     // For each user, for each initiative, allocation is correct
     function property_sum_of_user_initiative_allocations() public {
-        for(uint256 i; i < deployedInitiatives.length; i++) {
+        for(uint256 x; x < deployedInitiatives.length; x++) {
             (
                 uint88 initiative_voteLQTY,
                 uint88 initiative_vetoLQTY,
                 ,
                 ,
                 
-            ) = governance.initiativeStates(deployedInitiatives[i]);
+            ) = governance.initiativeStates(deployedInitiatives[x]);
 
 
             // Grab all users and sum up their participations
             uint256 totalUserVotes;
             uint256 totalUserVetos;
-            for(uint256 i; i < users.length; i++) {
-                (uint88 vote_allocated, uint88 veto_allocated) = _getUserAllocation(users[i], deployedInitiatives[i]);
+            for(uint256 y; y < users.length; y++) {
+                (uint88 vote_allocated, uint88 veto_allocated) = _getUserAllocation(users[y], deployedInitiatives[x]);
                 totalUserVotes += vote_allocated;
                 totalUserVetos += veto_allocated;
             }
 
-            eq(initiative_voteLQTY, totalUserVotes + initiative_voteLQTY, "Sum of users, matches initiative votes");
-            eq(initiative_vetoLQTY, totalUserVetos + initiative_vetoLQTY, "Sum of users, matches initiative vetos");
+            eq(initiative_voteLQTY, totalUserVotes, "Sum of users, matches initiative votes");
+            eq(initiative_vetoLQTY, totalUserVetos, "Sum of users, matches initiative vetos");
         }
     }
 
