@@ -648,7 +648,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         /// Invariant `lastEpochClaim` is < epoch() - 1; | 
         /// If `lastEpochClaim` is older than epoch() - 1 it means the initiative couldn't claim any rewards this epoch
         initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
-        votesForInitiativeSnapshot[_initiative] = votesForInitiativeSnapshot_; // implicitly prevents double claiming
 
         bold.safeTransfer(_initiative, claimableAmount);
 
