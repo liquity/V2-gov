@@ -721,8 +721,6 @@ contract GovernanceTest is Test {
             uint256 votingPowerWithProjection = governance.lqtyToVotes(voteLQTY1, governance.epochStart() + governance.EPOCH_DURATION(), averageStakingTimestampVoteLQTY1);
             assertLt(votingPower, threshold, "Current Power is not enough - Desynch A");
             assertLt(votingPowerWithProjection, threshold, "Future Power is also not enough - Desynch B");
-
-            // assertEq(counted1, counted2, "both counted");
         }
     }
 
@@ -797,6 +795,142 @@ contract GovernanceTest is Test {
         /// @audit This MUST revert, an initiative should not be re-votable once disabled
         vm.expectRevert("Governance: active-vote-fsm");
         governance.allocateLQTY(reAddInitiatives, reAddDeltaLQTYVotes, reAddDeltaLQTYVetos);
+    }
+
+
+    // Remove allocation but check accounting
+    // Need to find bug in accounting code
+    // forge test --match-test test_addRemoveAllocation_accounting -vv
+    function test_addRemoveAllocation_accounting() public {
+        // User setup
+        vm.startPrank(user);
+        address userProxy = governance.deployUserProxy();
+
+        lqty.approve(address(userProxy), 1_000e18);
+        governance.depositLQTY(1_000e18);
+
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
+        /// Setup and vote for 2 initiatives, 0.1% vs 99.9%
+        address[] memory initiatives = new address[](2);
+        initiatives[0] = baseInitiative1;
+        initiatives[1] = baseInitiative2;
+        int88[] memory deltaLQTYVotes = new int88[](2);
+        deltaLQTYVotes[0] = 1e18;
+        deltaLQTYVotes[1] = 999e18;
+        int88[] memory deltaLQTYVetos = new int88[](2);
+
+        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+    
+        // Warp to end so we check the threshold against future threshold
+        {
+            vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
+            (IGovernance.VoteSnapshot memory snapshot, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1) = governance.snapshotVotesForInitiative(baseInitiative1);
+
+            uint256 threshold = governance.getLatestVotingThreshold();
+            assertLt(initiativeVoteSnapshot1.votes, threshold, "it didn't get rewards");
+        }
+
+        // Roll for
+        vm.warp(block.timestamp + governance.UNREGISTRATION_AFTER_EPOCHS() * governance.EPOCH_DURATION());
+
+
+        /// === END SETUP === ///
+
+
+        // Grab values b4 unregistering and b4 removing user allocation
+        (
+            uint88 b4_countedVoteLQTY, 
+            uint32 b4_countedVoteLQTYAverageTimestamp
+        ) = governance.globalState();
+
+        (uint88 b4_allocatedLQTY, uint32 b4_averageStakingTimestamp) = governance.userStates(user);
+        (
+            uint88 b4_voteLQTY,
+            ,
+            ,
+            ,
+            
+        ) = governance.initiativeStates(baseInitiative1);
+
+        // Unregistering
+        governance.unregisterInitiative(baseInitiative1);
+
+        // We expect, the initiative to have the same values (because we track them for storage purposes)
+        // TODO: Could change some of the values to make them 0 in view stuff
+        // We expect the state to already have those removed
+        // We expect the user to not have any changes
+
+        (
+            uint88 after_countedVoteLQTY, 
+            
+        ) = governance.globalState();
+
+        assertEq(after_countedVoteLQTY, b4_countedVoteLQTY - b4_voteLQTY, "Global Lqty change after unregister");
+        assertEq(1e18, b4_voteLQTY, "sanity check");
+
+
+        (uint88 after_allocatedLQTY, uint32 after_averageStakingTimestamp) = governance.userStates(user);
+
+        // We expect no changes here
+        (
+            uint88 after_voteLQTY,
+            uint88 after_vetoLQTY,
+            uint32 after_averageStakingTimestampVoteLQTY,
+            uint32 after_averageStakingTimestampVetoLQTY,
+            uint16 after_lastEpochClaim
+        ) = governance.initiativeStates(baseInitiative1);
+
+        assertEq(b4_voteLQTY, after_voteLQTY, "Initiative votes are the same");
+
+
+
+        // Need to test:
+        // Total Votes
+        // User Votes
+        // Initiative Votes
+
+        // I cannot
+        address[] memory removeInitiatives = new address[](1);
+        removeInitiatives[0] = baseInitiative1;
+        int88[] memory removeDeltaLQTYVotes = new int88[](1);
+        removeDeltaLQTYVotes[0] = -1e18;
+        int88[] memory removeDeltaLQTYVetos = new int88[](1);
+
+        /// @audit the next call MUST not revert - this is a critical bug
+        governance.allocateLQTY(removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+
+        // After user counts LQTY the
+        {
+            (
+                uint88 after_user_countedVoteLQTY, 
+                uint32 after_user_countedVoteLQTYAverageTimestamp
+            ) = governance.globalState();
+            // The LQTY was already removed
+            assertEq(after_user_countedVoteLQTY, after_countedVoteLQTY, "Removal");
+        }
+
+        // User State allocated LQTY changes by 1e18
+        // Timestamp should not change
+        {
+            (uint88 after_user_allocatedLQTY, ) = governance.userStates(user);
+            assertEq(after_user_allocatedLQTY, after_allocatedLQTY - 1e18, "Removal");
+        }
+
+        // Check user math only change is the LQTY amt
+        {
+            (
+                uint88 after_user_voteLQTY,
+                ,
+                ,
+                ,
+                
+            ) = governance.initiativeStates(baseInitiative1);
+
+            assertEq(after_user_voteLQTY, after_voteLQTY - 1e18, "Removal");
+        }
     }
 
     // Just pass a negative value and see what happens
@@ -987,6 +1121,8 @@ contract GovernanceTest is Test {
 
         vm.stopPrank();
     }
+
+    function test_allocate_unregister() public {}
 
     function test_allocateLQTY_multiple() public {
         vm.startPrank(user);
