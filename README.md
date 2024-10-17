@@ -108,3 +108,9 @@ see: `test_voteVsVeto` as well as the miro and comments
 ### User Votes, Initiative Votes and Global State Votes can desynchronize
 
 See `test_property_sum_of_lqty_global_user_matches_0`
+
+## Voting power total sum can be gamed
+
+Old votes retain their avgTimestamp, meaning that keeping old allocations is a way to get more votes in that re-setting and allocating again
+
+https://github.com/liquity/V2-gov/issues/42
