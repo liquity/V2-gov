@@ -105,7 +105,34 @@ contract VotingPowerTest is Test {
     /// Sum the total value
 
     /// Compare with removing all and re-allocating all at the 2nd epoch
+    // forge test --match-test test_math_soundness -vv
+    function test_math_soundness() public {
+        // Given a Multiplier, I can wait 8 times more time
+        // Or use 8 times more amt
+        uint8 multiplier = 2;
 
+        uint88 lqtyAmount = 1e18;
+
+        uint256 powerInTheFuture = governance.lqtyToVotes(lqtyAmount, multiplier + 1, 1);
+        // Amt when delta is 1
+        // 0 when delta is 0
+        uint256 powerFromMoreDeposits = governance.lqtyToVotes(lqtyAmount * multiplier, uint32(block.timestamp + 1), uint32(block.timestamp));
+
+        assertEq(powerInTheFuture, powerFromMoreDeposits, "Same result");
+    }
+
+    function test_math_soundness_fuzz(uint32 multiplier) public {
+        vm.assume(multiplier < type(uint32).max - 1);
+        uint88 lqtyAmount = 1e10;
+
+        uint256 powerInTheFuture = governance.lqtyToVotes(lqtyAmount, multiplier + 1, 1);
+
+        // Amt when delta is 1
+        // 0 when delta is 0
+        uint256 powerFromMoreDeposits = governance.lqtyToVotes(lqtyAmount * multiplier, uint32(block.timestamp + 1), uint32(block.timestamp));
+
+        assertEq(powerInTheFuture, powerFromMoreDeposits, "Same result");
+    }
 
     //// Compare the relative power per epoch
     /// As in, one epoch should reliably increase the power by X amt
