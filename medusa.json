@@ -37,10 +37,10 @@
           "enabled": true,
           "testViewMethods": true,
           "panicCodeConfig": {
-            "failOnCompilerInsertedPanic": false,
+            "failOnCompilerInsertedPanic": true,
             "failOnAssertion": true,
-            "failOnArithmeticUnderflow": false,
-            "failOnDivideByZero": false,
+            "failOnArithmeticUnderflow": true,
+            "failOnDivideByZero": true,
             "failOnEnumTypeConversionOutOfBounds": false,
             "failOnIncorrectStorageAccess": false,
             "failOnPopEmptyArray": false,
