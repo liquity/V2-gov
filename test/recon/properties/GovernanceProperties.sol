@@ -172,14 +172,15 @@ abstract contract GovernanceProperties is BeforeAfter {
     }
 
     // sum of voting power for users that allocated to an initiative == the voting power of the initiative
+    /// TODO ??
     function property_sum_of_user_voting_weights() public {
         // loop through all users 
         // - calculate user voting weight for the given timestamp
         // - sum user voting weights for the given epoch
         // - compare with the voting weight of the initiative for the epoch for the same timestamp
         
-        uint240 userWeightAccumulatorForInitiative;
         for(uint256 i; i < deployedInitiatives.length; i++) {
+            uint240 userWeightAccumulatorForInitiative;
             for(uint256 j; j < users.length; j++) {
                 (uint88 userVoteLQTY,,) = governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
                 // TODO: double check that okay to use this average timestamp

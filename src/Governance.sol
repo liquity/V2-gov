@@ -221,7 +221,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function epoch() public view returns (uint16) {
-        if (block.timestamp < EPOCH_START) return 0;
+        if (block.timestamp < EPOCH_START) {
+            revert("Not yet");
+            // return 0;
+            /// @audit we do this to ensure medusa only checks for overflows once we're at epoch 1
+        }
         return uint16(((block.timestamp - EPOCH_START) / EPOCH_DURATION) + 1);
     }
 

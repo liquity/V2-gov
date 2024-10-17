@@ -47,6 +47,7 @@ abstract contract Setup is BaseSetup {
 
 
   function setup() internal virtual override {
+      vm.warp(EPOCH_DURATION * 4); // Staert later
       // Random TS that is realistic
       users.push(user);
       users.push(user2);
@@ -71,7 +72,7 @@ abstract contract Setup is BaseSetup {
               votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
               minClaim: MIN_CLAIM,
               minAccrual: MIN_ACCRUAL,
-              epochStart: uint32(block.timestamp),
+              epochStart: uint32(block.timestamp - EPOCH_DURATION), /// @audit will this work?
               epochDuration: EPOCH_DURATION,
               epochVotingCutoff: EPOCH_VOTING_CUTOFF
           }),
