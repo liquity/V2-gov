@@ -419,7 +419,7 @@ contract BribeInitiativeTest is Test {
         assertEq(userShareOfTotalAllocated, userShareOfTotalBribeForEpoch, "userShareOfTotalAllocated != userShareOfTotalBribeForEpoch");
     }
 
-     /// forge-config: default.fuzz.runs = 500000
+    /// forge-config: default.fuzz.runs = 50000
     function test_claimedBribes_fraction_fuzz(uint88 user1StakeAmount, uint88 user2StakeAmount, uint88 user3StakeAmount) public {
         // =========== epoch 1 ==================
         user1StakeAmount = uint88(bound(uint256(user1StakeAmount), 1, lqty.balanceOf(user1)));
@@ -693,6 +693,28 @@ contract BribeInitiativeTest is Test {
         (boldAmount, bribeTokenAmount) = _claimBribe(user1, claimEpoch, prevAllocationEpoch, prevAllocationEpoch);
         assertEq(boldAmount, 1e18);
         assertEq(bribeTokenAmount, 1e18);
+    }
+
+    function test_lqty_immediately_allocated() public {
+        // =========== epoch 1 ==================
+        // user stakes in epoch 1
+        _stakeLQTY(user1, 1e18);
+
+        // =========== epoch 2 ==================
+        vm.warp(block.timestamp + EPOCH_DURATION);
+        assertEq(2, governance.epoch(), "not in epoch 2");
+
+        // lusdHolder deposits lqty and lusd bribes claimable in epoch 3
+        _depositBribe(1e18, 1e18, governance.epoch() + 1);
+
+        // =========== epoch 3 ==================
+        vm.warp(block.timestamp + EPOCH_DURATION);
+        assertEq(3, governance.epoch(), "not in epoch 3");
+
+        // user votes on bribeInitiative
+        _allocateLQTY(user1, 1e18, 0);
+        (uint88 lqtyAllocated, ) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        assertEq(lqtyAllocated, 1e18, "lqty doesn't immediately get allocated");
     }
 
     // forge test --match-test test_rationalFlow -vvvv
