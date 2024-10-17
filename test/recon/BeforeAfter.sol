@@ -15,8 +15,8 @@ abstract contract BeforeAfter is Setup, Asserts {
         mapping(address => Governance.InitiativeStatus) initiativeStatus;
         // initiative => user => epoch => claimed
         mapping(address => mapping(address => mapping(uint16 => bool))) claimedBribeForInitiativeAtEpoch;
-        uint128 lqtyBalance;
-        uint128 lusdBalance;
+        mapping(address user => uint128 lqtyBalance) userLqtyBalance;
+        mapping(address user => uint128 lusdBalance) userLusdBalance;
     }
 
     Vars internal _before;
@@ -38,8 +38,10 @@ abstract contract BeforeAfter is Setup, Asserts {
             _before.claimedBribeForInitiativeAtEpoch[initiative][user][currentEpoch] = IBribeInitiative(initiative).claimedBribeAtEpoch(user, currentEpoch);
         }
 
-        _before.lqtyBalance = uint128(lqty.balanceOf(user));
-        _before.lusdBalance = uint128(lusd.balanceOf(user));
+        for(uint8 j; j < users.length; j++) {
+            _before.userLqtyBalance[users[j]] = uint128(lqty.balanceOf(user));
+            _before.userLusdBalance[users[j]] = uint128(lusd.balanceOf(user));
+        }
     }
 
     function __after() internal {
@@ -52,7 +54,9 @@ abstract contract BeforeAfter is Setup, Asserts {
             _after.claimedBribeForInitiativeAtEpoch[initiative][user][currentEpoch] = IBribeInitiative(initiative).claimedBribeAtEpoch(user, currentEpoch);
         }
 
-        _after.lqtyBalance = uint128(lqty.balanceOf(user));
-        _after.lusdBalance = uint128(lusd.balanceOf(user));
+        for(uint8 j; j < users.length; j++) {
+            _after.userLqtyBalance[users[j]] = uint128(lqty.balanceOf(user));
+            _after.userLusdBalance[users[j]] = uint128(lusd.balanceOf(user));
+        }
     }
 }
