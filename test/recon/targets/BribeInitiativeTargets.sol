@@ -48,8 +48,18 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
         bool alreadyClaimed = initiative.claimedBribeAtEpoch(user, epoch);
 
-        initiative.claimBribes(claimData);
+        try initiative.claimBribes(claimData) {} 
+        catch {
+            // check if user had a claimable allocation 
+            (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, prevAllocationEpoch);
+            bool claimedBribe = initiative.claimedBribeAtEpoch(prevAllocationEpoch);
 
+            if(lqtyAllocated > 0 && !claimedBribe) {
+                // user wasn't able to claim a bribe they were entitled to
+                unableToClaim = true;
+            }
+        }
+       
         // check if the bribe was already claimed at the given epoch
         if(alreadyClaimed) {
             // toggle canary that breaks the BI-02 property
