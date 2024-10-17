@@ -552,15 +552,18 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // update the average staking timestamp for all counted voting LQTY
             /// Discount previous only if the initiative was not unregistered
 
-            /// @audit
             if(status != InitiativeStatus.DISABLED) {
+            /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
+            /// Removing votes from state desynchs the state until all users remove their votes from the initiative
+            /// The invariant that holds is: the one that removes the initiatives that have been unregistered
                 state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
                     state.countedVoteLQTYAverageTimestamp,
                     prevInitiativeState.averageStakingTimestampVoteLQTY, /// @audit TODO Write tests that fail from this bug
                     state.countedVoteLQTY,
                     state.countedVoteLQTY - prevInitiativeState.voteLQTY
                 );
-                state.countedVoteLQTY -= prevInitiativeState.voteLQTY; /// @audit Overflow here MUST never happen2
+                assert(state.countedVoteLQTY >= prevInitiativeState.voteLQTY); /// RECON: Overflow
+                state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
             }
             /// @audit We cannot add on disabled so the change below is safe
             // TODO More asserts? | Most likely need to assert strictly less voteLQTY here
@@ -632,6 +635,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             state.countedVoteLQTY,
             state.countedVoteLQTY - initiativeState.voteLQTY
         );
+        assert(state.countedVoteLQTY >= initiativeState.voteLQTY); /// RECON: Overflow
         state.countedVoteLQTY -= initiativeState.voteLQTY;
         
         globalState = state;
