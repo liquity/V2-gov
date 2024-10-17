@@ -51,35 +51,33 @@ Claims for Initiatives which have met the minimum qualifying threshold, can be c
 in which they are awarded. Failure to do so will result in the unclaimed portion being reused in the following epoch.
 
 As Initiatives are assigned to arbitrary addresses, they can be used for any purpose, including EOAs, Multisigs, or smart contracts designed
-for targetted purposes. Smart contracts should be designed in a way that they can support BOLD and include any additional logic about
-how BOLD is to be used.
+for targetted purposes. Smart contracts should be designed in a way that they can support BOLD and include any additional logic about how BOLD is to be used.
+
+### Malicious Initiatives
+
+It's important to note that initiatives could be malicious, and the system does it's best effort to prevent any DOS to happen, however, a malicious initiative could drain all rewards if voted on.
 
 ## Voting
 
-Users with LQTY staked in Governance.sol, can allocate LQTY in the same epoch in which they were deposited. But the
-effective voting power at that point would be insignificant.
+Users with LQTY staked in Governance.sol, can allocate LQTY in the same epoch in which they were deposited. But the effective voting power at that point would be insignificant.
 
 Votes can take two forms, a vote for an Initiative or a veto vote. Initiatives which have received vetoes which are both:
 three times greater than the minimum qualifying threshold, and greater than the number of votes for will not be eligible for claims by being excluded from the vote count and maybe deregistered as an Initiative.
 
 Users may split their votes for and veto votes across any number of initiatives. But cannot vote for and veto vote the same Initiative.
 
-Each epoch is split into two parts, a six day period where both votes for and veto votes take place, and a final 24 hour period where votes
-can only be made as veto votes. This is designed to give a period where any detrimental distributions can be mitigated should there be
-sufficient will to do so by voters, but is not envisaged to be a regular occurance.
+Each epoch is split into two parts, a six day period where both votes for and veto votes take place, and a final 24 hour period where votes can only be made as veto votes. This is designed to give a period where any detrimental distributions can be mitigated should there be sufficient will to do so by voters, but is not envisaged to be a regular occurance.
 
 ## Snapshots
 
 Snapshots of results from the voting activity of an epoch takes place on an initiative by initiative basis in a permissionless manner.
-User interactions or direct calls following the closure of an epoch trigger the snapshot logic which makes a Claim available to a
-qualifying Initiative.
+User interactions or direct calls following the closure of an epoch trigger the snapshot logic which makes a Claim available to a qualifying Initiative.
 
 ## Bribing
 
 LQTY depositors can also receive bribes in the form of ERC20s in exchange for voting for a specified initiative.
 This is done externally to the Governance.sol logic and should be implemented at the initiative level.
-BaseInitiative.sol is a reference implementation which allows for bribes to be set and paid in BOLD + another token,
-all claims for bribes are made by directly interacting with the implemented BaseInitiative contract.
+BaseInitiative.sol is a reference implementation which allows for bribes to be set and paid in BOLD + another token, all claims for bribes are made by directly interacting with the implemented BaseInitiative contract.
 
 ## Example Initiatives
 
@@ -95,3 +93,18 @@ Claiming and depositing to gauges must be done manually after each epoch in whic
 ### Uniswap v4
 
 Simple hook for Uniswap v4 which implements a donate to a preconfigured pool. Allowing for adjustments to liquidity positions to make Claims which are smoothed over a vesting epoch.
+
+## Known Issues
+
+### Vetoed Initiatives and Initiatives that receive votes that are below the treshold cause a loss of emissions to the voted initiatives
+
+Because the system counts: valid_votes / total_votes
+By definition, initiatives that increase the  total_votes without receiving any rewards are stealing the rewards from other initiatives
+
+The rewards will be re-queued in the next epoch
+
+see: `test_voteVsVeto` as well as the miro and comments
+
+### User Votes, Initiative Votes and Global State Votes can desynchronize
+
+See `test_property_sum_of_lqty_global_user_matches_0`

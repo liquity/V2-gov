@@ -47,6 +47,9 @@ abstract contract Setup is BaseSetup {
 
 
   function setup() internal virtual override {
+      // Random TS that is realistic
+      vm.warp(1729087439);
+      vm.roll(block.number + 1);
       users.push(user);
       users.push(user2);
 
@@ -103,6 +106,11 @@ abstract contract Setup is BaseSetup {
 
   function _getRandomUser(uint8 index) internal returns (address randomUser) { 
     return users[index % users.length];
+  }
+
+    function _getInitiativeStatus(address _initiative) internal returns (uint256) {
+      (Governance.InitiativeStatus status, , ) = governance.getInitiativeState(_getDeployedInitiative(0)); 
+      return uint256(status);
   }
   
 }
