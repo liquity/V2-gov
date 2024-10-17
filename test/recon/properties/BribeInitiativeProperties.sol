@@ -129,4 +129,19 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         }
     }
 
+    // BI-09: User can’t be allocated for future epoch
+    function property_BI09() public {
+        // get one past current epoch in governance
+        uint16 checkEpoch = governance.epoch() + 1;
+        // check if any user is allocated for the epoch
+        for(uint8 i; i < deployedInitiatives.length; i++) {
+            IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
+            for(uint8 j; j < users.length; j++) {
+                (uint88 lqtyAllocated, ) = initiative.lqtyAllocatedByUserAtEpoch(users[j], checkEpoch);
+
+                eq(lqtyAllocated, 0, "BI-09: User cannot be allocated for future epoch");
+            }
+        }
+    }
+
 }
