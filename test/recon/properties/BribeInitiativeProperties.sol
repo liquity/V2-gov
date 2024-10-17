@@ -105,8 +105,28 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
             (uint88 totalLQTYAllocated, ) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
             eq(sumLqtyAllocated, totalLQTYAllocated, "BI-07: Sum of user LQTY allocations for an epoch != total LQTY allocation for the epoch");
         }
-  
+    }
 
+    function property_BI08() public { 
+        // users can only claim for epoch that has already passed
+        uint16 checkEpoch = governance.epoch() - 1;
+
+        // use lqtyAllocatedByUserAtEpoch to determine if a user is allocated for an epoch
+        // use claimedBribeForInitiativeAtEpoch to determine if user has claimed bribe for an epoch (would require the value changing from false -> true)
+        for(uint8 i; i < deployedInitiatives.length; i++) {
+            IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
+            for(uint8 j; j < users.length; j++) {
+                (uint88 lqtyAllocated, ) = initiative.lqtyAllocatedByUserAtEpoch(users[j], checkEpoch);
+
+                // check that user had no lqtyAllocated for the epoch and therefore shouldn't be able to claim for it
+                if(lqtyAllocated == 0) {
+                    // since bool could only possibly change from false -> true, just check that it's the same before and after
+                    bool claimedBefore = _before.claimedBribeForInitiativeAtEpoch[address(initiative)][users[j]][checkEpoch];
+                    bool claimedAfter = _before.claimedBribeForInitiativeAtEpoch[address(initiative)][users[j]][checkEpoch];
+                    t(claimedBefore == claimedAfter, "BI-08: User cannot claim bribes for an epoch in which they are not allocated");
+                }
+            }
+        }
     }
 
 }
