@@ -144,4 +144,20 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         }
     }
 
+    // BI-10: totalLQTYAllocatedByEpoch ≥ lqtyAllocatedByUserAtEpoch
+    function property_BI10() public {
+        uint16 checkEpoch = governance.epoch();
+
+        // check each user allocation for the epoch against the total for the epoch
+        for(uint8 i; i < deployedInitiatives.length; i++) {
+            IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
+            for(uint8 j; j < users.length; j++) {
+                (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(users[j], checkEpoch);
+                (uint88 totalLQTYAllocated,) = initiative.totalLQTYAllocatedByEpoch(checkEpoch);
+
+                gte(totalLQTYAllocated, lqtyAllocated, "BI-10: totalLQTYAllocatedByEpoch >= lqtyAllocatedByUserAtEpoch");
+            }
+        }
+    }
+
 }
