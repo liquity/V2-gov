@@ -1855,6 +1855,7 @@ contract GovernanceTest is Test {
     }
 
     // checking if allocating to same initiative modifies the average timestamp
+    // forge test --match-test test_average_timestamp_same_initiative -vv
     function test_average_timestamp_same_initiative() public {
         // =========== epoch 1 ==================
         governance = new Governance(
@@ -2206,6 +2207,7 @@ contract GovernanceTest is Test {
         (,uint32 averageStakingTimestampAfter) = governance.userStates(user);
         assertEq(averageStakingTimestampBefore, averageStakingTimestampAfter);
     }
+
 
     // vetoing shouldn't affect voting power of the initiative
     function test_vote_and_veto() public {
