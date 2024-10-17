@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {BeforeAfter} from "../BeforeAfter.sol";
 import {Governance} from "src/Governance.sol";
 import {IGovernance} from "src/interfaces/IGovernance.sol";
+import {MockStakingV1} from "test/mocks/MockStakingV1.sol";
 
 abstract contract GovernanceProperties is BeforeAfter {
     
@@ -43,6 +44,21 @@ abstract contract GovernanceProperties is BeforeAfter {
                 eq(uint256(_before.initiativeStatus[initiative]), uint256(_after.initiativeStatus[initiative]), "GV-01: Initiative state should only return one state per epoch");
             }
         }
+    }
+
+
+    function property_stake_and_votes_cannot_be_abused() public {
+        // User stakes
+        // User allocated
+
+        // allocated is always <= stakes
+        for(uint256 i; i < users.length; i++) {
+            // Only sum up user votes
+            uint256 stake = MockStakingV1(stakingV1).stakes(users[i]);
+            (uint88 user_allocatedLQTY, ) = governance.userStates(users[i]);
+            lte(user_allocatedLQTY, stake, "User can never allocated more than stake"); 
+        }
+        
     }
 
     // View vs non view must have same results

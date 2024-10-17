@@ -183,6 +183,18 @@ contract VotingPowerTest is Test {
         assertEq(avgTs_reset_2, avgTs2_diff, "Same as diff means it does reset");
     }
 
+
+    // Check if Flashloan can be used to cause issues?
+    // A flashloan would cause issues in the measure in which it breaks any specific property
+    // Or expectation
+
+    // Remove votes
+    // Removing votes would force you to exclusively remove
+    // You can always remove at any time afacit
+    // Removing just updates that + the weights
+    // The weights are the avg time * the number
+
+
     function _getAverageTS(address initiative) internal returns (uint256) {
         (
             ,
