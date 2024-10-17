@@ -48,7 +48,7 @@ abstract contract GovernanceProperties is BeforeAfter {
     }
 
 
-    function property_stake_and_votes_cannot_be_abused() public {
+    function property_GV_09() public {
         // User stakes
         // User allocated
 
