@@ -47,7 +47,6 @@ abstract contract Setup is BaseSetup {
 
 
   function setup() internal virtual override {
-      vm.warp(EPOCH_DURATION * 4); // Staert later
       // Random TS that is realistic
       users.push(user);
       users.push(user2);
