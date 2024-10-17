@@ -8,31 +8,36 @@ import {IBribeInitiative} from "../../../src/interfaces/IBribeInitiative.sol";
 abstract contract BribeInitiativeProperties is BeforeAfter {
     function property_BI01() public {
         uint16 currentEpoch = governance.epoch();
+
         for(uint8 i; i < deployedInitiatives.length; i++) {
             address initiative = deployedInitiatives[i];
-            // if the bool switches, the user has claimed their bribe for the epoch
-            if(_before.claimedBribeForInitiativeAtEpoch[initiative][user][currentEpoch] != _after.claimedBribeForInitiativeAtEpoch[initiative][user][currentEpoch]) {
-                // calculate user balance delta of the bribe tokens
-                uint128 lqtyBalanceDelta = _after.lqtyBalance - _before.lqtyBalance;
-                uint128 lusdBalanceDelta = _after.lusdBalance - _before.lusdBalance;
-            
-                // calculate balance delta as a percentage of the total bribe for this epoch
-                (uint128 bribeBoldAmount, uint128 bribeBribeTokenAmount) = IBribeInitiative(initiative).bribeByEpoch(currentEpoch);
-                uint128 lqtyPercentageOfBribe = (lqtyBalanceDelta / bribeBribeTokenAmount) * 10_000;
-                uint128 lusdPercentageOfBribe = (lusdBalanceDelta / bribeBoldAmount) * 10_000;
+            for(uint8 j; j < users.length; j++) {
+                // if the bool switches, the user has claimed their bribe for the epoch
+                if(_before.claimedBribeForInitiativeAtEpoch[initiative][users[j]][currentEpoch] != _after.claimedBribeForInitiativeAtEpoch[initiative][user][currentEpoch]) {
+                    // calculate user balance delta of the bribe tokens
+                    uint128 userLqtyBalanceDelta = _after.userLqtyBalance[users[j]] - _before.userLqtyBalance[users[j]];
+                    uint128 userLusdBalanceDelta = _after.userLusdBalance[users[j]] - _before.userLusdBalance[users[j]];
 
-                // Shift right by 40 bits (128 - 88) to get the 88 most significant bits
-                uint88 lqtyPercentageOfBribe88 = uint88(lqtyPercentageOfBribe >> 40);
-                uint88 lusdPercentageOfBribe88 = uint88(lusdPercentageOfBribe >> 40);
+                    // calculate balance delta as a percentage of the total bribe for this epoch
+                    // this is what user DOES receive
+                    (uint128 bribeBoldAmount, uint128 bribeBribeTokenAmount) = IBribeInitiative(initiative).bribeByEpoch(currentEpoch);
+                    uint128 lqtyPercentageOfBribe = (userLqtyBalanceDelta * 10_000) / bribeBribeTokenAmount;
+                    uint128 lusdPercentageOfBribe = (userLusdBalanceDelta * 10_000) / bribeBoldAmount;
 
-                // calculate user allocation percentage of total for this epoch
-                (uint88 lqtyAllocatedByUserAtEpoch, ) = IBribeInitiative(initiative).lqtyAllocatedByUserAtEpoch(user, currentEpoch);
-                (uint88 totalLQTYAllocatedAtEpoch, ) = IBribeInitiative(initiative).totalLQTYAllocatedByEpoch(currentEpoch);
-                uint88 allocationPercentageOfTotal = (lqtyAllocatedByUserAtEpoch / totalLQTYAllocatedAtEpoch) * 10_000;
+                    // Shift right by 40 bits (128 - 88) to get the 88 most significant bits for needed downcasting to compare with lqty allocations
+                    uint88 lqtyPercentageOfBribe88 = uint88(lqtyPercentageOfBribe >> 40);
+                    uint88 lusdPercentageOfBribe88 = uint88(lusdPercentageOfBribe >> 40);
 
-                // check that allocation percentage and received bribe percentage match
-                eq(lqtyPercentageOfBribe88, allocationPercentageOfTotal, "BI-01: User should receive percentage of bribes corresponding to their allocation");
-                eq(lusdPercentageOfBribe88, allocationPercentageOfTotal, "BI-01: User should receive percentage of BOLD bribes corresponding to their allocation");
+                    // calculate user allocation percentage of total for this epoch
+                    // this is what user SHOULD receive
+                    (uint88 lqtyAllocatedByUserAtEpoch, ) = IBribeInitiative(initiative).lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
+                    (uint88 totalLQTYAllocatedAtEpoch, ) = IBribeInitiative(initiative).totalLQTYAllocatedByEpoch(currentEpoch);
+                    uint88 allocationPercentageOfTotal = (lqtyAllocatedByUserAtEpoch * 10_000) / totalLQTYAllocatedAtEpoch;        
+
+                    // check that allocation percentage and received bribe percentage match
+                    eq(lqtyPercentageOfBribe88, allocationPercentageOfTotal, "BI-01: User should receive percentage of LQTY bribes corresponding to their allocation");
+                    eq(lusdPercentageOfBribe88, allocationPercentageOfTotal, "BI-01: User should receive percentage of BOLD bribes corresponding to their allocation");
+                }
             }
         }
     }
@@ -43,6 +48,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
 
     function property_BI03() public {
         uint16 currentEpoch = governance.epoch();
+
         for(uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
             (uint88 lqtyAllocatedByUserAtEpoch, ) = initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
@@ -61,18 +67,41 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
 
     // TODO: double check that this implementation is correct
     function property_BI05() public {
-        uint16 currentEpoch = governance.epoch();
+        // users can't claim for current epoch so checking for previous
+        uint16 checkEpoch = governance.epoch() - 1;
+
         for(uint8 i; i < deployedInitiatives.length; i++) {
             address initiative = deployedInitiatives[i];
-            // if the bool switches, the user has claimed their bribe for the epoch
-            if(_before.claimedBribeForInitiativeAtEpoch[initiative][user][currentEpoch] != _after.claimedBribeForInitiativeAtEpoch[initiative][user][currentEpoch]) {
-                // check that the remaining bribe amount left over is less than 100 million wei
-                uint256 bribeTokenBalanceInitiative = lqty.balanceOf(initiative);
-                uint256 boldTokenBalanceInitiative = lusd.balanceOf(initiative);
+            // for any epoch: expected balance = Bribe - claimed bribes, actual balance = bribe token balance of initiative
+            // so if the delta between the expected and actual is > 0, dust is being collected
 
-                lte(bribeTokenBalanceInitiative, 1e8, "BI-05: Bribe token dust amount remaining after claiming should be less than 100 million wei");
-                lte(boldTokenBalanceInitiative, 1e8, "BI-05: Bold token dust amount remaining after claiming should be less than 100 million wei");
+            uint256 lqtyClaimedAccumulator;
+            uint256 lusdClaimedAccumulator;
+            for(uint8 j; j < users.length; j++) {
+                // if the bool switches, the user has claimed their bribe for the epoch
+                if(_before.claimedBribeForInitiativeAtEpoch[initiative][user][checkEpoch] != _after.claimedBribeForInitiativeAtEpoch[initiative][user][checkEpoch]) {
+                    // add user claimed balance delta to the accumulator
+                    lqtyClaimedAccumulator += _after.userLqtyBalance[users[j]] - _before.userLqtyBalance[users[j]];
+                    lusdClaimedAccumulator += _after.userLqtyBalance[users[j]] - _before.userLqtyBalance[users[j]];
+                }
+
             }
+
+            (uint128 boldAmount, uint128 bribeTokenAmount) = IBribeInitiative(initiative).bribeByEpoch(checkEpoch);
+            
+            // shift 128 bit to the right to get the most significant bits of the accumulator (256 - 128 = 128)
+            uint128 lqtyClaimedAccumulator128 = uint128(lqtyClaimedAccumulator >> 128);
+            uint128 lusdClaimedAccumulator128 = uint128(lusdClaimedAccumulator >> 128);
+           
+            // find delta between bribe and claimed amount (how much should be remaining in contract)
+            uint128 lusdDelta = boldAmount - lusdClaimedAccumulator128;
+            uint128 lqtyDelta = bribeTokenAmount - lqtyClaimedAccumulator128;
+
+            uint128 initiativeLusdBalance =  uint128(lusd.balanceOf(initiative) >> 128);
+            uint128 initiativeLqtyBalance = uint128(lqty.balanceOf(initiative) >> 128);
+
+            lte(lusdDelta - initiativeLusdBalance, 1e8, "BI-05: Bold token dust amount remaining after claiming should be less than 100 million wei");
+            lte(lqtyDelta - initiativeLqtyBalance, 1e8, "BI-05: Bribe token dust amount remaining after claiming should be less than 100 million wei");
         }
     }
 

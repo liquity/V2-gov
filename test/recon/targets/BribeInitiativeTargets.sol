@@ -52,7 +52,7 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
         catch {
             // check if user had a claimable allocation 
             (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, prevAllocationEpoch);
-            bool claimedBribe = initiative.claimedBribeAtEpoch(prevAllocationEpoch);
+            bool claimedBribe = initiative.claimedBribeAtEpoch(user, prevAllocationEpoch);
 
             if(lqtyAllocated > 0 && !claimedBribe) {
                 // user wasn't able to claim a bribe they were entitled to
