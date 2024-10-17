@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {BeforeAfter} from "../BeforeAfter.sol";
 import {Governance} from "src/Governance.sol";
 import {IGovernance} from "src/interfaces/IGovernance.sol";
+import {MockStakingV1} from "test/mocks/MockStakingV1.sol";
 
 abstract contract GovernanceProperties is BeforeAfter {
     
@@ -43,6 +44,21 @@ abstract contract GovernanceProperties is BeforeAfter {
                 eq(uint256(_before.initiativeStatus[initiative]), uint256(_after.initiativeStatus[initiative]), "GV-01: Initiative state should only return one state per epoch");
             }
         }
+    }
+
+
+    function property_stake_and_votes_cannot_be_abused() public {
+        // User stakes
+        // User allocated
+
+        // allocated is always <= stakes
+        for(uint256 i; i < users.length; i++) {
+            // Only sum up user votes
+            uint256 stake = MockStakingV1(stakingV1).stakes(users[i]);
+            (uint88 user_allocatedLQTY, ) = governance.userStates(users[i]);
+            lte(user_allocatedLQTY, stake, "User can never allocated more than stake"); 
+        }
+        
     }
 
     // View vs non view must have same results
@@ -153,7 +169,28 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
     }
 
-    // View vs non view
+    // sum of voting power for users that allocated to an initiative == the voting power of the initiative
+    function property_sum_of_user_voting_weights() public {
+        // loop through all users 
+        // - calculate user voting weight for the given timestamp
+        // - sum user voting weights for the given epoch
+        // - compare with the voting weight of the initiative for the epoch for the same timestamp
+        
+        uint240 userWeightAccumulatorForInitiative;
+        for(uint256 i; i < deployedInitiatives.length; i++) {
+            for(uint256 j; j < users.length; j++) {
+                (uint88 userVoteLQTY,,) = governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
+                // TODO: double check that okay to use this average timestamp
+                (, uint32 averageStakingTimestamp) = governance.userStates(users[j]);
+                // add the weight calculated for each user's allocation to the accumulator
+                userWeightAccumulatorForInitiative += governance.lqtyToVotes(userVoteLQTY, block.timestamp, averageStakingTimestamp);
+            }
+
+            (uint88 initiativeVoteLQTY,, uint32 initiativeAverageStakingTimestampVoteLQTY,,) = governance.initiativeStates(deployedInitiatives[i]);
+            uint240 initiativeWeight = governance.lqtyToVotes(initiativeVoteLQTY, block.timestamp, initiativeAverageStakingTimestampVoteLQTY);
+            eq(initiativeWeight, userWeightAccumulatorForInitiative, "initiative voting weights and user's allocated weight differs for initiative");
+        }
+    }
 
 
     function _getUserAllocation(address theUser, address initiative) internal view returns (uint88 votes, uint88 vetos) {
