@@ -205,7 +205,12 @@ abstract contract GovernanceProperties is BeforeAfter {
         uint256 initiativeVotesSum;
         for(uint256 i; i < deployedInitiatives.length; i++) {
             (IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot, IGovernance.InitiativeState memory initiativeState, bool shouldUpdate) = governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
-            initiativeVotesSum += initiativeSnapshot.votes; // TODO
+            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+
+            if(status != Governance.InitiativeStatus.DISABLED) {
+                // FIX: Only count total if initiative is not disabled
+                initiativeVotesSum += initiativeSnapshot.votes;
+            }
         }
 
         eq(snapshot.votes, initiativeVotesSum, "Sum of votes matches");
