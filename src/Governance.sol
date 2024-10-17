@@ -392,7 +392,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
 
         // == Just Registered Condition == //
-        // If a initiative is disabled, we return false and the last epoch claim
         if(registeredInitiatives[_initiative] == epoch()) {
             return (InitiativeStatus.COOLDOWN, 0, 0); /// Was registered this week, cannot have rewards
         }
