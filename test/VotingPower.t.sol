@@ -107,13 +107,14 @@ contract VotingPowerTest is Test {
     /// Compare with removing all and re-allocating all at the 2nd epoch
     // forge test --match-test test_math_soundness -vv
     function test_math_soundness() public {
+        uint32 start = 123123;
         // Given a Multiplier, I can wait 8 times more time
         // Or use 8 times more amt
         uint8 multiplier = 2;
 
         uint88 lqtyAmount = 1e18;
 
-        uint256 powerInTheFuture = governance.lqtyToVotes(lqtyAmount, multiplier + 1, 1);
+        uint256 powerInTheFuture = governance.lqtyToVotes(lqtyAmount, multiplier + 1 + start, 1 + start);
         // Amt when delta is 1
         // 0 when delta is 0
         uint256 powerFromMoreDeposits = governance.lqtyToVotes(lqtyAmount * multiplier, uint32(block.timestamp + 1), uint32(block.timestamp));
