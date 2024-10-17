@@ -6,7 +6,12 @@
 | BI-02 | User can only claim bribes once in an epoch | ✅ |  |
 | BI-03 | Accounting for user allocation amount is always correct | ✅ |  |
 | BI-04 | Accounting for total allocation amount is always correct | ✅ |  |
-| BI-05 | Dust amount remaining after claiming should be less than 100 million wei |  |  |
+| BI-05 | Dust amount remaining after claiming should be less than 100 million wei | ✅ |  |
+| BI-06 | Accounting for bribe amount for an epoch is always correct |  |  |
+| BI-07 | Sum of user allocations for an epoch = totalLqty allocation for the epoch |  |  |
+| BI-08 | User can’t claim bribes for an epoch in which they aren’t allocated |  |  |
+| BI-09 | User can’t be allocated for future epoch |  |  |
+| BI-10 | totalLQTYAllocatedByEpoch ≥ lqtyAllocatedByUserAtEpoch |  |  |
 
 ## Governance
 | Property | Description | Tested |

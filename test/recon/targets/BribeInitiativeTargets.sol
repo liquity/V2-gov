@@ -24,6 +24,11 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
         bribeTokenAmount = uint128(bribeTokenAmount % lqty.balanceOf(user));
 
         initiative.depositBribe(boldAmount, bribeTokenAmount, epoch);
+
+        // tracking to check that bribe accounting is always correct 
+        uint16 currentEpoch = governance.epoch();
+        ghostBribeByEpoch[address(initiative)][currentEpoch].boldAmount += boldAmount;
+        ghostBribeByEpoch[address(initiative)][currentEpoch].bribeTokenAmount += bribeTokenAmount;
     }
 
     function initiative_claimBribes(uint16 epoch, uint16 prevAllocationEpoch, uint16 prevTotalAllocationEpoch, uint8 initiativeIndex) withChecks public {        

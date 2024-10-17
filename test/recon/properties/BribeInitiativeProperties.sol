@@ -76,4 +76,17 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         }
     }
 
+    function property_BI06() public {
+        // using ghost tracking for successful bribe deposits
+        uint16 currentEpoch = governance.epoch();
+
+        for(uint8 i; i < deployedInitiatives.length; i++) {
+            address initiative = deployedInitiatives[i];
+            IBribeInitiative.Bribe memory bribe = ghostBribeByEpoch[initiative][currentEpoch];
+            (uint128 boldAmount, uint128 bribeTokenAmount) = IBribeInitiative(initiative).bribeByEpoch(currentEpoch);
+            eq(bribe.boldAmount, boldAmount, "BI-06: Accounting for bold amount in bribe for an epoch is always correct");
+            eq(bribe.bribeTokenAmount, bribeTokenAmount, "BI-06: Accounting for bold amount in bribe for an epoch is always correct");
+        }
+    }
+
 }
