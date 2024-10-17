@@ -47,6 +47,7 @@ abstract contract Setup is BaseSetup {
 
 
   function setup() internal virtual override {
+      vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back
       // Random TS that is realistic
       users.push(user);
       users.push(user2);
