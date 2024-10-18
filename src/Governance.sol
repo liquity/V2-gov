@@ -361,7 +361,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @notice Given an initiative, return whether the initiative will be unregisted, whether it can claim and which epoch it last claimed at
     enum InitiativeStatus {
         NONEXISTENT, /// This Initiative Doesn't exist | This is never returned
-        COOLDOWN, /// This epoch was just registered
+        WARM_UP, /// This epoch was just registered
         SKIP, /// This epoch will result in no rewards and no unregistering
         CLAIMABLE, /// This epoch will result in claiming rewards
         CLAIMED, /// The rewards for this epoch have been claimed
@@ -393,7 +393,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // == Just Registered Condition == //
         if(registeredInitiatives[_initiative] == epoch()) {
-            return (InitiativeStatus.COOLDOWN, 0, 0); /// Was registered this week, cannot have rewards
+            return (InitiativeStatus.WARM_UP, 0, 0); /// Was registered this week, cannot have rewards
         }
 
         // Fetch last epoch at which we claimed
@@ -628,7 +628,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         (InitiativeStatus status, , ) = getInitiativeState(_initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
         require(status != InitiativeStatus.NONEXISTENT, "Governance: initiative-not-registered");
-        require(status != InitiativeStatus.COOLDOWN, "Governance: initiative-in-warm-up");
+        require(status != InitiativeStatus.WARM_UP, "Governance: initiative-in-warm-up");
         require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
 
         // Remove weight from current state

@@ -142,7 +142,7 @@ contract E2ETests is Test {
 
         address newInitiative = address(0x123123);
         governance.registerInitiative(newInitiative); 
-        assertEq(uint256(Governance.InitiativeStatus.COOLDOWN) , _getInitiativeStatus(newInitiative), "Cooldown");
+        assertEq(uint256(Governance.InitiativeStatus.WARM_UP) , _getInitiativeStatus(newInitiative), "Cooldown");
 
         uint256 skipCount;
 

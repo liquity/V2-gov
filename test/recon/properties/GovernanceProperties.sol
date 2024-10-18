@@ -37,7 +37,7 @@ abstract contract GovernanceProperties is BeforeAfter {
                 
                 if(_before.initiativeStatus[initiative] == Governance.InitiativeStatus.NONEXISTENT) {
                     // Registered -> SKIP is ok
-                    if(_after.initiativeStatus[initiative] == Governance.InitiativeStatus.COOLDOWN) {
+                    if(_after.initiativeStatus[initiative] == Governance.InitiativeStatus.WARM_UP) {
                         return;
                     }
                 }
