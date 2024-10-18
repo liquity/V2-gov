@@ -197,9 +197,19 @@ abstract contract GovernanceProperties is BeforeAfter {
     }
 
 
-    // Resetting means you have 0 votes
 
-    // Resetting never fails
+    // Resetting never fails and always resets
+    function property_resetting_never_reverts() public {
+        int88[] memory zeroes = new int88[](deployedInitiatives.length);
+
+        try governance.allocateLQTY(deployedInitiatives, deployedInitiatives, zeroes, zeroes) {} catch {
+            t(false, "must never revert");
+        }
+
+        (uint88 user_allocatedLQTY, ) = governance.userStates(user);
+
+        eq(user_allocatedLQTY, 0, "User has 0 allocated on a reset");
+    }
 
     // After resetting the sum of votes is always correct
 
