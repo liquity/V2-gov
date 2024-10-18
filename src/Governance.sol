@@ -522,7 +522,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         require(_initiatives.length == absoluteLQTYVotes.length, "Length");
         require(absoluteLQTYVetos.length == absoluteLQTYVotes.length, "Length");
 
-        // @audit To ensure the change is safe, enforce uniqueness
+        // To ensure the change is safe, enforce uniqueness
         _requireNoDuplicates(_initiatives);
         _requireNoDuplicates(_initiativesToReset);
 
@@ -546,11 +546,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             // Removing and VETOING is always accepted
             for(uint256 x; x < _initiatives.length; x++) {
-                // Iterate over the caps
-                // If not found
-                // Must be Veto
-                // If Found
-                // Must be below
+
+                // If we find it, we ensure it cannot be an increase
                 bool found;
                 for(uint256 y; y < cachedData.length; y++) {
                     if(cachedData[y].initiative == _initiatives[x]) {
@@ -559,8 +556,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                         break;
                     }
                 }
+
+                // Else we assert that the change is a veto, because by definition the initiatives will have received zero votes past this line
                 if(!found) {
-                    // Assert votes are zero
                     require(absoluteLQTYVotes[x] == 0, "Must be zero for new initiatives");
                 }
             }
