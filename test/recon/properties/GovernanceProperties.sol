@@ -197,6 +197,13 @@ abstract contract GovernanceProperties is BeforeAfter {
     }
 
 
+    // Resetting means you have 0 votes
+
+    // Resetting never fails
+
+    // After resetting the sum of votes is always correct
+
+
     function property_sum_of_initatives_matches_total_votes() public {
         // Sum up all initiatives
         // Compare to total votes

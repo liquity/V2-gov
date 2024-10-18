@@ -476,41 +476,37 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
     function _resetInitiatives(address[] calldata _initiativesToReset) internal returns (ResetInitiativeData[] memory) {        
         ResetInitiativeData[] memory cachedData = new ResetInitiativeData[](_initiativesToReset.length);
+        
+        int88[] memory _deltaLQTYVotes = new int88[](_initiativesToReset.length);
+        int88[] memory _deltaLQTYVetos = new int88[](_initiativesToReset.length);
 
+        // Prepare reset data
         for(uint256 i; i < _initiativesToReset.length; i++) {
             Allocation memory alloc = lqtyAllocatedByUserToInitiative[msg.sender][_initiativesToReset[i]];
 
             // Must be below, else we cannot reset"
             // Makes cast safe
-            assert(alloc.voteLQTY < uint88(type(int88).max));
+            assert(alloc.voteLQTY < uint88(type(int88).max)); // TODO: Add to Invariant Tests
             assert(alloc.vetoLQTY < uint88(type(int88).max));
             
-            // Reset how?
+            // Cache, used to enforce limits later
             cachedData[i] = ResetInitiativeData({
                 initiative: _initiativesToReset[i],
                 LQTYVotes: int88(alloc.voteLQTY),
                 LQTYVetos: int88(alloc.vetoLQTY)
             });
 
-            assert(cachedData[i].LQTYVotes == 0 || cachedData[i].LQTYVetos == 0); /// @audit INVARIANT: Can only vote or veto, never both
-
-            address[] memory _initiatives = new address[](1);
-            _initiatives[0] = _initiativesToReset[i];
-
-            // TODO: I think it's safe to get the opposite of zero, but need tests
-            int88[] memory _deltaLQTYVotes = new int88[](1);
-            _deltaLQTYVotes[0] = -int88(cachedData[i].LQTYVotes);
-
-            int88[] memory _deltaLQTYVetos = new int88[](1);
-            _deltaLQTYVetos[0] = -int88(cachedData[i].LQTYVetos);
-
-            // RESET HERE || CEI MASSIVE CONCERNS
-            _allocateLQTY(
-                _initiatives,
-                _deltaLQTYVotes,
-                _deltaLQTYVetos
-            );
+            // -0 is still 0, so its fine to flip both
+            _deltaLQTYVotes[i] = -int88(cachedData[i].LQTYVotes);
+            _deltaLQTYVetos[i] = -int88(cachedData[i].LQTYVetos);
         }
+
+        // RESET HERE || All initiatives will receive most updated data and 0 votes / vetos
+        _allocateLQTY(
+            _initiativesToReset,
+            _deltaLQTYVotes,
+            _deltaLQTYVetos
+        );
 
         return cachedData;
     }
@@ -518,7 +514,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @inheritdoc IGovernance
     function allocateLQTY(
         address[] calldata _initiativesToReset,
-
         address[] calldata _initiatives,
         int88[] calldata absoluteLQTYVotes,
         int88[] calldata absoluteLQTYVetos
@@ -531,23 +526,19 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         _requireNoDuplicates(_initiatives);
         _requireNoDuplicates(_initiativesToReset);
 
-        // TODO: Enforce reset
         // You MUST always reset
         ResetInitiativeData[] memory cachedData = _resetInitiatives(_initiativesToReset);
 
-        // Assert that you have 0 liquity allocated
-        // Meaning the reset was successful
+        /// Invariant, 0 allocated = 0 votes
         UserState memory userState = userStates[msg.sender];
         require(userState.allocatedLQTY == 0, "must be a reset");
 
-        // By definition, any addition now is absolute, so do that
 
-        // NOTE: Allow changes
-        // TODO: All changes on positive in the last 
-        // EPOCH_VOTING_CUTOFF >= econdsWithinEpoch() will not be allowed
-        // When in the cutoff each change must be below the amount initially set
-
-        // TODO: ADD THE CUTOFF LOGIC HERE, IT's BETTER
+        // After cutoff you can only re-apply the same vote
+        // Or vote less
+        // Or abstain 
+        // You can always add a veto, hence we only validate the addition of Votes
+        // And ignore the addition of vetos
         // Validate the data here to ensure that the voting is capped at the amount in the other case
         if(secondsWithinEpoch() > EPOCH_VOTING_CUTOFF) {
             // Cap the max votes to the previous cache value
@@ -575,7 +566,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             }
         }
 
-        // ALLOCATE LQTY BECOMES DUMMER WHICH IS GOOD
+        // Vote here, all values are now absolute changes
         _allocateLQTY(
             _initiatives,
             absoluteLQTYVotes,
