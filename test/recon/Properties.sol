@@ -6,6 +6,5 @@ import {GovernanceProperties} from "./properties/GovernanceProperties.sol";
 import {BribeInitiativeProperties} from "./properties/BribeInitiativeProperties.sol";
 
 
-abstract contract Properties is GovernanceProperties {
-    /// @audit TODO: Add `BribeInitiativeProperties`
+abstract contract Properties is GovernanceProperties, BribeInitiativeProperties {
 }
