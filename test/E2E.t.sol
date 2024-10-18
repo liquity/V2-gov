@@ -184,7 +184,7 @@ contract E2ETests is Test {
         int88[] memory deltaLQTYVetos = new int88[](1);
         deltaLQTYVetos[0] = vetos;
         
-        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 
     function _getInitiativeStatus(address _initiative) internal returns (uint256) {

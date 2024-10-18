@@ -32,7 +32,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         int88[] memory deltaLQTYVetosArray = new int88[](1);
         deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % stakedAmount));
         
-        governance.allocateLQTY(initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
+        governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
 
         // if call was successful update the ghost tracking variables
         // allocation only allows voting OR vetoing at a time so need to check which was executed
@@ -51,7 +51,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
     /// TODO: This is not really working
     function governance_allocateLQTY(int88[] calldata _deltaLQTYVotes, int88[] calldata _deltaLQTYVetos) withChecks public {
-        governance.allocateLQTY(deployedInitiatives, _deltaLQTYVotes, _deltaLQTYVetos);
+        governance.allocateLQTY(deployedInitiatives, deployedInitiatives, _deltaLQTYVotes, _deltaLQTYVetos);
     }
 
     function governance_claimForInitiative(uint8 initiativeIndex) withChecks public {

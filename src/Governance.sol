@@ -13,6 +13,7 @@ import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 
 import {add, max, abs} from "./utils/Math.sol";
+import {_requireNoDuplicates} from "./utils/UniqueArray.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
@@ -468,33 +469,134 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         safeCallWithMinGas(_initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onRegisterInitiative, (currentEpoch)));
     }
 
+    struct ResetInitiativeData {
+        address initiative;
+        int88 LQTYVotes;
+        int88 LQTYVetos;
+    }
+    function _resetInitiatives(address[] calldata _initiativesToReset) internal returns (ResetInitiativeData[] memory) {        
+        ResetInitiativeData[] memory cachedData = new ResetInitiativeData[](_initiativesToReset.length);
+
+        for(uint256 i; i < _initiativesToReset.length; i++) {
+            Allocation memory alloc = lqtyAllocatedByUserToInitiative[msg.sender][_initiativesToReset[i]];
+
+            // Must be below, else we cannot reset"
+            // Makes cast safe
+            assert(alloc.voteLQTY < uint88(type(int88).max));
+            assert(alloc.vetoLQTY < uint88(type(int88).max));
+            
+            // Reset how?
+            cachedData[i] = ResetInitiativeData({
+                initiative: _initiativesToReset[i],
+                LQTYVotes: int88(alloc.voteLQTY),
+                LQTYVetos: int88(alloc.vetoLQTY)
+            });
+
+            assert(cachedData[i].LQTYVotes == 0 || cachedData[i].LQTYVetos == 0); /// @audit INVARIANT: Can only vote or veto, never both
+
+            address[] memory _initiatives = new address[](1);
+            _initiatives[0] = _initiativesToReset[i];
+
+            // TODO: I think it's safe to get the opposite of zero, but need tests
+            int88[] memory _deltaLQTYVotes = new int88[](1);
+            _deltaLQTYVotes[0] = -int88(cachedData[i].LQTYVotes);
+
+            int88[] memory _deltaLQTYVetos = new int88[](1);
+            _deltaLQTYVetos[0] = -int88(cachedData[i].LQTYVetos);
+
+            // RESET HERE || CEI MASSIVE CONCERNS
+            _allocateLQTY(
+                _initiatives,
+                _deltaLQTYVotes,
+                _deltaLQTYVetos
+            );
+        }
+
+        return cachedData;
+    }
+
     /// @inheritdoc IGovernance
     function allocateLQTY(
+        address[] calldata _initiativesToReset,
+
         address[] calldata _initiatives,
-        int88[] calldata _deltaLQTYVotes,
-        int88[] calldata _deltaLQTYVetos
+        int88[] calldata absoluteLQTYVotes,
+        int88[] calldata absoluteLQTYVetos
     ) external nonReentrant {
+        // @audit To ensure the change is safe, enforce uniqueness
+        _requireNoDuplicates(_initiatives);
+        _requireNoDuplicates(_initiativesToReset);
+
+        // TODO: Enforce reset
+        // You MUST always reset
+        ResetInitiativeData[] memory cachedData = _resetInitiatives(_initiativesToReset);
+
+        // Assert that you have 0 liquity allocated
+        // Meaning the reset was successful
+        UserState memory userState = userStates[msg.sender];
+        require(userState.allocatedLQTY == 0, "must be a reset");
+
+        // By definition, any addition now is absolute, so do that
+
+        // NOTE: Allow changes
+        // TODO: All changes on positive in the last 
+        // EPOCH_VOTING_CUTOFF >= econdsWithinEpoch() will not be allowed
+        // When in the cutoff each change must be below the amount initially set
+
+        // TODO: ADD THE CUTOFF LOGIC HERE, IT's BETTER
+        // Validate the data here to ensure that the voting is capped at the amount in the other case
+        if(secondsWithinEpoch() > EPOCH_VOTING_CUTOFF) {
+            // Cap the max votes to the previous cache value
+            // This means that no new votes can happen here
+
+            // Removing and VETOING is always accepted
+            for(uint256 x; x < _initiatives.length; x++) {
+                // Iterate over the caps
+                // If not found
+                // Must be Veto
+                // If Found
+                // Must be below
+                bool found;
+                for(uint256 y; y < cachedData.length; y++) {
+                    if(cachedData[y].initiative == _initiatives[x]) {
+                        found = true;
+                        require(absoluteLQTYVotes[x] <= cachedData[y].LQTYVotes, "Cannot increase");
+                        break;
+                    }
+                }
+                if(!found) {
+                    // Assert votes are zero
+                    require(absoluteLQTYVotes[x] == 0, "Must be zero for new initiatives");
+                }
+            }
+        }
+
+        // ALLOCATE LQTY BECOMES DUMMER WHICH IS GOOD
+        _allocateLQTY(
+            _initiatives,
+            absoluteLQTYVotes,
+            absoluteLQTYVetos
+        );
+    }
+
+    function _allocateLQTY(
+        address[] memory _initiatives,
+        int88[] memory _deltaLQTYVotes,
+        int88[] memory _deltaLQTYVetos
+    ) internal {
         require(
             _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
             "Governance: array-length-mismatch"
         );
 
         (VoteSnapshot memory votesSnapshot_ , GlobalState memory state) = _snapshotVotes();
-
         uint16 currentEpoch = epoch();
-
         UserState memory userState = userStates[msg.sender];
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];
             int88 deltaLQTYVotes = _deltaLQTYVotes[i];
             int88 deltaLQTYVetos = _deltaLQTYVetos[i];
-
-            // only allow vetoing post the voting cutoff
-            require(
-                deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsWithinEpoch() <= EPOCH_VOTING_CUTOFF,
-                "Governance: epoch-voting-cutoff"
-            );
             
             /// === Check FSM === ///
             // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states

@@ -229,6 +229,66 @@ contract VotingPowerTest is Test {
         assertEq(resultingReturnedVotes, total_liquity_2, "Lqty matches");
     }
 
+    // forge test --match-test test_basic_reset_flow -vv
+    function test_basic_reset_flow() public {
+        uint256 snapshot0 = vm.snapshot();
+
+        uint256 snapshotBefore = vm.snapshot();
+
+        vm.startPrank(user);
+        // =========== epoch 1 ==================
+        // 1. user stakes lqty
+        int88 lqtyAmount = 2e18;
+        _stakeLQTY(user, uint88(lqtyAmount / 2));
+
+        // user allocates to baseInitiative1
+        _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
+        (uint88 allocatedLQTY, uint32 averageStakingTimestamp1) = governance.userStates(user);
+        assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "half");
+
+        _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
+        assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "still half, the math is absolute now");
+    }
+
+    // forge test --match-test test_cutoff_logic -vv
+    function test_cutoff_logic() public {
+        uint256 snapshot0 = vm.snapshot();
+
+        uint256 snapshotBefore = vm.snapshot();
+
+        vm.startPrank(user);
+        // =========== epoch 1 ==================
+        // 1. user stakes lqty
+        int88 lqtyAmount = 2e18;
+        _stakeLQTY(user, uint88(lqtyAmount));
+
+        // user allocates to baseInitiative1
+        _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
+        (uint88 allocatedLQTY, uint32 averageStakingTimestamp1) = governance.userStates(user);
+        assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "Half");
+
+
+        // Go to Cutoff
+        // See that you can reduce
+        // See that you can Veto as much as you want    
+        vm.warp(block.timestamp + (EPOCH_DURATION) - governance.EPOCH_VOTING_CUTOFF() + 1); // warp to end of second epoch before the voting cutoff
+
+        // Go to end of epoch, lazy math
+        while(!(governance.secondsWithinEpoch() > governance.EPOCH_VOTING_CUTOFF())) {
+            vm.warp(block.timestamp + 6 hours);
+        }
+        assertTrue(governance.secondsWithinEpoch() > governance.EPOCH_VOTING_CUTOFF(), "We should not be able to vote more");
+
+        vm.expectRevert(); // cannot allocate more
+        _allocate(address(baseInitiative1), lqtyAmount, 0);
+
+        // Can allocate less
+        _allocate(address(baseInitiative1), lqtyAmount - 1, 0);
+
+        // Can Veto more than allocate
+        _allocate(address(baseInitiative1), 0, lqtyAmount);
+    }
+
 
     //// Compare the relative power per epoch
     /// As in, one epoch should reliably increase the power by X amt
@@ -337,6 +397,10 @@ contract VotingPowerTest is Test {
 
 
     function _allocate(address initiative, int88 votes, int88 vetos) internal {
+        address[] memory initiativesToReset = new address[](3);
+        initiativesToReset[0] = baseInitiative1;
+        initiativesToReset[1] = baseInitiative2;
+        initiativesToReset[2] = baseInitiative3;
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
         int88[] memory deltaLQTYVotes = new int88[](1);
@@ -344,6 +408,6 @@ contract VotingPowerTest is Test {
         int88[] memory deltaLQTYVetos = new int88[](1);
         deltaLQTYVetos[0] = vetos;
         
-        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 }

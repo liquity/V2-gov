@@ -929,7 +929,7 @@ contract BribeInitiativeTest is Test {
         int88[] memory deltaVetoLQTY = new int88[](1);
         deltaVetoLQTY[0] = deltaVetoLQTYAmt;
 
-        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.stopPrank();
     }
 
@@ -943,7 +943,7 @@ contract BribeInitiativeTest is Test {
         int88[] memory deltaLQTYVetos = new int88[](1);
         deltaLQTYVetos[0] = vetos;
         
-        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         
         vm.stopPrank();
     }
