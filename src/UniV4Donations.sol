@@ -84,10 +84,29 @@ contract UniV4Donations is BribeInitiative, BaseHook {
         return _vesting;
     }
 
+    /// @dev TO FIX
+    uint256 public received;
+
+    /// @notice On claim we deposit the rewards - This is to prevent a griefing
+    function onClaimForInitiative(uint16, uint256 _bold) external override onlyGovernance {
+        received += _bold;
+    }
+
     function _donateToPool() internal returns (uint256) {
         /// @audit TODO: Need to use storage value here I think
         /// TODO: Test and fix release speed, which looks off
-        Vesting memory _vesting = _restartVesting(uint240(governance.claimForInitiative(address(this))));
+
+        // Claim again // NOTE: May be grifed
+        governance.claimForInitiative(address(this));
+
+        /// @audit Includes the queued rewards
+        uint256 toUse = received;
+
+        // Reset
+        received = 0;
+
+        // Rest of logic
+        Vesting memory _vesting = _restartVesting(uint240(toUse));
         uint256 amount =
             (_vesting.amount * (block.timestamp - vestingEpochStart()) / VESTING_EPOCH_DURATION) - _vesting.released;
 
