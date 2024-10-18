@@ -283,7 +283,7 @@ contract VotingPowerTest is Test {
         _allocate(address(baseInitiative1), lqtyAmount, 0);
 
         // Can allocate less
-        _allocate(address(baseInitiative1), lqtyAmount - 1, 0);
+        _allocate(address(baseInitiative1), lqtyAmount / 2 - 1, 0);
 
         // Can Veto more than allocate
         _allocate(address(baseInitiative1), 0, lqtyAmount);

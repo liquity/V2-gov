@@ -523,6 +523,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         int88[] calldata absoluteLQTYVotes,
         int88[] calldata absoluteLQTYVetos
     ) external nonReentrant {
+
+        require(_initiatives.length == absoluteLQTYVotes.length, "Length");
+        require(absoluteLQTYVetos.length == absoluteLQTYVotes.length, "Length");
+
         // @audit To ensure the change is safe, enforce uniqueness
         _requireNoDuplicates(_initiatives);
         _requireNoDuplicates(_initiativesToReset);
