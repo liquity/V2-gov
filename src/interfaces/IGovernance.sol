@@ -247,7 +247,7 @@ interface IGovernance {
     /// @param _initiatives Addresses of the initiatives to allocate to
     /// @param _deltaLQTYVotes Delta LQTY to allocate to the initiatives as votes
     /// @param _deltaLQTYVetos Delta LQTY to allocate to the initiatives as vetos
-    function allocateLQTY(address[] memory _initiatives, int88[] memory _deltaLQTYVotes, int88[] memory _deltaLQTYVetos)
+    function allocateLQTY(address[] calldata _resetInitiatives, address[] memory _initiatives, int88[] memory _deltaLQTYVotes, int88[] memory _deltaLQTYVetos)
         external;
 
     /// @notice Splits accrued funds according to votes received between all initiatives
