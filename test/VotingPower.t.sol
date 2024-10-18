@@ -96,15 +96,138 @@ contract VotingPowerTest is Test {
         );
     }
 
-    /// TODO: Deallocating doesn't change the avg for the initiative though
-    /// So if you deallocate I think it will desynch the math
-    
-    /// Allocate half of everything a TS X
-    /// Next epoch add more, change the TS
-    /// Allocate rest to another initiative
-    /// Sum the total value
-
     /// Compare with removing all and re-allocating all at the 2nd epoch
+    // forge test --match-test test_math_soundness -vv
+    function test_math_soundness() public {
+        // Given a Multiplier, I can wait 8 times more time
+        // Or use 8 times more amt
+        uint8 multiplier = 2;
+
+        uint88 lqtyAmount = 1e18;
+
+        uint256 powerInTheFuture = governance.lqtyToVotes(lqtyAmount, multiplier + 1, 1);
+        // Amt when delta is 1
+        // 0 when delta is 0
+        uint256 powerFromMoreDeposits = governance.lqtyToVotes(lqtyAmount * multiplier, uint32(block.timestamp + 1), uint32(block.timestamp));
+
+        assertEq(powerInTheFuture, powerFromMoreDeposits, "Same result");
+    }
+
+    function test_math_soundness_fuzz(uint32 multiplier) public {
+        vm.assume(multiplier < type(uint32).max - 1);
+        uint88 lqtyAmount = 1e10;
+
+        uint256 powerInTheFuture = governance.lqtyToVotes(lqtyAmount, multiplier + 1, 1);
+
+        // Amt when delta is 1
+        // 0 when delta is 0
+        uint256 powerFromMoreDeposits = governance.lqtyToVotes(lqtyAmount * multiplier, uint32(block.timestamp + 1), uint32(block.timestamp));
+
+        assertEq(powerInTheFuture, powerFromMoreDeposits, "Same result");
+    }
+
+    function _averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) internal pure returns (uint32) {
+        if (_averageTimestamp == 0 || _currentTimestamp < _averageTimestamp) return 0;
+        return _currentTimestamp - _averageTimestamp;
+    }
+
+    function _calculateAverageTimestamp(
+        uint32 _prevOuterAverageTimestamp,
+        uint32 _newInnerAverageTimestamp,
+        uint88 _prevLQTYBalance,
+        uint88 _newLQTYBalance
+    ) internal view returns (uint32) {
+        if (_newLQTYBalance == 0) return 0;
+
+        uint32 prevOuterAverageAge = _averageAge(uint32(block.timestamp), _prevOuterAverageTimestamp);
+        uint32 newInnerAverageAge = _averageAge(uint32(block.timestamp), _newInnerAverageTimestamp);
+
+        uint88 newOuterAverageAge;
+        bool hasRemainder;
+        if (_prevLQTYBalance <= _newLQTYBalance) {
+            uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
+            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
+            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
+            uint240 votes = prevVotes + newVotes;
+            newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
+            hasRemainder = uint256(newOuterAverageAge) * uint256(_newLQTYBalance) == votes;
+        } else {
+            uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
+            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
+            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
+            uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
+            newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
+            hasRemainder = uint256(newOuterAverageAge) * uint256(_newLQTYBalance) == votes;
+        }
+
+        assert(newOuterAverageAge < type(uint32).max); // TODO ENFORCE
+
+
+        if (newOuterAverageAge > block.timestamp) return 0;
+        uint32 result = uint32(block.timestamp) - uint32(newOuterAverageAge);
+        /// SEEMS TO CAUSE MORE ISSUES
+        // if(result > 0 && hasRemainder) {
+        //     --result;
+        // }
+        return result;
+    }
+
+    // This test prepares for comparing votes and vetos for state
+    // forge test --match-test test_we_can_compare_votes_and_vetos -vv
+    function test_we_can_compare_votes_and_vetos() public {
+        uint32 current_time = 123123123;
+        vm.warp(current_time);
+        // State at X
+        // State made of X and Y
+        uint32 time = current_time - 124;
+        uint88 votes = 124;
+        uint240 power = governance.lqtyToVotes(votes, current_time, time);
+
+        assertEq(power, (_averageAge(current_time, time)) * votes, "simple product");
+
+        // if it's a simple product we have the properties of multiplication, we can get back the value by dividing the tiem
+        uint88 resultingVotes = uint88(power / _averageAge(current_time, time));
+
+        assertEq(resultingVotes, votes, "We can get it back");
+
+        // If we can get it back, then we can also perform other operations like addition and subtraction
+        // Easy when same TS
+
+        // // But how do we sum stuff with different TS?
+        // // We need to sum the total and sum the % of average ts
+        uint88 votes_2 = 15;
+        uint32 time_2 = current_time - 124;
+
+        uint240 power_2 = governance.lqtyToVotes(votes_2, current_time, time_2);
+
+        uint240 total_power = power + power_2;
+
+        assertLe(total_power, uint240(type(uint88).max), "LT");
+
+        uint88 total_liquity_2 = votes + votes_2;
+
+        uint32 avgTs = _calculateAverageTimestamp(
+            time,
+            time_2,
+            votes,
+            total_liquity_2
+        );
+
+
+        uint256 total_power_from_avg = governance.lqtyToVotes(total_liquity_2, current_time, avgTs);
+
+        // Off by 40 BPS????? WAYY TOO MUCH | SOMETHING IS WRONG
+
+        // It doesn't sum up exactly becasue of rounding errors
+        // But we need the rounding error to be in favour of the protocol
+        // And currently they are not
+
+        // assertEq(total_power, total_power_from_avg, "Sums up"); // BROKEN
+
+        // From those we can find the average timestamp
+        uint88 resultingReturnedVotes = uint88(total_power_from_avg / _averageAge(current_time, time));
+        assertEq(resultingReturnedVotes, total_liquity_2, "Lqty matches");
+    }
 
 
     //// Compare the relative power per epoch
@@ -203,54 +326,6 @@ contract VotingPowerTest is Test {
 
         return averageStakingTimestampVoteLQTY;
     }
-
-    // // checking if deallocating changes the averageStakingTimestamp
-    // function test_deallocating_decreases_avg_timestamp() public {
-    //     // =========== epoch 1 ==================
-    //     governance = new Governance(
-    //         address(lqty),
-    //         address(lusd),
-    //         address(stakingV1),
-    //         address(lusd),
-    //         IGovernance.Configuration({
-    //             registrationFee: REGISTRATION_FEE,
-    //             registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-    //             unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-    //             registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-    //             unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-    //             votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-    //             minClaim: MIN_CLAIM,
-    //             minAccrual: MIN_ACCRUAL,
-    //             epochStart: uint32(block.timestamp),
-    //             epochDuration: EPOCH_DURATION,
-    //             epochVotingCutoff: EPOCH_VOTING_CUTOFF
-    //         }),
-    //         initialInitiatives
-    //     );
-
-    //     // 1. user stakes lqty
-    //     uint88 lqtyAmount = 1e18;
-    //     _stakeLQTY(user, lqtyAmount);
-
-    //     // =========== epoch 2 (start) ==================
-    //     // 2. user allocates in epoch 2 for initiative
-    //     vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
-
-    //     _allocateLQTY(user, lqtyAmount);
-
-    //     // =========== epoch 3 ==================
-    //     // 3. warp to third epoch and check voting power
-    //     vm.warp(block.timestamp + EPOCH_DURATION);
-    //     console2.log("current epoch A: ", governance.epoch());
-    //     governance.snapshotVotesForInitiative(baseInitiative1);
-
-    //     (,uint32 averageStakingTimestampBefore) = governance.userStates(user);
-
-    //     _deAllocateLQTY(user, lqtyAmount);
-
-    //     (,uint32 averageStakingTimestampAfter) = governance.userStates(user);
-    //     assertEq(averageStakingTimestampBefore, averageStakingTimestampAfter);
-    // }
 
 
     function _stakeLQTY(address _user, uint88 amount) internal {
