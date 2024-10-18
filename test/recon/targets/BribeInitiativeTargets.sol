@@ -24,6 +24,11 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
         bribeTokenAmount = uint128(bribeTokenAmount % lqty.balanceOf(user));
 
         initiative.depositBribe(boldAmount, bribeTokenAmount, epoch);
+
+        // tracking to check that bribe accounting is always correct 
+        uint16 currentEpoch = governance.epoch();
+        ghostBribeByEpoch[address(initiative)][currentEpoch].boldAmount += boldAmount;
+        ghostBribeByEpoch[address(initiative)][currentEpoch].bribeTokenAmount += bribeTokenAmount;
     }
 
     function initiative_claimBribes(uint16 epoch, uint16 prevAllocationEpoch, uint16 prevTotalAllocationEpoch, uint8 initiativeIndex) withChecks public {        
@@ -43,8 +48,18 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
         bool alreadyClaimed = initiative.claimedBribeAtEpoch(user, epoch);
 
-        initiative.claimBribes(claimData);
+        try initiative.claimBribes(claimData) {} 
+        catch {
+            // check if user had a claimable allocation 
+            (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, prevAllocationEpoch);
+            bool claimedBribe = initiative.claimedBribeAtEpoch(user, prevAllocationEpoch);
 
+            if(lqtyAllocated > 0 && !claimedBribe) {
+                // user wasn't able to claim a bribe they were entitled to
+                unableToClaim = true;
+            }
+        }
+       
         // check if the bribe was already claimed at the given epoch
         if(alreadyClaimed) {
             // toggle canary that breaks the BI-02 property

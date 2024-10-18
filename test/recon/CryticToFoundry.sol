@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.0;
 
@@ -8,94 +7,36 @@ import {FoundryAsserts} from "@chimera/FoundryAsserts.sol";
 
 import {console} from "forge-std/console.sol";
 
-
 contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     function setUp() public {
         setup();
     }
 
+    // forge test --match-test test_property_sum_of_initatives_matches_total_votes_1 -vv
+    function test_property_sum_of_initatives_matches_total_votes_1() public {
+        vm.warp(block.timestamp + 133118);
+        governance_depositLQTY(5);
 
-// forge test --match-test test_governance_claimForInitiativeFuzzTest_0 -vv 
- // Cannot repro!!
-// function test_governance_claimForInitiativeFuzzTest_0() public {
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 500671);
+        governance_allocateLQTY_clamped_single_initiative(0, 1, 0);
 
-//    property_GV01();
-  
-//    vm.roll(256169);
-//    vm.warp(block.timestamp + block.timestamp +3260161);
-//    vm.prank(0x0000000000000000000000000000000000010000);
-//    helper_deployInitiative();
-  
-//    vm.roll(270373);
-//    vm.warp(block.timestamp + block.timestamp +3602226);
-//    vm.prank(0x0000000000000000000000000000000000030000);
-//    governance_depositLQTY(17);
-  
-//    vm.roll(308818);
-//    vm.warp(block.timestamp + block.timestamp +3771211);
-//    vm.prank(0x0000000000000000000000000000000000010000);
-//    governance_allocateLQTY_clamped_single_initiative(0, 15205252162723499549798549773, 133873542249422983867704365);
-  
-//    vm.roll(364433);
-//    vm.warp(block.timestamp + block.timestamp +4218237);
-//    vm.prank(0x0000000000000000000000000000000000020000);
-//    governance_registerInitiative(197);
-  
-//    vm.roll(398954);
-//    vm.warp(block.timestamp + block.timestamp +4578472);
-//    vm.prank(0x0000000000000000000000000000000000020000);
-//    helper_deployInitiative();
-  
-//    vm.roll(427374);
-//    vm.warp(block.timestamp + block.timestamp +4937813);
-//    vm.prank(0x0000000000000000000000000000000000020000);
-//    helper_deployInitiative();
-  
-//    vm.roll(451255);
-//    vm.warp(block.timestamp + block.timestamp +5026129);
-//    vm.prank(0x0000000000000000000000000000000000010000);
-//    check_unregisterable_consistecy(45);
-  
-//    vm.roll(451317);
-//    vm.warp(block.timestamp + block.timestamp +5026210);
-//    vm.prank(0x0000000000000000000000000000000000030000);
-//    governance_claimForInitiativeFuzzTest(0);
-// }
+        governance_depositLQTY(1);
 
+        vm.warp(block.timestamp + 360624);
+        helper_deployInitiative();
 
-// forge test --match-test test_property_sum_of_initatives_matches_total_votes_0 -vv 
- 
-function test_property_sum_of_initatives_matches_total_votes_0() public {
-  
-   vm.roll(107593);
-   vm.warp(block.timestamp + 1534052);
-   vm.prank(0x0000000000000000000000000000000000010000);
-   property_sum_of_lqty_initiative_user_matches();
-  
-   vm.roll(355263);
-   vm.warp(block.timestamp + 4362939);
-   vm.prank(0x0000000000000000000000000000000000010000);
-   governance_claimFromStakingV1(0);
-  
-   vm.roll(395462);
-   vm.warp(block.timestamp + 4891339);
-   vm.prank(0x0000000000000000000000000000000000020000);
-   governance_depositLQTY(54268825854736470678564125);
-  
-   vm.roll(398330);
-   vm.prank(0x0000000000000000000000000000000000030000);
-   governance_allocateLQTY_clamped_single_initiative(0, 18346077569286272055920745832, 0);
-  
-   vm.roll(399594);
-   vm.prank(0x0000000000000000000000000000000000010000);
-   governance_unregisterInitiative(0);
-  
-   vm.roll(457393);
-   vm.warp(block.timestamp + 5458286);
-   vm.prank(0x0000000000000000000000000000000000030000);
-   property_sum_of_initatives_matches_total_votes();
-}
-		
-			
-				
+        governance_registerInitiative(1);
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 438459);
+        governance_allocateLQTY_clamped_single_initiative(1, 5116, 0);
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 226259);
+        vm.roll(block.number + 1);
+
+        vm.warp(block.timestamp + 157379);
+        property_sum_of_initatives_matches_total_votes();
+    }
 }

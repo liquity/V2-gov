@@ -30,9 +30,12 @@ abstract contract Setup is BaseSetup {
     address[] internal deployedInitiatives;
     uint256 internal user2Pk = 23868421370328131711506074113045611601786642648093516849953535378706721142721; // derived using makeAddrAndKey
     bool internal claimedTwice;
+    bool internal unableToClaim;
     
     mapping(uint16 => uint88) internal ghostTotalAllocationAtEpoch;
     mapping(address => uint88) internal ghostLqtyAllocationByUserAtEpoch;
+    // initiative => epoch => bribe
+    mapping(address => mapping(uint16 => IBribeInitiative.Bribe)) internal ghostBribeByEpoch;
 
     uint128 internal constant REGISTRATION_FEE = 1e18;
     uint128 internal constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
@@ -47,7 +50,7 @@ abstract contract Setup is BaseSetup {
 
 
   function setup() internal virtual override {
-      vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back
+      vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back after the constructor
       // Random TS that is realistic
       users.push(user);
       users.push(user2);
