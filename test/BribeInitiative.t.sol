@@ -571,7 +571,7 @@ contract BribeInitiativeTest is Test {
         assertEq(boldAmount, 1e18, "boldAmount");
         assertEq(bribeTokenAmount, 1e18, "bribeTokenAmount");
 
-        // TODO: compare user bribe received from claiming with from above with using non-splitting  
+        // With non spliting the amount would be 1e18, so this is a bug due to how allocations work
     }
 
     function test_allocation_avg_ts_mismatch_bribes() public {
