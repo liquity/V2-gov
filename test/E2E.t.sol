@@ -135,7 +135,6 @@ contract E2ETests is Test {
         console.log("epoch", governance.epoch());
         _allocate(baseInitiative1, 1e18, 0); // Doesn't work due to cool down I think
 
-
         // And for sanity, you cannot vote on new ones, they need to be added first
         deal(address(lusd), address(user), REGISTRATION_FEE);
         lusd.approve(address(governance), REGISTRATION_FEE);
@@ -146,14 +145,21 @@ contract E2ETests is Test {
 
         uint256 skipCount;
 
+        address[] memory toAllocate = new address[](2);
+        toAllocate[0] = baseInitiative1;
+        toAllocate[1] = newInitiative;
+
+        int88[] memory votes = new int88[](2);
+        votes[0] = 1e18;
+        votes[1] = 100;
+        int88[] memory vetos = new int88[](2);
+
         // Whereas in next week it will work
         vm.warp(block.timestamp + EPOCH_DURATION); // 1
-        _allocate(newInitiative, 100, 0); // Will not meet the treshold
         ++skipCount;
         assertEq(uint256(Governance.InitiativeStatus.SKIP) ,_getInitiativeStatus(newInitiative), "SKIP");
 
         // Cooldown on epoch Staert
-
         vm.warp(block.timestamp + EPOCH_DURATION); // 2
         ++skipCount;
         assertEq(uint256(Governance.InitiativeStatus.SKIP) ,_getInitiativeStatus(newInitiative), "SKIP");
@@ -177,6 +183,12 @@ contract E2ETests is Test {
     }
 
     function _allocate(address initiative, int88 votes, int88 vetos) internal {
+        address[] memory initiativesToDeRegister = new address[](4);
+        initiativesToDeRegister[0] = baseInitiative1;
+        initiativesToDeRegister[1] = baseInitiative2;
+        initiativesToDeRegister[2] = baseInitiative3;
+        initiativesToDeRegister[3] = address(0x123123);
+
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
         int88[] memory deltaLQTYVotes = new int88[](1);
@@ -184,7 +196,19 @@ contract E2ETests is Test {
         int88[] memory deltaLQTYVetos = new int88[](1);
         deltaLQTYVetos[0] = vetos;
         
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToDeRegister, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+    }
+
+    function _allocate(address[] memory initiatives, int88[] memory votes, int88[] memory vetos) internal {
+        address[] memory initiativesToDeRegister = new address[](4);
+        initiativesToDeRegister[0] = baseInitiative1;
+        initiativesToDeRegister[1] = baseInitiative2;
+        initiativesToDeRegister[2] = baseInitiative3;
+        initiativesToDeRegister[3] = address(0x123123);
+
+
+        
+        governance.allocateLQTY(initiativesToDeRegister, initiatives, votes, vetos);
     }
 
     function _getInitiativeStatus(address _initiative) internal returns (uint256) {
