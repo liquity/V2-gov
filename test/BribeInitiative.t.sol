@@ -298,6 +298,7 @@ contract BribeInitiativeTest is Test {
 
         // lusdHolder deposits lqty and lusd bribes claimable in epoch 3
         _depositBribe(1e18, 1e18, governance.epoch() + 1);
+        uint16 depositedBribe = governance.epoch() + 1;
 
         // =========== epoch 3 ==================
         vm.warp(block.timestamp + EPOCH_DURATION);
@@ -311,7 +312,7 @@ contract BribeInitiativeTest is Test {
         assertEq(5, governance.epoch(), "not in epoch 5");
 
         // user should receive bribe from their allocated stake
-        (uint256 boldAmount, uint256 bribeTokenAmount) = _claimBribe(user1, governance.epoch() - 1, governance.epoch() - 2, governance.epoch() - 2);
+        (uint256 boldAmount, uint256 bribeTokenAmount) = _claimBribe(user1, depositedBribe, depositedBribe, depositedBribe);
         assertEq(boldAmount, 1e18);
         assertEq(bribeTokenAmount, 1e18);
     }
@@ -564,8 +565,8 @@ contract BribeInitiativeTest is Test {
         // TODO: compare user bribe received from claiming with from above with using non-splitting  
     }
 
-    // TODO: get this to work
     function test_allocation_avg_ts_mismatch_bribes() public {
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
         uint256 snapshot0 = vm.snapshot();
 
         uint256 snapshotBefore = vm.snapshot();
