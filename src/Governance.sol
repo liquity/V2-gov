@@ -533,7 +533,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         UserState memory userState = userStates[msg.sender];
         require(userState.allocatedLQTY == 0, "must be a reset");
 
-
         // After cutoff you can only re-apply the same vote
         // Or vote less
         // Or abstain 
