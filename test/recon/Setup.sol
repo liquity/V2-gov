@@ -50,9 +50,8 @@ abstract contract Setup is BaseSetup {
 
 
   function setup() internal virtual override {
+      vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back
       // Random TS that is realistic
-      vm.warp(1729087439);
-      vm.roll(block.number + 1);
       users.push(user);
       users.push(user2);
 
@@ -76,7 +75,7 @@ abstract contract Setup is BaseSetup {
               votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
               minClaim: MIN_CLAIM,
               minAccrual: MIN_ACCRUAL,
-              epochStart: uint32(block.timestamp),
+              epochStart: uint32(block.timestamp - EPOCH_DURATION), /// @audit will this work?
               epochDuration: EPOCH_DURATION,
               epochVotingCutoff: EPOCH_VOTING_CUTOFF
           }),

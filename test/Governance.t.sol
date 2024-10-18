@@ -1659,8 +1659,8 @@ contract GovernanceTest is Test {
         // =========== epoch 3 (end) ==================
     }
 
-    // snapshotting an allocation for an epoch at which user allocates doesn't increase initiative's voting power
-    function test_voting_power_no_increase_in_same_epoch_as_allocation() public {
+    // increase in user voting power and initiative voting power should be equivalent
+    function test_voting_power_in_same_epoch_as_allocation() public {
         // =========== epoch 1 ==================
         governance = new Governance(
             address(lqty),
@@ -1690,17 +1690,51 @@ contract GovernanceTest is Test {
         // =========== epoch 2 ==================
         // 2. user allocates in epoch 2 for initiative to be active
         vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
+        assertEq(2, governance.epoch(), "not in epoch 2");
+
+        // check user voting power before allocation at epoch start
+        (uint88 allocatedLQTY0, uint32 averageStakingTimestamp0) = governance.userStates(user);
+        uint240 currentUserPower0 = governance.lqtyToVotes(allocatedLQTY0, block.timestamp, averageStakingTimestamp0);
+        assertEq(currentUserPower0, 0, "user has voting power > 0");
+
+        // check initiative voting power before allocation at epoch start
+        (uint88 voteLQTY0,, uint32 averageStakingTimestampVoteLQTY0,,) = governance.initiativeStates(baseInitiative1);
+        uint240 currentInitiativePower0 = governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestampVoteLQTY0);
+        assertEq(currentInitiativePower0, 0, "current initiative voting power is > 0"); 
 
         _allocateLQTY(user, lqtyAmount);
 
-        // check initiative voting power for the current epoch
+        vm.warp(block.timestamp + (EPOCH_DURATION - 1)); // warp to end of second epoch
+        assertEq(2, governance.epoch(), "not in epoch 2");
+
+        // check user voting power after allocation at epoch end
+        (uint88 allocatedLQTY1, uint32 averageStakingTimestamp1) = governance.userStates(user);
+        uint240 currentUserPower1 = governance.lqtyToVotes(allocatedLQTY1, block.timestamp, averageStakingTimestamp1);
+        assertGt(currentUserPower1, 0, "user has no voting power after allocation");
+
+        // check initiative voting power after allocation at epoch end
         (uint88 voteLQTY1,, uint32 averageStakingTimestampVoteLQTY1,,) = governance.initiativeStates(baseInitiative1);
         uint240 currentInitiativePower1 = governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
-        assertEq(currentInitiativePower1, 0, "current initiative voting power is > 0"); 
+        assertGt(currentInitiativePower1, 0, "initiative has no voting power after allocation");
 
-        governance.snapshotVotesForInitiative(baseInitiative1);
-        (uint224 votes, uint16 forEpoch,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
-        assertEq(votes, 0, "votes accounted for in same epoch as allocation");
+        // check that user and initiative voting power is equivalent at epoch end
+        assertEq(currentUserPower1, currentInitiativePower1, "currentUserPower1 != currentInitiativePower1");
+
+        vm.warp(block.timestamp + (EPOCH_DURATION * 40)); 
+        assertEq(42, governance.epoch(), "not in epoch 42");
+
+        // get user voting power after multiple epochs
+        (uint88 allocatedLQTY2, uint32 averageStakingTimestamp2) = governance.userStates(user);
+        uint240 currentUserPower2 = governance.lqtyToVotes(allocatedLQTY2, block.timestamp, averageStakingTimestamp2);
+        assertGt(currentUserPower2, currentUserPower1, "user voting power doesn't increase");
+
+        // get initiative voting power after multiple epochs
+        (uint88 voteLQTY2,, uint32 averageStakingTimestampVoteLQTY2,,) = governance.initiativeStates(baseInitiative1);
+        uint240 currentInitiativePower2 = governance.lqtyToVotes(voteLQTY2, block.timestamp, averageStakingTimestampVoteLQTY2);
+        assertGt(currentInitiativePower2, currentInitiativePower1, "initiative voting power doesn't increase");
+
+        // check that initiative and user voting always track each other
+        assertEq(currentUserPower2, currentInitiativePower2, "voting powers don't match"); 
     }
 
     // initiative's increase in voting power after a snapshot is the same as the increase in power calculated using the initiative's allocation at the start and end of the epoch

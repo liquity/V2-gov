@@ -50,9 +50,9 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     // For all operations, you also need to add the VESTED AMT?
 
     /// TODO: This is not really working
-    // function governance_allocateLQTY(int88[] calldata _deltaLQTYVotes, int88[] calldata _deltaLQTYVetos) withChecks public {
-    //     governance.allocateLQTY(deployedInitiatives, _deltaLQTYVotes, _deltaLQTYVetos);
-    // }
+    function governance_allocateLQTY(int88[] calldata _deltaLQTYVotes, int88[] calldata _deltaLQTYVetos) withChecks public {
+        governance.allocateLQTY(deployedInitiatives, _deltaLQTYVotes, _deltaLQTYVetos);
+    }
 
     function governance_claimForInitiative(uint8 initiativeIndex) withChecks public {
         address initiative = _getDeployedInitiative(initiativeIndex);

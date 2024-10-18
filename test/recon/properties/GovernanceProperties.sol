@@ -5,6 +5,7 @@ import {BeforeAfter} from "../BeforeAfter.sol";
 import {Governance} from "src/Governance.sol";
 import {IGovernance} from "src/interfaces/IGovernance.sol";
 import {MockStakingV1} from "test/mocks/MockStakingV1.sol";
+import {vm} from "@chimera/Hevm.sol";
 
 abstract contract GovernanceProperties is BeforeAfter {
     
@@ -47,14 +48,16 @@ abstract contract GovernanceProperties is BeforeAfter {
     }
 
 
-    function property_stake_and_votes_cannot_be_abused() public {
+    function property_GV_09() public {
         // User stakes
         // User allocated
 
         // allocated is always <= stakes
         for(uint256 i; i < users.length; i++) {
             // Only sum up user votes
-            uint256 stake = MockStakingV1(stakingV1).stakes(users[i]);
+            address userProxyAddress = governance.deriveUserProxyAddress(users[i]);
+            uint256 stake = MockStakingV1(stakingV1).stakes(userProxyAddress);
+            
             (uint88 user_allocatedLQTY, ) = governance.userStates(users[i]);
             lte(user_allocatedLQTY, stake, "User can never allocated more than stake"); 
         }
@@ -170,14 +173,15 @@ abstract contract GovernanceProperties is BeforeAfter {
     }
 
     // sum of voting power for users that allocated to an initiative == the voting power of the initiative
+    /// TODO ??
     function property_sum_of_user_voting_weights() public {
         // loop through all users 
         // - calculate user voting weight for the given timestamp
         // - sum user voting weights for the given epoch
         // - compare with the voting weight of the initiative for the epoch for the same timestamp
         
-        uint240 userWeightAccumulatorForInitiative;
         for(uint256 i; i < deployedInitiatives.length; i++) {
+            uint240 userWeightAccumulatorForInitiative;
             for(uint256 j; j < users.length; j++) {
                 (uint88 userVoteLQTY,,) = governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
                 // TODO: double check that okay to use this average timestamp
@@ -190,6 +194,56 @@ abstract contract GovernanceProperties is BeforeAfter {
             uint240 initiativeWeight = governance.lqtyToVotes(initiativeVoteLQTY, block.timestamp, initiativeAverageStakingTimestampVoteLQTY);
             eq(initiativeWeight, userWeightAccumulatorForInitiative, "initiative voting weights and user's allocated weight differs for initiative");
         }
+    }
+
+
+    function property_sum_of_initatives_matches_total_votes() public {
+        // Sum up all initiatives
+        // Compare to total votes
+        (IGovernance.VoteSnapshot memory snapshot, IGovernance.GlobalState memory state, bool shouldUpdate) = governance.getTotalVotesAndState();
+        
+        uint256 initiativeVotesSum;
+        for(uint256 i; i < deployedInitiatives.length; i++) {
+            (IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot, IGovernance.InitiativeState memory initiativeState, bool shouldUpdate) = governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
+            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+
+            if(status != Governance.InitiativeStatus.DISABLED) {
+                // FIX: Only count total if initiative is not disabled
+                initiativeVotesSum += initiativeSnapshot.votes;
+            }
+        }
+
+        eq(snapshot.votes, initiativeVotesSum, "Sum of votes matches");
+    }
+
+
+    function check_skip_consistecy(uint8 initiativeIndex) public {
+        // If a initiative has no votes
+        // In the next epoch it can either be SKIP or UNREGISTERABLE
+        address initiative = _getDeployedInitiative(initiativeIndex);
+
+        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
+        if(status == Governance.InitiativeStatus.SKIP) {
+            vm.warp(block.timestamp + governance.EPOCH_DURATION());
+            (Governance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
+            t(uint256(status) == uint256(newStatus) || uint256(newStatus) == uint256(Governance.InitiativeStatus.UNREGISTERABLE) || uint256(newStatus) == uint256(Governance.InitiativeStatus.CLAIMABLE), "Either SKIP or UNREGISTERABLE or CLAIMABLE");
+        }
+    }
+
+    // TOFIX: The property breaks because you can vote on a UNREGISTERABLE
+    // Hence it can become Claimable next week
+    function check_unregisterable_consistecy(uint8 initiativeIndex) public {
+        // If a initiative has no votes and is UNREGISTERABLE
+        // In the next epoch it will remain UNREGISTERABLE
+        address initiative = _getDeployedInitiative(initiativeIndex);
+
+        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
+        if(status == Governance.InitiativeStatus.UNREGISTERABLE) {
+            vm.warp(block.timestamp + governance.EPOCH_DURATION());
+            (Governance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
+            t(uint256(status) == uint256(newStatus) || uint256(newStatus) == uint256(Governance.InitiativeStatus.CLAIMABLE), "UNREGISTERABLE must remain UNREGISTERABLE unless voted on but can become CLAIMABLE due to relaxed checks in allocateLQTY");
+        }
+
     }
 
 

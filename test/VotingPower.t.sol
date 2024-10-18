@@ -155,9 +155,6 @@ contract VotingPowerTest is Test {
         uint256 avgTs_reset_2 = _getAverageTS(baseInitiative2);
 
 
-
-
-
         // Intuition, Delta time * LQTY = POWER
         vm.revertTo(snapshotBefore);
 

@@ -221,7 +221,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function epoch() public view returns (uint16) {
-        if (block.timestamp < EPOCH_START) return 0;
+        if (block.timestamp < EPOCH_START) {
+            return 0;
+        }
         return uint16(((block.timestamp - EPOCH_START) / EPOCH_DURATION) + 1);
     }
 
@@ -390,7 +392,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
 
         // == Just Registered Condition == //
-        // If a initiative is disabled, we return false and the last epoch claim
         if(registeredInitiatives[_initiative] == epoch()) {
             return (InitiativeStatus.COOLDOWN, 0, 0); /// Was registered this week, cannot have rewards
         }
@@ -549,18 +550,32 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             // == GLOBAL STATE == //
 
+            // TODO: Accounting invariants
+            // TODO: Let's say I want to cap the votes vs weights
+            // Then by definition, I add the effective LQTY
+            // And the effective TS
+            // I remove the previous one
+            // and add the next one
+            // Veto > Vote
+            // Reduce down by Vote (cap min)
+            // If Vote > Veto
+            // Increase by Veto - Veto (reduced max)
+
             // update the average staking timestamp for all counted voting LQTY
             /// Discount previous only if the initiative was not unregistered
 
-            /// @audit
             if(status != InitiativeStatus.DISABLED) {
+            /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
+            /// Removing votes from state desynchs the state until all users remove their votes from the initiative
+            /// The invariant that holds is: the one that removes the initiatives that have been unregistered
                 state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
                     state.countedVoteLQTYAverageTimestamp,
                     prevInitiativeState.averageStakingTimestampVoteLQTY, /// @audit TODO Write tests that fail from this bug
                     state.countedVoteLQTY,
                     state.countedVoteLQTY - prevInitiativeState.voteLQTY
                 );
-                state.countedVoteLQTY -= prevInitiativeState.voteLQTY; /// @audit Overflow here MUST never happen2
+                assert(state.countedVoteLQTY >= prevInitiativeState.voteLQTY); /// RECON: Overflow
+                state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
             }
             /// @audit We cannot add on disabled so the change below is safe
             // TODO More asserts? | Most likely need to assert strictly less voteLQTY here
@@ -632,6 +647,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             state.countedVoteLQTY,
             state.countedVoteLQTY - initiativeState.voteLQTY
         );
+        assert(state.countedVoteLQTY >= initiativeState.voteLQTY); /// RECON: Overflow
         state.countedVoteLQTY -= initiativeState.voteLQTY;
         
         globalState = state;
