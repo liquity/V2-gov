@@ -1354,6 +1354,20 @@ contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
+    // claiming for an unregistered initiative doesn't revert
+    function test_claimForInitiative_unregistered_initiative() public {
+        vm.startPrank(user);
+
+        address userProxy = governance.deployUserProxy();
+
+        // passes in user address as governance, allowing them to call privileged functions
+        address maliciousInitiative = address(new BribeInitiative(user, address(lusd), address(lqty)));
+
+        governance.claimForInitiative(maliciousInitiative);
+
+        vm.stopPrank();
+    }
+
     // this shouldn't happen
     function off_claimForInitiativeEOA() public {
         address EOAInitiative = address(0xbeef);
