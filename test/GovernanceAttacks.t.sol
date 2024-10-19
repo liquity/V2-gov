@@ -209,8 +209,8 @@ contract GovernanceTest is Test {
         initiatives[1] = address(eoaInitiative);
         initiatives[2] = address(maliciousInitiative1);
         deltaVoteLQTY = new int88[](3);
-        deltaVoteLQTY[0] = -5e17;
-        deltaVoteLQTY[1] = -5e17;
+        deltaVoteLQTY[0] = 0;
+        deltaVoteLQTY[1] = 0;
         deltaVoteLQTY[2] = 5e17;
         deltaVetoLQTY = new int88[](3);
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
