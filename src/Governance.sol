@@ -465,7 +465,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
         // than the registration threshold derived from the previous epoch's total global votes
         require(
-            lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), block.timestamp, userState.averageStakingTimestamp)
+            lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), epochStart(), userState.averageStakingTimestamp)
                 >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );
