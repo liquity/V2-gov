@@ -244,11 +244,12 @@ interface IGovernance {
 
     /// @notice Allocates the user's LQTY to initiatives
     /// @dev The user can only allocate to active initiatives (older than 1 epoch) and has to have enough unallocated
-    /// LQTY available
-    /// @param _initiatives Addresses of the initiatives to allocate to
-    /// @param _deltaLQTYVotes Delta LQTY to allocate to the initiatives as votes
-    /// @param _deltaLQTYVetos Delta LQTY to allocate to the initiatives as vetos
-    function allocateLQTY(address[] calldata _resetInitiatives, address[] memory _initiatives, int88[] memory _deltaLQTYVotes, int88[] memory _deltaLQTYVetos)
+    /// LQTY available, the initiatives listed must be unique, and towards the end of the epoch a user can only maintain or reduce their votes
+    /// @param _resetInitiatives Addresses of the initiatives the caller was previously allocated to, must be reset to prevent desynch of voting power
+    /// @param _initiatives Addresses of the initiatives to allocate to, can match or be different from `_resetInitiatives`
+    /// @param _absoluteLQTYVotes Delta LQTY to allocate to the initiatives as votes
+    /// @param absoluteLQTYVetos Delta LQTY to allocate to the initiatives as vetos
+    function allocateLQTY(address[] calldata _resetInitiatives, address[] memory _initiatives, int88[] memory _absoluteLQTYVotes, int88[] memory absoluteLQTYVetos)
         external;
 
     /// @notice Splits accrued funds according to votes received between all initiatives

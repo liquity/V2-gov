@@ -369,7 +369,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     //////////////////////////////////////////////////////////////*/
 
 
-    /// @notice Given an initiative, return whether the initiative will be unregisted, whether it can claim and which epoch it last claimed at
     enum InitiativeStatus {
         NONEXISTENT, /// This Initiative Doesn't exist | This is never returned
         WARM_UP, /// This epoch was just registered
@@ -379,13 +378,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         UNREGISTERABLE, /// Can be unregistered
         DISABLED // It was already Unregistered
     }
-    /**
-        FSM:
-            - Can claim (false, true, epoch - 1 - X)
-            - Has claimed (false, false, epoch - 1)
-            - Cannot claim and should not be kicked (false, false, epoch - 1 - [0, X])
-            - Should be kicked (true, false, epoch - 1 - [UNREGISTRATION_AFTER_EPOCHS, UNREGISTRATION_AFTER_EPOCHS + X])
-     */
 
     /// @notice Given an inititive address, updates all snapshots and return the initiative state
     ///     See the view version of `getInitiativeState` for the underlying logic on Initatives FSM
@@ -532,12 +524,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     function allocateLQTY(
         address[] calldata _initiativesToReset,
         address[] calldata _initiatives,
-        int88[] calldata absoluteLQTYVotes,
-        int88[] calldata absoluteLQTYVetos
+        int88[] calldata _absoluteLQTYVotes,
+        int88[] calldata _absoluteLQTYVetos
     ) external nonReentrant {
 
-        require(_initiatives.length == absoluteLQTYVotes.length, "Length");
-        require(absoluteLQTYVetos.length == absoluteLQTYVotes.length, "Length");
+        require(_initiatives.length == _absoluteLQTYVotes.length, "Length");
+        require(_absoluteLQTYVetos.length == _absoluteLQTYVotes.length, "Length");
 
         // To ensure the change is safe, enforce uniqueness
         _requireNoDuplicates(_initiatives);
@@ -568,14 +560,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 for(uint256 y; y < cachedData.length; y++) {
                     if(cachedData[y].initiative == _initiatives[x]) {
                         found = true;
-                        require(absoluteLQTYVotes[x] <= cachedData[y].LQTYVotes, "Cannot increase");
+                        require(_absoluteLQTYVotes[x] <= cachedData[y].LQTYVotes, "Cannot increase");
                         break;
                     }
                 }
 
                 // Else we assert that the change is a veto, because by definition the initiatives will have received zero votes past this line
                 if(!found) {
-                    require(absoluteLQTYVotes[x] == 0, "Must be zero for new initiatives");
+                    require(_absoluteLQTYVotes[x] == 0, "Must be zero for new initiatives");
                 }
             }
         }
@@ -583,8 +575,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // Vote here, all values are now absolute changes
         _allocateLQTY(
             _initiatives,
-            absoluteLQTYVotes,
-            absoluteLQTYVetos
+            _absoluteLQTYVotes,
+            _absoluteLQTYVetos
         );
     }
 
