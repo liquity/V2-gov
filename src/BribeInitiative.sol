@@ -175,10 +175,12 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     function _loadTotalLQTYAllocation(uint16 _epoch) private view returns (uint88, uint32) {
+        require(_epoch <= governance.epoch(), "No future Lookup");
         return _decodeLQTYAllocation(totalLQTYAllocationByEpoch.items[_epoch].value);
     }
 
     function _loadLQTYAllocation(address _user, uint16 _epoch) private view returns (uint88, uint32) {
+        require(_epoch <= governance.epoch(), "No future Lookup");
         return _decodeLQTYAllocation(lqtyAllocationByUserAtEpoch[_user].items[_epoch].value);
     }
 
