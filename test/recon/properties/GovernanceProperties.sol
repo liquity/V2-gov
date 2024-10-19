@@ -114,6 +114,18 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         eq(totalCountedLQTY, totalUserCountedLQTY, "Global vs SUM(Users_lqty) must match");
     }
+
+    // NOTE: In principle this will work since this is a easier to reach property vs checking each initiative
+    function property_ensure_user_alloc_cannot_dos() public {
+
+        uint256 totalUserCountedLQTY;
+        for(uint256 i; i < users.length; i++) {
+            // Only sum up user votes
+            (uint88 user_voteLQTY, ) = _getAllUserAllocations(users[i]);
+
+            lte(user_voteLQTY, uint88(type(int88).max), "User can never allocate more than int88");
+        }
+    }
     
     /// The Sum of LQTY allocated to Initiatives matches the Sum of LQTY allocated by users
     function property_sum_of_lqty_initiative_user_matches() public {

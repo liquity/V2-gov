@@ -222,6 +222,7 @@ interface IGovernance {
     /// @notice Voting threshold is the max. of either:
     ///   - 4% of the total voting LQTY in the previous epoch
     ///   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
+    /// This value can be offsynch, use the non view `calculateVotingThreshold` to always retrieve the most up to date value
     /// @return votingThreshold Voting threshold
     function getLatestVotingThreshold() external view returns (uint256 votingThreshold);
 

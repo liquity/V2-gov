@@ -261,12 +261,17 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         return calculateVotingThreshold(snapshotVotes);
     }
 
+    /// @dev Returns the most up to date voting threshold 
+    /// In contrast to `getLatestVotingThreshold` this function updates the snapshot
+    /// This ensures that the value returned is always the latest
     function calculateVotingThreshold() public returns (uint256) {
         (VoteSnapshot memory snapshot, ) = _snapshotVotes();
 
         return calculateVotingThreshold(snapshot.votes);
     }
-
+    
+    /// @dev Utility function to compute the threshold votes without recomputing the snapshot
+    /// Note that `boldAccrued` is a cached value, this function works correctly only when called after an accrual
     function calculateVotingThreshold(uint256 snapshotVotes) public view returns (uint256) {
         if (snapshotVotes == 0) return 0;
 
@@ -291,6 +296,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
     }
 
+    /// @notice Return the most up to date global snapshot and state as well as a flag to notify whether the state can be updated
+    /// This is a convenience function to always retrieve the most up to date state values
     function getTotalVotesAndState() public view returns (VoteSnapshot memory snapshot, GlobalState memory state, bool shouldUpdate) {
         uint16 currentEpoch = epoch();
         snapshot = votesSnapshot;
@@ -319,6 +326,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
     }
 
+    /// @dev Given an initiative address, return it's most up to date snapshot and state as well as a flag to notify whether the state can be updated
+    /// This is a convenience function to always retrieve the most up to date state values
     function getInitiativeSnapshotAndState(address _initiative)
         public
         view
@@ -489,7 +498,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             // Must be below, else we cannot reset"
             // Makes cast safe
-            assert(alloc.voteLQTY < uint88(type(int88).max)); // TODO: Add to Invariant Tests
+            assert(alloc.voteLQTY < uint88(type(int88).max)); /// @audit See: property_ensure_user_alloc_cannot_dos
             assert(alloc.vetoLQTY < uint88(type(int88).max));
             
             // Cache, used to enforce limits later
