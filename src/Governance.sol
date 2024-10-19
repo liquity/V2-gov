@@ -377,6 +377,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             - Should be kicked (true, false, epoch - 1 - [UNREGISTRATION_AFTER_EPOCHS, UNREGISTRATION_AFTER_EPOCHS + X])
      */
 
+    /// @notice Given an inititive address, updates all snapshots and return the initiative state
+    ///     See the view version of `getInitiativeState` for the underlying logic on Initatives FSM
      function getInitiativeState(address _initiative) public returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount) {
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) = _snapshotVotesForInitiative(_initiative);
@@ -474,6 +476,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         int88 LQTYVotes;
         int88 LQTYVetos;
     }
+
     function _resetInitiatives(address[] calldata _initiativesToReset) internal returns (ResetInitiativeData[] memory) {        
         ResetInitiativeData[] memory cachedData = new ResetInitiativeData[](_initiativesToReset.length);
         
@@ -644,6 +647,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             // == GLOBAL STATE == //
 
+            // TODO: Veto reducing total votes logic change
             // TODO: Accounting invariants
             // TODO: Let's say I want to cap the votes vs weights
             // Then by definition, I add the effective LQTY
