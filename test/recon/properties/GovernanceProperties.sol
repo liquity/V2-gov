@@ -243,6 +243,10 @@ abstract contract GovernanceProperties is BeforeAfter {
     }
 
 
+    /// NOTE: This property can break in some specific combinations of:
+    /// Becomes SKIP due to high treshold
+    /// threshold is lowered
+    /// Initiative becomes claimable
     function check_skip_consistecy(uint8 initiativeIndex) public {
         // If a initiative has no votes
         // In the next epoch it can either be SKIP or UNREGISTERABLE
@@ -256,8 +260,12 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
     }
 
-    // TOFIX: The property breaks because you can vote on a UNREGISTERABLE
-    // Hence it can become Claimable next week
+    
+    /// NOTE: This property can break in some specific combinations of:
+    /// Becomes unregisterable due to high treshold
+    /// Is not unregistered
+    /// threshold is lowered
+    /// Initiative becomes claimable
     function check_unregisterable_consistecy(uint8 initiativeIndex) public {
         // If a initiative has no votes and is UNREGISTERABLE
         // In the next epoch it will remain UNREGISTERABLE
@@ -267,7 +275,7 @@ abstract contract GovernanceProperties is BeforeAfter {
         if(status == Governance.InitiativeStatus.UNREGISTERABLE) {
             vm.warp(block.timestamp + governance.EPOCH_DURATION());
             (Governance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
-            t(uint256(status) == uint256(newStatus) || uint256(newStatus) == uint256(Governance.InitiativeStatus.CLAIMABLE), "UNREGISTERABLE must remain UNREGISTERABLE unless voted on but can become CLAIMABLE due to relaxed checks in allocateLQTY");
+            t(uint256(status) == uint256(newStatus), "UNREGISTERABLE must remain UNREGISTERABLE");
         }
 
     }
