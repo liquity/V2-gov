@@ -1391,14 +1391,11 @@ contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
-        /// @audit this fails, because by counting 100% of votes, the ones that don't make it steal the yield
-        /// This is MED at most, in this test a 50 BPS loss
-        /// Due to this, we'll acknowledge it for now
-        assertEq(governance.claimForInitiative(baseInitiative1), 9950e18);
+        assertEq(governance.claimForInitiative(baseInitiative1), 10000e18);
         assertEq(governance.claimForInitiative(baseInitiative1), 0);
 
 
-        assertEq(lusd.balanceOf(baseInitiative1), 14950e18);
+        assertEq(lusd.balanceOf(baseInitiative1), 15000e18);
 
         (Governance.InitiativeStatus status, , uint256 claimable) = governance.getInitiativeState(baseInitiative2);
         console.log("res", uint8(status));
