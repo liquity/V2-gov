@@ -67,8 +67,8 @@ function property_BI04() public {
         for(uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
 
-            // NOTE: This can revert if no changes happen in an epoch | That's ok
-            (uint88 totalLQTYAllocatedAtEpoch, ) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
+            // NOTE: This doesn't revert in the future!
+            uint88 lastKnownLQTYAlloc = _getLastLQTYAllocationKnown(initiative, currentEpoch);
 
             // We compare when we don't get a revert (a change happened this epoch)
 
@@ -82,8 +82,21 @@ function property_BI04() public {
 
             
 
-            eq(totalLQTYAllocatedAtEpoch, voteLQTY, "BI-04: Initiative Account matches governace");
+            eq(lastKnownLQTYAlloc, voteLQTY, "BI-04: Initiative Account matches governace");
         }
+    }
+
+    function _getLastLQTYAllocationKnown(IBribeInitiative initiative, uint16 targetEpoch) internal returns (uint88) {
+        uint16 currenEpoch;
+        uint88 found;
+        while(currenEpoch <= targetEpoch) {
+            (uint88 totalLQTYAllocatedAtEpoch, uint32 ts) = initiative.totalLQTYAllocatedByEpoch(currenEpoch++);
+            if(ts != 0) {
+                found = totalLQTYAllocatedAtEpoch;
+            }
+        }
+
+        return found;
     }
 
     function property_BI05() public {
