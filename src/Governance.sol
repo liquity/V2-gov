@@ -486,6 +486,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         int88 LQTYVetos;
     }
 
+    /// @dev Resets an initiative and return the previous votes
+    /// NOTE: Technically we don't need vetos
+    /// NOTE: Technically we want to populate the `ResetInitiativeData` only when `secondsWithinEpoch() > EPOCH_VOTING_CUTOFF` 
     function _resetInitiatives(address[] calldata _initiativesToReset) internal returns (ResetInitiativeData[] memory) {        
         ResetInitiativeData[] memory cachedData = new ResetInitiativeData[](_initiativesToReset.length);
         
@@ -498,7 +501,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             // Must be below, else we cannot reset"
             // Makes cast safe
-            assert(alloc.voteLQTY < uint88(type(int88).max)); /// @audit See: property_ensure_user_alloc_cannot_dos
+            /// @audit INVARIANT: property_ensure_user_alloc_cannot_dos
+            assert(alloc.voteLQTY < uint88(type(int88).max)); 
             assert(alloc.vetoLQTY < uint88(type(int88).max));
             
             // Cache, used to enforce limits later
@@ -612,7 +616,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             (InitiativeStatus status, , ) = getInitiativeState(initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
 
             if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
-                /// @audit FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives - Prob should fix
+                /// @audit INVARIANT: `check_unregisterable_consistecy` 
+                // FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives - Prob should fix
                 require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED  || status == InitiativeStatus.UNREGISTERABLE, "Governance: active-vote-fsm");
             }
             
@@ -677,15 +682,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             /// The invariant that holds is: the one that removes the initiatives that have been unregistered
                 state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
                     state.countedVoteLQTYAverageTimestamp,
-                    prevInitiativeState.averageStakingTimestampVoteLQTY, /// @audit TODO Write tests that fail from this bug
+                    prevInitiativeState.averageStakingTimestampVoteLQTY, /// @audit We don't have a test that fails when this line is changed
                     state.countedVoteLQTY,
                     state.countedVoteLQTY - prevInitiativeState.voteLQTY
                 );
-                assert(state.countedVoteLQTY >= prevInitiativeState.voteLQTY); /// RECON: Overflow
+                assert(state.countedVoteLQTY >= prevInitiativeState.voteLQTY); /// @audit INVARIANT: Never overflows
                 state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
             }
-            /// @audit We cannot add on disabled so the change below is safe
-            // TODO More asserts? | Most likely need to assert strictly less voteLQTY here
 
             /// Add current
             state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
@@ -742,7 +745,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint16 currentEpoch = epoch();
 
         /// @audit Invariant: Must only claim once or unregister
-        assert(initiativeState.lastEpochClaim < currentEpoch - 1);
+        // NOTE: Safe to remove | See `check_claim_soundness`
+        assert(initiativeState.lastEpochClaim < currentEpoch - 1); 
 
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
         /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
