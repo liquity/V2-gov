@@ -54,7 +54,14 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
             (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, prevAllocationEpoch);
             bool claimedBribe = initiative.claimedBribeAtEpoch(user, prevAllocationEpoch);
 
-            if(lqtyAllocated > 0 && !claimedBribe) {
+            // Check if there are bribes
+            (uint128 boldAmount, uint128 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
+            bool bribeWasThere;
+            if(boldAmount != 0 || bribeTokenAmount != 0) {
+                bribeWasThere = true;
+            }
+
+            if(lqtyAllocated > 0 && !claimedBribe && bribeWasThere) {
                 // user wasn't able to claim a bribe they were entitled to
                 unableToClaim = true;
             }
