@@ -40,29 +40,43 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
         property_sum_of_initatives_matches_total_votes();
     }
 
-    // forge test --match-test test_property_sum_of_initatives_matches_total_votes_5 -vv 
- function test_property_sum_of_initatives_matches_total_votes_5() public {
+    // forge test --match-test test_property_sum_of_initatives_matches_total_votes_5 -vv
+    function test_property_sum_of_initatives_matches_total_votes_5() public {
+        governance_depositLQTY(2);
 
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 856945);
 
-    governance_depositLQTY(2);
+        governance_allocateLQTY_clamped_single_initiative(0, 133753, 0);
+        helper_deployInitiative();
 
-     vm.roll(block.number + 1);
-     vm.warp(block.timestamp + 856945);
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 315310);
+        governance_registerInitiative(1);
 
-    governance_allocateLQTY_clamped_single_initiative(0,133753,0);
-    helper_deployInitiative();
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 366454);
+        governance_depositLQTY(1);
+        governance_allocateLQTY_clamped_single_initiative(1, 1338466836127459, 0);
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 276119);
+        property_sum_of_initatives_matches_total_votes();
+    }
 
-         vm.roll(block.number + 1);
-     vm.warp(block.timestamp + 315310);
-    governance_registerInitiative(1);
+    // forge test --match-test test_check_unregisterable_consistecy_0 -vv
+    function test_check_unregisterable_consistecy_0() public {
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 385918);
+        governance_depositLQTY(2);
 
-             vm.roll(block.number + 1);
-     vm.warp(block.timestamp + 366454);
-    governance_depositLQTY(1);
-    governance_allocateLQTY_clamped_single_initiative(1,1338466836127459,0);
-            vm.roll(block.number + 1);
-     vm.warp(block.timestamp + 276119);
-    property_sum_of_initatives_matches_total_votes();
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 300358);
+        governance_allocateLQTY_clamped_single_initiative(0, 0, 1);
 
- }
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 525955);
+        property_resetting_never_reverts();
+
+        check_unregisterable_consistecy(0);
+    }
 }
