@@ -580,6 +580,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         );
     }
 
+
+    /// @dev For each given initiative applies relative changes to the allocation
+    /// NOTE: Given the current usage the function either: Resets the value to 0, or sets the value to a new value
+    ///     Review the flows as the function could be used in many ways, but it ends up being used in just those 2 ways
     function _allocateLQTY(
         address[] memory _initiatives,
         int88[] memory _deltaLQTYVotes,
