@@ -51,21 +51,41 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
 
         for(uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
-            (uint88 lqtyAllocatedByUserAtEpoch, ) = initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
-            eq(ghostLqtyAllocationByUserAtEpoch[user], lqtyAllocatedByUserAtEpoch, "BI-03: Accounting for user allocation amount is always correct");
+
+            (uint88 voteLQTY, , uint16 epoch) = governance.lqtyAllocatedByUserToInitiative(user, deployedInitiatives[i]);
+
+            try initiative.lqtyAllocatedByUserAtEpoch(user, epoch) returns (uint88 amt, uint32) {
+                eq(voteLQTY, amt, "Allocation must match");
+            } catch {
+                t(false, "Allocation doesn't match governance");
+            }
         }
     }
 
-    function property_BI04() public {
+function property_BI04() public {
         uint16 currentEpoch = governance.epoch();
         for(uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
+
+            // NOTE: This can revert if no changes happen in an epoch | That's ok
             (uint88 totalLQTYAllocatedAtEpoch, ) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
-            eq(ghostTotalAllocationAtEpoch[currentEpoch], totalLQTYAllocatedAtEpoch, "BI-04: Accounting for total allocation amount is always correct");
+
+            // We compare when we don't get a revert (a change happened this epoch)
+
+            (
+                uint88 voteLQTY,
+                ,
+                ,
+                ,
+                
+            ) = governance.initiativeStates(deployedInitiatives[i]);
+
+            
+
+            eq(totalLQTYAllocatedAtEpoch, voteLQTY, "BI-04: Initiative Account matches governace");
         }
     }
 
-    // TODO: double check that this implementation is correct
     function property_BI05() public {
         // users can't claim for current epoch so checking for previous
         uint16 checkEpoch = governance.epoch() - 1;
