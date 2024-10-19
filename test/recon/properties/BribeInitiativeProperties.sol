@@ -89,14 +89,16 @@ function property_BI04() public {
     function _getLastLQTYAllocationKnown(IBribeInitiative initiative, uint16 targetEpoch) internal returns (uint88) {
         uint16 currenEpoch;
         uint88 found;
-        while(currenEpoch <= targetEpoch) {
-            (uint88 totalLQTYAllocatedAtEpoch, uint32 ts) = initiative.totalLQTYAllocatedByEpoch(currenEpoch++);
-            if(ts != 0) {
-                found = totalLQTYAllocatedAtEpoch;
-            }
+
+        uint16 mostRecentTotalEpoch = initiative.getMostRecentTotalEpoch();
+ 
+        if(targetEpoch < mostRecentTotalEpoch) {
+            (uint88 totalLQTYAllocatedAtEpoch, uint32 ts) = initiative.totalLQTYAllocatedByEpoch(targetEpoch);
+            return totalLQTYAllocatedAtEpoch;
         }
 
-        return found;
+        (uint88 totalLQTYAllocatedAtEpoch, uint32 ts) = initiative.totalLQTYAllocatedByEpoch(mostRecentTotalEpoch); 
+        return totalLQTYAllocatedAtEpoch;
     }
 
     function property_BI05() public {

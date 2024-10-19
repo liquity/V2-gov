@@ -103,4 +103,24 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
         initiative_claimBribes(0,3,0,0);
         property_BI11();
     }
+
+
+    // forge test --match-test test_property_BI04_1 -vv 
+ function test_property_BI04_1() public {
+
+
+         governance_depositLQTY(2);
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 654326);
+         governance_allocateLQTY_clamped_single_initiative(0,1,0);
+
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 559510);
+         property_resetting_never_reverts();
+
+         property_BI04();
+
+ }
 }

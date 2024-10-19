@@ -78,4 +78,10 @@ interface IBribeInitiative {
     function claimBribes(ClaimData[] calldata _claimData)
         external
         returns (uint256 boldAmount, uint256 bribeTokenAmount);
+
+    /// @notice Given a user address return the last recorded epoch for their allocation
+    function getMostRecentUserEpoch(address _user) external view returns (uint16);
+    
+    /// @notice Return the last recorded epoch for the system
+    function getMostRecentTotalEpoch() external view returns (uint16);
 }
