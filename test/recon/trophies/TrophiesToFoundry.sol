@@ -79,5 +79,22 @@ function test_property_sum_of_user_voting_weights_0() public {
    // Or more specifically the newer votes are not sufficiently discounted when considering how good the early votes are
 }
 
+   // forge test --match-test test_check_unregisterable_consistecy_0 -vv
+    function test_check_unregisterable_consistecy_0() public {
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 385918);
+        governance_depositLQTY(2);
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 300358);
+        governance_allocateLQTY_clamped_single_initiative(0, 0, 1);
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 525955);
+        property_resetting_never_reverts();
+
+        check_unregisterable_consistecy(0);
+    }
+
 
 }
