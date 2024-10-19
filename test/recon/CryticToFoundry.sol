@@ -71,12 +71,27 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
             property_BI04();
     }
 
+
+// forge test --match-test test_property_resetting_never_reverts_0 -vv 
+ function test_property_resetting_never_reverts_0() public {
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 193521);
+         governance_depositLQTY(155989603725201422915398867);
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 411452);
+         governance_allocateLQTY_clamped_single_initiative(0,0,154742504910672534362390527);
+
+         property_resetting_never_reverts();
+
+ }
+
     // forge test --match-test test_property_BI11_3 -vv 
     function test_property_BI11_3() public {
 
         vm.roll(block.number + 1);
         vm.warp(block.timestamp + 461046);
-        vm.prank(0x0000000000000000000000000000000000030000);
         governance_depositLQTY(2);
 
         vm.roll(block.number + 1);

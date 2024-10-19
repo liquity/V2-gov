@@ -18,6 +18,7 @@ import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
 
+
 /// @title Governance: Modular Initiative based Governance
 contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
     using SafeERC20 for IERC20;
@@ -502,8 +503,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // Must be below, else we cannot reset"
             // Makes cast safe
             /// @audit INVARIANT: property_ensure_user_alloc_cannot_dos
-            assert(alloc.voteLQTY < uint88(type(int88).max)); 
-            assert(alloc.vetoLQTY < uint88(type(int88).max));
+            assert(alloc.voteLQTY <= uint88(type(int88).max)); 
+            assert(alloc.vetoLQTY <= uint88(type(int88).max));
             
             // Cache, used to enforce limits later
             cachedData[i] = ResetInitiativeData({
