@@ -148,21 +148,21 @@ abstract contract GovernanceProperties is BeforeAfter {
     // TODO: also `lqtyAllocatedByUserToInitiative`
     // For each user, for each initiative, allocation is correct
     function property_sum_of_user_initiative_allocations() public {
-        for(uint256 x; x < deployedInitiatives.length; x++) {
+        for(uint256 i; i < deployedInitiatives.length; i++) {
             (
                 uint88 initiative_voteLQTY,
                 uint88 initiative_vetoLQTY,
                 ,
                 ,
                 
-            ) = governance.initiativeStates(deployedInitiatives[x]);
+            ) = governance.initiativeStates(deployedInitiatives[i]);
 
 
             // Grab all users and sum up their participations
             uint256 totalUserVotes;
             uint256 totalUserVetos;
-            for(uint256 y; y < users.length; y++) {
-                (uint88 vote_allocated, uint88 veto_allocated) = _getUserAllocation(users[y], deployedInitiatives[x]);
+            for(uint256 j; j < users.length; j++) {
+                (uint88 vote_allocated, uint88 veto_allocated) = _getUserAllocation(users[j], deployedInitiatives[i]);
                 totalUserVotes += vote_allocated;
                 totalUserVetos += veto_allocated;
             }
@@ -195,6 +195,33 @@ abstract contract GovernanceProperties is BeforeAfter {
             eq(initiativeWeight, userWeightAccumulatorForInitiative, "initiative voting weights and user's allocated weight differs for initiative");
         }
     }
+
+    function property_allocations_are_never_dangerously_high() public {
+        for(uint256 i; i < deployedInitiatives.length; i++) {
+            for(uint256 j; j < users.length; j++) {
+                (uint88 vote_allocated, uint88 veto_allocated) = _getUserAllocation(users[j], deployedInitiatives[i]);
+                lte(vote_allocated, uint88(type(int88).max), "Vote is never above int88.max");
+                lte(veto_allocated, uint88(type(int88).max), "Veto is Never above int88.max");
+            }
+        }
+    }
+
+
+
+    // Resetting never fails and always resets
+    function property_resetting_never_reverts() public {
+        int88[] memory zeroes = new int88[](deployedInitiatives.length);
+
+        try governance.allocateLQTY(deployedInitiatives, deployedInitiatives, zeroes, zeroes) {} catch {
+            t(false, "must never revert");
+        }
+
+        (uint88 user_allocatedLQTY, ) = governance.userStates(user);
+
+        eq(user_allocatedLQTY, 0, "User has 0 allocated on a reset");
+    }
+
+    // After resetting the sum of votes is always correct
 
 
     function property_sum_of_initatives_matches_total_votes() public {

@@ -12,7 +12,6 @@ import {BribeInitiative} from "../src/BribeInitiative.sol";
 
 import {MockStakingV1} from "./mocks/MockStakingV1.sol";
 
-// coverage: forge coverage --mc BribeInitiativeTest --report lcov
 contract BribeInitiativeTest is Test {
     MockERC20 private lqty;
     MockERC20 private lusd;
@@ -150,7 +149,7 @@ contract BribeInitiativeTest is Test {
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         (uint88 userLQTYAllocated2, ) =
             bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
-        assertEq(totalLQTYAllocated2, 10e18);
+        assertEq(totalLQTYAllocated2, 5e18);
         assertEq(userLQTYAllocated1, 5e18);
 
     }
@@ -170,15 +169,13 @@ contract BribeInitiativeTest is Test {
         assertEq(totalLQTYAllocated1, 5e18);
         assertEq(userLQTYAllocated1, 5e18);
 
-        // vm.warp(block.timestamp + EPOCH_DURATION);
-
         _allocateLQTY(user1, 5e18, 0);
         (uint88 totalLQTYAllocated2,) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         (uint88 userLQTYAllocated2,) =
             bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
-        assertEq(totalLQTYAllocated2, 10e18);
-        assertEq(userLQTYAllocated2, 10e18);
+        assertEq(totalLQTYAllocated2, 5e18);
+        assertEq(userLQTYAllocated2, 5e18);
     }
 
     function test_allocation_stored_in_list() public {        
@@ -420,7 +417,6 @@ contract BribeInitiativeTest is Test {
         assertEq(userShareOfTotalAllocated, userShareOfTotalBribeForEpoch, "userShareOfTotalAllocated != userShareOfTotalBribeForEpoch");
     }
 
-    /// forge-config: default.fuzz.runs = 50000
     function test_claimedBribes_fraction_fuzz(uint88 user1StakeAmount, uint88 user2StakeAmount, uint88 user3StakeAmount) public {
         // =========== epoch 1 ==================
         user1StakeAmount = uint88(bound(uint256(user1StakeAmount), 1, lqty.balanceOf(user1)));
@@ -610,7 +606,7 @@ contract BribeInitiativeTest is Test {
         assertEq(bribeTokenAmount, 1e18);
 
         // decrease user allocation for the initiative
-        _allocateLQTY(user1, -1e18, 0);
+        _allocateLQTY(user1, 0, 0);
 
         // check if user can still receive bribes after removing votes
         claimEpoch = governance.epoch() - 1; // claim for epoch 4
@@ -667,8 +663,8 @@ contract BribeInitiativeTest is Test {
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         (uint88 userLQTYAllocated,) =
             bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
-        assertEq(totalLQTYAllocated, 1e18, "total allocation");
-        assertEq(userLQTYAllocated, 1e18, "user allocation");
+        assertEq(totalLQTYAllocated, 5e17, "total allocation");
+        assertEq(userLQTYAllocated, 5e17, "user allocation");
 
         vm.warp(block.timestamp + (EPOCH_DURATION));
         // We are now at epoch + 1 // Should be able to claim epoch - 1
@@ -682,7 +678,7 @@ contract BribeInitiativeTest is Test {
         _claimBribe(user1, governance.epoch(), governance.epoch() - 1, governance.epoch() - 1, true);
 
         // decrease user allocation for the initiative
-        _allocateLQTY(user1, -1e18, 0);
+        _allocateLQTY(user1, 0, 0);
 
         (userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         (totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
@@ -929,7 +925,7 @@ contract BribeInitiativeTest is Test {
         int88[] memory deltaVetoLQTY = new int88[](1);
         deltaVetoLQTY[0] = deltaVetoLQTYAmt;
 
-        governance.allocateLQTY(initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.stopPrank();
     }
 
@@ -943,7 +939,7 @@ contract BribeInitiativeTest is Test {
         int88[] memory deltaLQTYVetos = new int88[](1);
         deltaLQTYVetos[0] = vetos;
         
-        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         
         vm.stopPrank();
     }

@@ -32,7 +32,7 @@ contract MockInitiative is IInitiative {
         address[] memory initiatives = new address[](0);
         int88[] memory deltaLQTYVotes = new int88[](0);
         int88[] memory deltaLQTYVetos = new int88[](0);
-        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 
     /// @inheritdoc IInitiative

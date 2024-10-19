@@ -13,6 +13,7 @@ import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 
 import {add, max, abs} from "./utils/Math.sol";
+import {_requireNoDuplicates} from "./utils/UniqueArray.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
@@ -468,33 +469,126 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         safeCallWithMinGas(_initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onRegisterInitiative, (currentEpoch)));
     }
 
+    struct ResetInitiativeData {
+        address initiative;
+        int88 LQTYVotes;
+        int88 LQTYVetos;
+    }
+    function _resetInitiatives(address[] calldata _initiativesToReset) internal returns (ResetInitiativeData[] memory) {        
+        ResetInitiativeData[] memory cachedData = new ResetInitiativeData[](_initiativesToReset.length);
+        
+        int88[] memory _deltaLQTYVotes = new int88[](_initiativesToReset.length);
+        int88[] memory _deltaLQTYVetos = new int88[](_initiativesToReset.length);
+
+        // Prepare reset data
+        for(uint256 i; i < _initiativesToReset.length; i++) {
+            Allocation memory alloc = lqtyAllocatedByUserToInitiative[msg.sender][_initiativesToReset[i]];
+
+            // Must be below, else we cannot reset"
+            // Makes cast safe
+            assert(alloc.voteLQTY < uint88(type(int88).max)); // TODO: Add to Invariant Tests
+            assert(alloc.vetoLQTY < uint88(type(int88).max));
+            
+            // Cache, used to enforce limits later
+            cachedData[i] = ResetInitiativeData({
+                initiative: _initiativesToReset[i],
+                LQTYVotes: int88(alloc.voteLQTY),
+                LQTYVetos: int88(alloc.vetoLQTY)
+            });
+
+            // -0 is still 0, so its fine to flip both
+            _deltaLQTYVotes[i] = -int88(cachedData[i].LQTYVotes);
+            _deltaLQTYVetos[i] = -int88(cachedData[i].LQTYVetos);
+        }
+
+        // RESET HERE || All initiatives will receive most updated data and 0 votes / vetos
+        _allocateLQTY(
+            _initiativesToReset,
+            _deltaLQTYVotes,
+            _deltaLQTYVetos
+        );
+
+        return cachedData;
+    }
+
     /// @inheritdoc IGovernance
     function allocateLQTY(
+        address[] calldata _initiativesToReset,
         address[] calldata _initiatives,
-        int88[] calldata _deltaLQTYVotes,
-        int88[] calldata _deltaLQTYVetos
+        int88[] calldata absoluteLQTYVotes,
+        int88[] calldata absoluteLQTYVetos
     ) external nonReentrant {
+
+        require(_initiatives.length == absoluteLQTYVotes.length, "Length");
+        require(absoluteLQTYVetos.length == absoluteLQTYVotes.length, "Length");
+
+        // To ensure the change is safe, enforce uniqueness
+        _requireNoDuplicates(_initiatives);
+        _requireNoDuplicates(_initiativesToReset);
+
+        // You MUST always reset
+        ResetInitiativeData[] memory cachedData = _resetInitiatives(_initiativesToReset);
+
+        /// Invariant, 0 allocated = 0 votes
+        UserState memory userState = userStates[msg.sender];
+        require(userState.allocatedLQTY == 0, "must be a reset");
+
+        // After cutoff you can only re-apply the same vote
+        // Or vote less
+        // Or abstain 
+        // You can always add a veto, hence we only validate the addition of Votes
+        // And ignore the addition of vetos
+        // Validate the data here to ensure that the voting is capped at the amount in the other case
+        if(secondsWithinEpoch() > EPOCH_VOTING_CUTOFF) {
+            // Cap the max votes to the previous cache value
+            // This means that no new votes can happen here
+
+            // Removing and VETOING is always accepted
+            for(uint256 x; x < _initiatives.length; x++) {
+
+                // If we find it, we ensure it cannot be an increase
+                bool found;
+                for(uint256 y; y < cachedData.length; y++) {
+                    if(cachedData[y].initiative == _initiatives[x]) {
+                        found = true;
+                        require(absoluteLQTYVotes[x] <= cachedData[y].LQTYVotes, "Cannot increase");
+                        break;
+                    }
+                }
+
+                // Else we assert that the change is a veto, because by definition the initiatives will have received zero votes past this line
+                if(!found) {
+                    require(absoluteLQTYVotes[x] == 0, "Must be zero for new initiatives");
+                }
+            }
+        }
+
+        // Vote here, all values are now absolute changes
+        _allocateLQTY(
+            _initiatives,
+            absoluteLQTYVotes,
+            absoluteLQTYVetos
+        );
+    }
+
+    function _allocateLQTY(
+        address[] memory _initiatives,
+        int88[] memory _deltaLQTYVotes,
+        int88[] memory _deltaLQTYVetos
+    ) internal {
         require(
             _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
             "Governance: array-length-mismatch"
         );
 
         (VoteSnapshot memory votesSnapshot_ , GlobalState memory state) = _snapshotVotes();
-
         uint16 currentEpoch = epoch();
-
         UserState memory userState = userStates[msg.sender];
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];
             int88 deltaLQTYVotes = _deltaLQTYVotes[i];
             int88 deltaLQTYVetos = _deltaLQTYVetos[i];
-
-            // only allow vetoing post the voting cutoff
-            require(
-                deltaLQTYVotes <= 0 || deltaLQTYVotes >= 0 && secondsWithinEpoch() <= EPOCH_VOTING_CUTOFF,
-                "Governance: epoch-voting-cutoff"
-            );
             
             /// === Check FSM === ///
             // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states
