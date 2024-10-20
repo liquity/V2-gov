@@ -130,8 +130,23 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             bribeTokenAmount += bribeTokenAmount_;
         }
 
-        if (boldAmount != 0) bold.safeTransfer(msg.sender, boldAmount);
-        if (bribeTokenAmount != 0) bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
+        if (boldAmount != 0) {
+            uint256 max = bold.balanceOf(address(this));
+            if(boldAmount > max) {
+                boldAmount = max;
+            }
+            bold.safeTransfer(msg.sender, boldAmount);
+        }
+        if (bribeTokenAmount != 0) {
+            uint256 max = bribeToken.balanceOf(address(this));
+            if(bribeTokenAmount > max) {
+                bribeTokenAmount = max;
+            }
+            bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
+        }
+            
+        
+        
     }
 
     /// @inheritdoc IInitiative
