@@ -171,6 +171,27 @@ function property_BI04() public {
         }
     }
 
+
+    function property_sum_of_votes_in_bribes_match() public { 
+        uint16 currentEpoch = governance.epoch();
+
+        // sum user allocations for an epoch
+        // check that this matches the total allocation for the epoch
+        for(uint8 i; i < deployedInitiatives.length; i++) {
+            IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
+            uint256 sumOfPower;
+            for(uint8 j; j < users.length; j++) {
+                (uint88 lqtyAllocated, uint32 userTS) = initiative.lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
+                sumOfPower += governance.lqtyToVotes(lqtyAllocated, userTS, uint32(block.timestamp));
+            }
+            (uint88 totalLQTYAllocated, uint32 totalTS) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
+
+            uint256 totalRecordedPower = governance.lqtyToVotes(totalLQTYAllocated, totalTS, uint32(block.timestamp));
+
+            gte(totalRecordedPower, sumOfPower, "property_sum_of_votes_in_bribes_match");
+        }
+    }
+
     function property_BI08() public { 
         // users can only claim for epoch that has already passed
         uint16 checkEpoch = governance.epoch() - 1;

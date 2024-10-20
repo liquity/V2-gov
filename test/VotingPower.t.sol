@@ -131,7 +131,7 @@ contract VotingPowerTest is Test {
         return _currentTimestamp - _averageTimestamp;
     }
 
-    function _calculateAverageTimestamp(
+   function _calculateAverageTimestamp(
         uint32 _prevOuterAverageTimestamp,
         uint32 _newInnerAverageTimestamp,
         uint88 _prevLQTYBalance,
@@ -143,33 +143,22 @@ contract VotingPowerTest is Test {
         uint32 newInnerAverageAge = _averageAge(uint32(block.timestamp), _newInnerAverageTimestamp);
 
         uint88 newOuterAverageAge;
-        bool hasRemainder;
         if (_prevLQTYBalance <= _newLQTYBalance) {
             uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
             uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
             uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
             uint240 votes = prevVotes + newVotes;
             newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
-            hasRemainder = uint256(newOuterAverageAge) * uint256(_newLQTYBalance) == votes;
         } else {
             uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
             uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
             uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
             uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
             newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
-            hasRemainder = uint256(newOuterAverageAge) * uint256(_newLQTYBalance) == votes;
         }
 
-        assert(newOuterAverageAge < type(uint32).max); // TODO ENFORCE
-
-
         if (newOuterAverageAge > block.timestamp) return 0;
-        uint32 result = uint32(block.timestamp) - uint32(newOuterAverageAge);
-        /// SEEMS TO CAUSE MORE ISSUES
-        // if(result > 0 && hasRemainder) {
-        //     --result;
-        // }
-        return result;
+        return uint32(block.timestamp - newOuterAverageAge);
     }
 
     // This test prepares for comparing votes and vetos for state
@@ -196,7 +185,7 @@ contract VotingPowerTest is Test {
         // // But how do we sum stuff with different TS?
         // // We need to sum the total and sum the % of average ts
         uint88 votes_2 = 15;
-        uint32 time_2 = current_time - 124;
+        uint32 time_2 = current_time - 15;
 
         uint240 power_2 = governance.lqtyToVotes(votes_2, current_time, time_2);
 
@@ -204,29 +193,181 @@ contract VotingPowerTest is Test {
 
         assertLe(total_power, uint240(type(uint88).max), "LT");
 
-        uint88 total_liquity_2 = votes + votes_2;
+        uint88 total_liquity = votes + votes_2;
 
         uint32 avgTs = _calculateAverageTimestamp(
             time,
             time_2,
             votes,
-            total_liquity_2
+            total_liquity
         );
 
+        console.log("votes", votes);
+        console.log("time", current_time - time);
+        console.log("power", power);
 
-        uint256 total_power_from_avg = governance.lqtyToVotes(total_liquity_2, current_time, avgTs);
+        console.log("votes_2", votes_2);
+        console.log("time_2", current_time -  time_2);
+        console.log("power_2", power_2);
+
+        uint256 total_power_from_avg = governance.lqtyToVotes(total_liquity, current_time, avgTs);
+        
+        console.log("total_liquity", total_liquity);
+        console.log("avgTs", current_time - avgTs);
+        console.log("total_power_from_avg", total_power_from_avg);
+
+        // Now remove the same math so we show that the rounding can be weaponized, let's see
+
+        // WTF
+
+        // Prev, new, prev new
+        // AVG TS is the prev outer
+        // New Inner is time
+        uint32 attacked_avg_ts = _calculateAverageTimestamp(
+            avgTs,
+            time_2, // User removes their time
+            total_liquity,
+            votes // Votes = total_liquity - Vote_2
+        );
+
+        // NOTE: != time due to rounding error
+        console.log("attacked_avg_ts", current_time - attacked_avg_ts);
+
+
+        // BASIC VOTING TEST
+        // AFTER VOTING POWER IS X
+        // AFTER REMOVING VOTING IS 0
+
+        // Add a middle of random shit
+        // Show that the math remains sound
+        
 
         // Off by 40 BPS????? WAYY TOO MUCH | SOMETHING IS WRONG
 
         // It doesn't sum up exactly becasue of rounding errors
         // But we need the rounding error to be in favour of the protocol
         // And currently they are not
-
-        // assertEq(total_power, total_power_from_avg, "Sums up"); // BROKEN
+        assertEq(total_power, total_power_from_avg, "Sums up");
 
         // From those we can find the average timestamp
         uint88 resultingReturnedVotes = uint88(total_power_from_avg / _averageAge(current_time, time));
-        assertEq(resultingReturnedVotes, total_liquity_2, "Lqty matches");
+        assertEq(resultingReturnedVotes, total_liquity, "Lqty matches");
+    }
+
+    // forge test --match-test test_crit_user_can_dilute_total_votes -vv
+    function test_crit_user_can_dilute_total_votes() public {
+        // User A deposits normaly
+        vm.startPrank(user);
+
+        _stakeLQTY(user, 124);
+
+        vm.warp(block.timestamp + 124 - 15);
+
+        vm.startPrank(user2);
+        _stakeLQTY(user2, 15);
+
+        vm.warp(block.timestamp + 15);
+
+
+        vm.startPrank(user);
+        _allocate(address(baseInitiative1), 124, 0);
+        uint256 user1_avg = _getAverageTS(baseInitiative1);
+
+         vm.startPrank(user2);
+        _allocate(address(baseInitiative1), 15, 0);
+        uint256 both_avg = _getAverageTS(baseInitiative1);
+        _allocate(address(baseInitiative1), 0, 0);
+
+        uint256 griefed_avg = _getAverageTS(baseInitiative1);
+
+        uint256 vote_power_1 = governance.lqtyToVotes(124, uint32(block.timestamp), uint32(user1_avg));
+        uint256 vote_power_2 = governance.lqtyToVotes(124, uint32(block.timestamp), uint32(griefed_avg));
+
+        console.log("vote_power_1", vote_power_1);
+        console.log("vote_power_2", vote_power_2);
+
+        // assertEq(user1_avg, griefed_avg, "same avg"); // BREAKS, OFF BY ONE
+
+        // Causes a loss of power of 1 second per time this is done
+
+        vm.startPrank(user);
+        _allocate(address(baseInitiative1), 0, 0);
+
+        uint256 final_avg = _getAverageTS(baseInitiative1);
+        console.log("final_avg", final_avg);
+
+        // This is not an issue, except for bribes, bribes can get the last claimer DOSS
+    }
+
+    // forge test --match-test test_can_we_spam_to_revert -vv
+    function test_can_we_spam_to_revert() public {
+        // User A deposits normaly
+        vm.startPrank(user);
+
+        _stakeLQTY(user, 124);
+
+        vm.warp(block.timestamp + 124);
+
+        vm.startPrank(user2);
+        _stakeLQTY(user2, 15);
+
+
+        vm.startPrank(user);
+        _allocate(address(baseInitiative1), 124, 0);
+        uint256 user1_avg = _getAverageTS(baseInitiative1);
+
+         vm.startPrank(user2);
+        _allocate(address(baseInitiative1), 15, 0);
+        uint256 both_avg = _getAverageTS(baseInitiative1);
+        _allocate(address(baseInitiative1), 0, 0);
+
+        uint256 griefed_avg = _getAverageTS(baseInitiative1);
+        console.log("griefed_avg", griefed_avg);
+        console.log("block.timestamp", block.timestamp);
+
+        vm.startPrank(user2);
+        _allocate(address(baseInitiative1), 15, 0);
+        _allocate(address(baseInitiative1), 0, 0);
+
+        uint256 ts = _getAverageTS(baseInitiative1);
+        uint256 delta = block.timestamp - ts;
+        console.log("griefed_avg", ts);
+        console.log("delta", delta);
+        console.log("block.timestamp", block.timestamp);
+
+        uint256 i;
+        while(i++ < 122) {
+            _allocate(address(baseInitiative1), 15, 0);
+            _allocate(address(baseInitiative1), 0, 0);
+        }
+
+        ts = _getAverageTS(baseInitiative1);
+        delta = block.timestamp - ts;
+        console.log("griefed_avg", ts);
+        console.log("delta", delta);
+        console.log("block.timestamp", block.timestamp);
+    
+        // One more time
+        _allocate(address(baseInitiative1), 15, 0);
+        _allocate(address(baseInitiative1), 0, 0);
+        _allocate(address(baseInitiative1), 15, 0);
+        _allocate(address(baseInitiative1), 0, 0);
+        _allocate(address(baseInitiative1), 15, 0);
+        _allocate(address(baseInitiative1), 0, 0);
+        _allocate(address(baseInitiative1), 15, 0);
+
+        /// NOTE: Keep 1 wei to keep rounding error
+        _allocate(address(baseInitiative1), 1, 0);
+
+        ts = _getAverageTS(baseInitiative1);
+        console.log("griefed_avg", ts);
+
+        vm.startPrank(user);
+        _allocate(address(baseInitiative1), 0, 0);
+        _allocate(address(baseInitiative1), 124, 0);
+
+        ts = _getAverageTS(baseInitiative1);
+        console.log("end_ts", ts);
     }
 
     // forge test --match-test test_basic_reset_flow -vv
