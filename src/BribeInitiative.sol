@@ -11,7 +11,6 @@ import {IBribeInitiative} from "./interfaces/IBribeInitiative.sol";
 import {DoubleLinkedList} from "./utils/DoubleLinkedList.sol";
 
 import {EncodingDecodingLib} from "src/utils/EncodingDecodingLib.sol";
-import {console} from "forge-std/console.sol";
 
 contract BribeInitiative is IInitiative, IBribeInitiative {
     using SafeERC20 for IERC20;

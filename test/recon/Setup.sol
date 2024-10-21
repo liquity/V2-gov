@@ -2,18 +2,15 @@
 pragma solidity ^0.8.0;
 
 import {BaseSetup} from "@chimera/BaseSetup.sol";
-import {console2} from "forge-std/Test.sol";
 import {vm} from "@chimera/Hevm.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
 import {MockERC20Tester} from "../mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "../mocks/MockStakingV1.sol";
-import {MaliciousInitiative} from "../mocks/MaliciousInitiative.sol";
 import {Governance} from "src/Governance.sol";
 import {BribeInitiative} from "../../src/BribeInitiative.sol";
 import {IBribeInitiative} from "../../src/interfaces/IBribeInitiative.sol";
 import {IGovernance} from "src/interfaces/IGovernance.sol";
-import {IInitiative} from "src/interfaces/IInitiative.sol";
 
 abstract contract Setup is BaseSetup {
     Governance governance;
@@ -97,19 +94,19 @@ abstract contract Setup is BaseSetup {
         governance.registerInitiative(address(initiative1));
     }
 
-    function _getDeployedInitiative(uint8 index) internal returns (address initiative) {
+    function _getDeployedInitiative(uint8 index) internal view returns (address initiative) {
         return deployedInitiatives[index % deployedInitiatives.length];
     }
 
-    function _getClampedTokenBalance(address token, address holder) internal returns (uint256 balance) {
+    function _getClampedTokenBalance(address token, address holder) internal view returns (uint256 balance) {
         return IERC20(token).balanceOf(holder);
     }
 
-    function _getRandomUser(uint8 index) internal returns (address randomUser) {
+    function _getRandomUser(uint8 index) internal view returns (address randomUser) {
         return users[index % users.length];
     }
 
-    function _getInitiativeStatus(address _initiative) internal returns (uint256) {
+    function _getInitiativeStatus(address) internal returns (uint256) {
         (Governance.InitiativeStatus status,,) = governance.getInitiativeState(_getDeployedInitiative(0));
         return uint256(status);
     }

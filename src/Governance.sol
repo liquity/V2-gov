@@ -12,7 +12,7 @@ import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 
-import {add, max, abs} from "./utils/Math.sol";
+import {add, max} from "./utils/Math.sol";
 import {_requireNoDuplicates} from "./utils/UniqueArray.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
@@ -275,15 +275,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @dev Utility function to compute the threshold votes without recomputing the snapshot
     /// Note that `boldAccrued` is a cached value, this function works correctly only when called after an accrual
-    function calculateVotingThreshold(uint256 snapshotVotes) public view returns (uint256) {
-        if (snapshotVotes == 0) return 0;
+    function calculateVotingThreshold(uint256 _votes) public view returns (uint256) {
+        if (_votes == 0) return 0;
 
         uint256 minVotes; // to reach MIN_CLAIM: snapshotVotes * MIN_CLAIM / boldAccrued
-        uint256 payoutPerVote = boldAccrued * WAD / snapshotVotes;
+        uint256 payoutPerVote = boldAccrued * WAD / _votes;
         if (payoutPerVote != 0) {
             minVotes = MIN_CLAIM * WAD / payoutPerVote;
         }
-        return max(snapshotVotes * VOTING_THRESHOLD_FACTOR / WAD, minVotes);
+        return max(_votes * VOTING_THRESHOLD_FACTOR / WAD, minVotes);
     }
 
     // Snapshots votes for the previous epoch and accrues funds for the current epoch
@@ -411,9 +411,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @dev Given an initiative address and its snapshot, determines the current state for an initiative
     function getInitiativeState(
         address _initiative,
-        VoteSnapshot memory votesSnapshot_,
-        InitiativeVoteSnapshot memory votesForInitiativeSnapshot_,
-        InitiativeState memory initiativeState
+        VoteSnapshot memory _votesSnapshot,
+        InitiativeVoteSnapshot memory _votesForInitiativeSnapshot,
+        InitiativeState memory _initiativeState
     ) public view returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount) {
         // == Non existent Condition == //
         if (registeredInitiatives[_initiative] == 0) {
@@ -443,27 +443,27 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
 
         // NOTE: Pass the snapshot value so we get accurate result
-        uint256 votingTheshold = calculateVotingThreshold(votesSnapshot_.votes);
+        uint256 votingTheshold = calculateVotingThreshold(_votesSnapshot.votes);
 
         // If it's voted and can get rewards
         // Votes > calculateVotingThreshold
         // == Rewards Conditions (votes can be zero, logic is the same) == //
 
-        // By definition if votesForInitiativeSnapshot_.votes > 0 then votesSnapshot_.votes > 0
+        // By definition if _votesForInitiativeSnapshot.votes > 0 then _votesSnapshot.votes > 0
         if (
-            votesForInitiativeSnapshot_.votes > votingTheshold
-                && !(votesForInitiativeSnapshot_.vetos >= votesForInitiativeSnapshot_.votes)
+            _votesForInitiativeSnapshot.votes > votingTheshold
+                && !(_votesForInitiativeSnapshot.vetos >= _votesForInitiativeSnapshot.votes)
         ) {
-            uint256 claim = votesForInitiativeSnapshot_.votes * boldAccrued / votesSnapshot_.votes;
+            uint256 claim = _votesForInitiativeSnapshot.votes * boldAccrued / _votesSnapshot.votes;
             return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
 
         // == Unregister Condition == //
         // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the 4th epoch flip that would result in SKIP, will result in the initiative being `UNREGISTERABLE`
         if (
-            (initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
-                || votesForInitiativeSnapshot_.vetos > votesForInitiativeSnapshot_.votes
-                    && votesForInitiativeSnapshot_.vetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
+            (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
+                || _votesForInitiativeSnapshot.vetos > _votesForInitiativeSnapshot.votes
+                    && _votesForInitiativeSnapshot.vetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
             return (InitiativeStatus.UNREGISTERABLE, lastEpochClaim, 0);
         }
@@ -519,8 +519,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     {
         ResetInitiativeData[] memory cachedData = new ResetInitiativeData[](_initiativesToReset.length);
 
-        int88[] memory _deltaLQTYVotes = new int88[](_initiativesToReset.length);
-        int88[] memory _deltaLQTYVetos = new int88[](_initiativesToReset.length);
+        int88[] memory deltaLQTYVotes = new int88[](_initiativesToReset.length);
+        int88[] memory deltaLQTYVetos = new int88[](_initiativesToReset.length);
 
         // Prepare reset data
         for (uint256 i; i < _initiativesToReset.length; i++) {
@@ -540,12 +540,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             });
 
             // -0 is still 0, so its fine to flip both
-            _deltaLQTYVotes[i] = -int88(cachedData[i].LQTYVotes);
-            _deltaLQTYVetos[i] = -int88(cachedData[i].LQTYVetos);
+            deltaLQTYVotes[i] = -int88(cachedData[i].LQTYVotes);
+            deltaLQTYVetos[i] = -int88(cachedData[i].LQTYVetos);
         }
 
         // RESET HERE || All initiatives will receive most updated data and 0 votes / vetos
-        _allocateLQTY(_initiativesToReset, _deltaLQTYVotes, _deltaLQTYVetos);
+        _allocateLQTY(_initiativesToReset, deltaLQTYVotes, deltaLQTYVetos);
 
         return cachedData;
     }
@@ -810,7 +810,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function claimForInitiative(address _initiative) external nonReentrant returns (uint256) {
-        (VoteSnapshot memory votesSnapshot_, GlobalState memory state) = _snapshotVotes();
+        (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
             _snapshotVotesForInitiative(_initiative);
 

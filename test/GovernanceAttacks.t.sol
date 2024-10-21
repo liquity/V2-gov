@@ -2,19 +2,13 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {VmSafe} from "forge-std/Vm.sol";
-import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
-import {ILQTY} from "../src/interfaces/ILQTY.sol";
 
-import {BribeInitiative} from "../src/BribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 import {UserProxy} from "../src/UserProxy.sol";
-
-import {PermitParams} from "../src/utils/Types.sol";
 
 import {MaliciousInitiative} from "./mocks/MaliciousInitiative.sol";
 
@@ -78,7 +72,6 @@ contract GovernanceTest is Test {
     // forge test --match-test test_all_revert_attacks_hardcoded -vv
     // All calls should never revert due to malicious initiative
     function test_all_revert_attacks_hardcoded() public {
-        uint256 zeroSnapshot = vm.snapshot();
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         vm.startPrank(user);
@@ -218,7 +211,7 @@ contract GovernanceTest is Test {
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.NONE
         );
-        uint256 claimed = governance.claimForInitiative(address(maliciousInitiative2));
+        governance.claimForInitiative(address(maliciousInitiative2));
 
         governance.claimForInitiative(address(eoaInitiative));
 
@@ -238,7 +231,6 @@ contract GovernanceTest is Test {
 
         (Governance.VoteSnapshot memory v, Governance.InitiativeVoteSnapshot memory initData) =
             governance.snapshotVotesForInitiative(address(maliciousInitiative2));
-        uint256 currentEpoch = governance.epoch();
 
         // Inactive for 4 epochs
         // Add another proposal

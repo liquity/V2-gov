@@ -67,7 +67,7 @@ abstract contract GovernanceProperties is BeforeAfter {
     // View vs non view must have same results
     function property_viewTotalVotesAndStateEquivalency() public {
         for (uint8 i; i < deployedInitiatives.length; i++) {
-            (IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot_view,, bool shouldUpdate) =
+            (IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot_view,,) =
                 governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
             (, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot) =
                 governance.snapshotVotesForInitiative(deployedInitiatives[i]);
@@ -119,7 +119,6 @@ abstract contract GovernanceProperties is BeforeAfter {
 
     // NOTE: In principle this will work since this is a easier to reach property vs checking each initiative
     function property_ensure_user_alloc_cannot_dos() public {
-        uint256 totalUserCountedLQTY;
         for (uint256 i; i < users.length; i++) {
             // Only sum up user votes
             (uint88 user_voteLQTY,) = _getAllUserAllocations(users[i]);
@@ -220,16 +219,12 @@ abstract contract GovernanceProperties is BeforeAfter {
     function property_sum_of_initatives_matches_total_votes() public {
         // Sum up all initiatives
         // Compare to total votes
-        (IGovernance.VoteSnapshot memory snapshot, IGovernance.GlobalState memory state, bool shouldUpdate) =
-            governance.getTotalVotesAndState();
+        (IGovernance.VoteSnapshot memory snapshot,,) = governance.getTotalVotesAndState();
 
         uint256 initiativeVotesSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
-            (
-                IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot,
-                IGovernance.InitiativeState memory initiativeState,
-                bool shouldUpdate
-            ) = governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
+            (IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot,,) =
+                governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
             (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
 
             if (status != Governance.InitiativeStatus.DISABLED) {
@@ -284,14 +279,11 @@ abstract contract GovernanceProperties is BeforeAfter {
     function check_claim_soundness() public {
         // Check if initiative is claimable
         // If it is assert the check
-        uint256 initiativeVotesSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
 
-            (
-                Governance.InitiativeVoteSnapshot memory initiativeSnapshot,
-                Governance.InitiativeState memory initiativeState,
-            ) = governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
+            (, Governance.InitiativeState memory initiativeState,) =
+                governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
 
             if (status == Governance.InitiativeStatus.CLAIMABLE) {
                 t(governance.epoch() > 0, "Can never be claimable in epoch 0!"); // Overflow Check, also flags misconfiguration

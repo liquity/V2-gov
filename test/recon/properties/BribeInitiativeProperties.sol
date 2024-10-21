@@ -61,8 +61,6 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
     }
 
     function property_BI03() public {
-        uint16 currentEpoch = governance.epoch();
-
         for (uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
 
@@ -92,18 +90,15 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         }
     }
 
-    function _getLastLQTYAllocationKnown(IBribeInitiative initiative, uint16 targetEpoch) internal returns (uint88) {
-        uint16 currenEpoch;
-        uint88 found;
-
+    function _getLastLQTYAllocationKnown(IBribeInitiative initiative, uint16 targetEpoch)
+        internal
+        view
+        returns (uint88)
+    {
         uint16 mostRecentTotalEpoch = initiative.getMostRecentTotalEpoch();
-
-        if (targetEpoch < mostRecentTotalEpoch) {
-            (uint88 totalLQTYAllocatedAtEpoch, uint32 ts) = initiative.totalLQTYAllocatedByEpoch(targetEpoch);
-            return totalLQTYAllocatedAtEpoch;
-        }
-
-        (uint88 totalLQTYAllocatedAtEpoch, uint32 ts) = initiative.totalLQTYAllocatedByEpoch(mostRecentTotalEpoch);
+        (uint88 totalLQTYAllocatedAtEpoch,) = initiative.totalLQTYAllocatedByEpoch(
+            (targetEpoch < mostRecentTotalEpoch) ? targetEpoch : mostRecentTotalEpoch
+        );
         return totalLQTYAllocatedAtEpoch;
     }
 

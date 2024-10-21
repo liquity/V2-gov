@@ -29,29 +29,29 @@ contract MaliciousInitiative is IInitiative {
     }
 
     // Do stuff on each hook
-    function onRegisterInitiative(uint16 _atEpoch) external override {
+    function onRegisterInitiative(uint16) external view override {
         _performRevertBehaviour(revertBehaviours[FunctionType.REGISTER]);
     }
 
-    function onUnregisterInitiative(uint16 _atEpoch) external override {
+    function onUnregisterInitiative(uint16) external view override {
         _performRevertBehaviour(revertBehaviours[FunctionType.UNREGISTER]);
     }
 
     function onAfterAllocateLQTY(
-        uint16 _currentEpoch,
-        address _user,
-        IGovernance.UserState calldata _userState,
-        IGovernance.Allocation calldata _allocation,
-        IGovernance.InitiativeState calldata _initiativeState
-    ) external override {
+        uint16,
+        address,
+        IGovernance.UserState calldata,
+        IGovernance.Allocation calldata,
+        IGovernance.InitiativeState calldata
+    ) external view override {
         _performRevertBehaviour(revertBehaviours[FunctionType.ALLOCATE]);
     }
 
-    function onClaimForInitiative(uint16 _claimEpoch, uint256 _bold) external override {
+    function onClaimForInitiative(uint16, uint256) external view override {
         _performRevertBehaviour(revertBehaviours[FunctionType.CLAIM]);
     }
 
-    function _performRevertBehaviour(RevertType action) internal {
+    function _performRevertBehaviour(RevertType action) internal pure {
         if (action == RevertType.THROW) {
             revert("A normal Revert");
         }
