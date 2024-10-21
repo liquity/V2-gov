@@ -12,6 +12,7 @@ contract BasicRecipient {
         callWasValid = true;
     }
 }
+
 contract FallbackRecipient {
     bytes public received;
 
@@ -21,7 +22,6 @@ contract FallbackRecipient {
 }
 
 contract SafeCallWithMinGasTests is Test {
-
     function test_basic_nonExistent(uint256 gas, uint256 value, bytes memory theData) public {
         vm.assume(gas < 30_000_000);
         // Call to non existent succeeds
@@ -33,7 +33,8 @@ contract SafeCallWithMinGasTests is Test {
 
     function test_basic_contractData(uint256 gas, uint256 value, bytes memory theData) public {
         vm.assume(gas < 30_000_000);
-        vm.assume(gas > 50_000 + theData.length * 2_100); /// @audit Approximation
+        vm.assume(gas > 50_000 + theData.length * 2_100);
+        /// @audit Approximation
         FallbackRecipient recipient = new FallbackRecipient();
         // Call to non existent succeeds
 
@@ -42,6 +43,7 @@ contract SafeCallWithMinGasTests is Test {
         safeCallWithMinGas(address(recipient), gas, value, theData);
         assertEq(keccak256(recipient.received()), keccak256(theData), "same data");
     }
+
     function test_basic_contractCall() public {
         BasicRecipient recipient = new BasicRecipient();
         // Call to non existent succeeds

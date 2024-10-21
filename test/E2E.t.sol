@@ -88,7 +88,8 @@ contract E2ETests is Test {
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp - EPOCH_DURATION), /// @audit KEY
+                epochStart: uint32(block.timestamp - EPOCH_DURATION),
+                /// @audit KEY
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
@@ -111,7 +112,7 @@ contract E2ETests is Test {
         deal(address(lusd), address(user), REGISTRATION_FEE);
         lusd.approve(address(governance), REGISTRATION_FEE);
         governance.registerInitiative(address(0x123123));
-        
+
         vm.expectRevert();
         _allocate(address(0x123123), 1e18, 0);
 
@@ -120,10 +121,8 @@ contract E2ETests is Test {
         _allocate(address(0x123123), 1e18, 0);
     }
 
-
     // forge test --match-test test_deregisterIsSound -vv
     function test_deregisterIsSound() public {
-
         // Deregistration works as follows:
         // We stop voting
         // We wait for `UNREGISTRATION_AFTER_EPOCHS`
@@ -140,8 +139,8 @@ contract E2ETests is Test {
         lusd.approve(address(governance), REGISTRATION_FEE);
 
         address newInitiative = address(0x123123);
-        governance.registerInitiative(newInitiative); 
-        assertEq(uint256(Governance.InitiativeStatus.WARM_UP) , _getInitiativeStatus(newInitiative), "Cooldown");
+        governance.registerInitiative(newInitiative);
+        assertEq(uint256(Governance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative), "Cooldown");
 
         uint256 skipCount;
 
@@ -157,20 +156,22 @@ contract E2ETests is Test {
         // Whereas in next week it will work
         vm.warp(block.timestamp + EPOCH_DURATION); // 1
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP) ,_getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         // Cooldown on epoch Staert
         vm.warp(block.timestamp + EPOCH_DURATION); // 2
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP) ,_getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 3
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP) ,_getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 4
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.UNREGISTERABLE) ,_getInitiativeStatus(newInitiative), "UNREGISTERABLE");
+        assertEq(
+            uint256(Governance.InitiativeStatus.UNREGISTERABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE"
+        );
 
         assertEq(skipCount, UNREGISTRATION_AFTER_EPOCHS, "Skipped exactly UNREGISTRATION_AFTER_EPOCHS");
     }
@@ -195,7 +196,7 @@ contract E2ETests is Test {
         deltaLQTYVotes[0] = votes;
         int88[] memory deltaLQTYVetos = new int88[](1);
         deltaLQTYVetos[0] = vetos;
-        
+
         governance.allocateLQTY(initiativesToDeRegister, initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 
@@ -206,14 +207,11 @@ contract E2ETests is Test {
         initiativesToDeRegister[2] = baseInitiative3;
         initiativesToDeRegister[3] = address(0x123123);
 
-
-        
         governance.allocateLQTY(initiativesToDeRegister, initiatives, votes, vetos);
     }
 
     function _getInitiativeStatus(address _initiative) internal returns (uint256) {
-      (Governance.InitiativeStatus status, , ) = governance.getInitiativeState(_initiative); 
-      return uint256(status);
-      }
-
+        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(_initiative);
+        return uint256(status);
+    }
 }

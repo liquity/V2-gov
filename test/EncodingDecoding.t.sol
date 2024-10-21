@@ -6,7 +6,7 @@ import {Test, console2} from "forge-std/Test.sol";
 import {EncodingDecodingLib} from "src/utils/EncodingDecodingLib.sol";
 
 contract EncodingDecodingTest is Test {
-    // value -> encoding -> decoding -> value 
+    // value -> encoding -> decoding -> value
     function test_encoding_and_decoding_symmetrical(uint88 lqty, uint32 averageTimestamp) public {
         uint224 encodedValue = EncodingDecodingLib.encodeLQTYAllocation(lqty, averageTimestamp);
         (uint88 decodedLqty, uint32 decodedAverageTimestamp) = EncodingDecodingLib.decodeLQTYAllocation(encodedValue);
@@ -16,14 +16,14 @@ contract EncodingDecodingTest is Test {
 
         // Redo
         uint224 reEncoded = EncodingDecodingLib.encodeLQTYAllocation(decodedLqty, decodedAverageTimestamp);
-        (uint88 reDecodedLqty, uint32 reDecodedAverageTimestamp) = EncodingDecodingLib.decodeLQTYAllocation(encodedValue);
+        (uint88 reDecodedLqty, uint32 reDecodedAverageTimestamp) =
+            EncodingDecodingLib.decodeLQTYAllocation(encodedValue);
 
         assertEq(reEncoded, encodedValue);
         assertEq(reDecodedLqty, decodedLqty);
         assertEq(reDecodedAverageTimestamp, decodedAverageTimestamp);
     }
-    
-    
+
     /// We expect this test to fail as the encoding is ambigous past u120
     function testFail_encoding_not_equal_reproducer() public {
         _receive_undo_compare(18371677541005923091065047412368542483005086202);
@@ -46,6 +46,4 @@ contract EncodingDecodingTest is Test {
         assertEq(decodedLqty, decodedLqty2, "decoded lqty not equal");
         assertEq(decodedAverageTimestamp, decodedAverageTimestamp2, "decoded timestamps not equal");
     }
-
-
 }

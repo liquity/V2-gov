@@ -18,7 +18,6 @@ import {PermitParams} from "../src/utils/Types.sol";
 
 import {MaliciousInitiative} from "./mocks/MaliciousInitiative.sol";
 
-
 contract GovernanceTest is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
@@ -74,7 +73,6 @@ contract GovernanceTest is Test {
             }),
             initialInitiatives
         );
-
     }
 
     // forge test --match-test test_all_revert_attacks_hardcoded -vv
@@ -88,7 +86,7 @@ contract GovernanceTest is Test {
         // should not revert if the user doesn't have a UserProxy deployed yet
         address userProxy = governance.deriveUserProxyAddress(user);
         lqty.approve(address(userProxy), 1e18);
-    
+
         // deploy and deposit 1 LQTY
         governance.depositLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
@@ -97,7 +95,6 @@ contract GovernanceTest is Test {
         // first deposit should have an averageStakingTimestamp if block.timestamp
         assertEq(averageStakingTimestamp, block.timestamp);
         vm.stopPrank();
-
 
         vm.startPrank(lusdHolder);
         lusd.transfer(address(governance), 10000e18);
@@ -111,29 +108,38 @@ contract GovernanceTest is Test {
         /// === REGISTRATION REVERTS === ///
         uint256 registerNapshot = vm.snapshot();
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.THROW);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.THROW
+        );
         governance.registerInitiative(address(maliciousInitiative2));
         vm.revertTo(registerNapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.OOG);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.OOG
+        );
         governance.registerInitiative(address(maliciousInitiative2));
         vm.revertTo(registerNapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.RETURN_BOMB);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.RETURN_BOMB
+        );
         governance.registerInitiative(address(maliciousInitiative2));
         vm.revertTo(registerNapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.REVERT_BOMB);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.REVERT_BOMB
+        );
         governance.registerInitiative(address(maliciousInitiative2));
         vm.revertTo(registerNapshot);
 
         // Reset and continue
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.NONE);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.NONE
+        );
         governance.registerInitiative(address(maliciousInitiative2));
 
         // Register EOA
         governance.registerInitiative(address(eoaInitiative));
-
 
         vm.stopPrank();
 
@@ -151,53 +157,70 @@ contract GovernanceTest is Test {
         /// === Allocate LQTY REVERTS === ///
         uint256 allocateSnapshot = vm.snapshot();
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.THROW);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.THROW
+        );
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.revertTo(allocateSnapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.OOG);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.OOG
+        );
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.revertTo(allocateSnapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.RETURN_BOMB);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.RETURN_BOMB
+        );
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.revertTo(allocateSnapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.REVERT_BOMB);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.REVERT_BOMB
+        );
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.revertTo(allocateSnapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.NONE);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.NONE
+        );
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
-
-
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
         /// === Claim for initiative REVERTS === ///
         uint256 claimShapsnot = vm.snapshot();
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.THROW);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.THROW
+        );
         governance.claimForInitiative(address(maliciousInitiative2));
         vm.revertTo(claimShapsnot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.OOG);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.OOG
+        );
         governance.claimForInitiative(address(maliciousInitiative2));
         vm.revertTo(claimShapsnot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.RETURN_BOMB);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.RETURN_BOMB
+        );
         governance.claimForInitiative(address(maliciousInitiative2));
         vm.revertTo(claimShapsnot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.REVERT_BOMB);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.REVERT_BOMB
+        );
         governance.claimForInitiative(address(maliciousInitiative2));
         vm.revertTo(claimShapsnot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.NONE);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.NONE
+        );
         uint256 claimed = governance.claimForInitiative(address(maliciousInitiative2));
 
         governance.claimForInitiative(address(eoaInitiative));
-
 
         /// === Unregister Reverts === ///
 
@@ -213,38 +236,48 @@ contract GovernanceTest is Test {
         deltaVetoLQTY = new int88[](3);
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
 
-        (Governance.VoteSnapshot memory v, Governance.InitiativeVoteSnapshot memory initData) = governance.snapshotVotesForInitiative(address(maliciousInitiative2));
+        (Governance.VoteSnapshot memory v, Governance.InitiativeVoteSnapshot memory initData) =
+            governance.snapshotVotesForInitiative(address(maliciousInitiative2));
         uint256 currentEpoch = governance.epoch();
-                
+
         // Inactive for 4 epochs
         // Add another proposal
 
-        vm.warp(block.timestamp + governance.EPOCH_DURATION() * 5); /// @audit needs 5?
+        vm.warp(block.timestamp + governance.EPOCH_DURATION() * 5);
+
+        /// @audit needs 5?
         (v, initData) = governance.snapshotVotesForInitiative(address(maliciousInitiative2));
         uint256 unregisterSnapshot = vm.snapshot();
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.THROW);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.THROW
+        );
         governance.unregisterInitiative(address(maliciousInitiative2));
         vm.revertTo(unregisterSnapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.OOG);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.OOG
+        );
         governance.unregisterInitiative(address(maliciousInitiative2));
         vm.revertTo(unregisterSnapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.RETURN_BOMB);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.RETURN_BOMB
+        );
         governance.unregisterInitiative(address(maliciousInitiative2));
         vm.revertTo(unregisterSnapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.REVERT_BOMB);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.REVERT_BOMB
+        );
         governance.unregisterInitiative(address(maliciousInitiative2));
         vm.revertTo(unregisterSnapshot);
 
-        maliciousInitiative2.setRevertBehaviour(MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.NONE);
+        maliciousInitiative2.setRevertBehaviour(
+            MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.NONE
+        );
         governance.unregisterInitiative(address(maliciousInitiative2));
-        
+
         governance.unregisterInitiative(address(eoaInitiative));
     }
-
-
-   
 }

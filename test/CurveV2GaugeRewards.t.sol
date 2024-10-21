@@ -123,11 +123,8 @@ contract CurveV2GaugeRewardsTest is Test {
         deal(address(lusd), mockGovernance, amt);
         vm.assume(amt > 604800);
 
-
         // Pretend a Proposal has passed
-        vm.startPrank(
-            address(mockGovernance)
-        );
+        vm.startPrank(address(mockGovernance));
         lusd.transfer(address(curveV2GaugeRewards), amt);
 
         assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), amt);
@@ -140,11 +137,8 @@ contract CurveV2GaugeRewardsTest is Test {
         uint256 amt = 604800 - 1;
         deal(address(lusd), mockGovernance, amt);
 
-
         // Pretend a Proposal has passed
-        vm.startPrank(
-            address(mockGovernance)
-        );
+        vm.startPrank(address(mockGovernance));
         lusd.transfer(address(curveV2GaugeRewards), amt);
 
         assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), amt);
@@ -152,17 +146,13 @@ contract CurveV2GaugeRewardsTest is Test {
         assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), curveV2GaugeRewards.remainder());
     }
 
-
     /// @dev Fuzz test that shows that given a total = amt + dust, the dust is lost permanently
     function test_noDustGriefFuzz(uint128 amt, uint128 dust) public {
         uint256 total = uint256(amt) + uint256(dust);
         deal(address(lusd), mockGovernance, total);
 
-
         // Pretend a Proposal has passed
-        vm.startPrank(
-            address(mockGovernance)
-        );
+        vm.startPrank(address(mockGovernance));
         // Dust amount
         lusd.transfer(address(curveV2GaugeRewards), amt);
         // Rest

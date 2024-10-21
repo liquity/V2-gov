@@ -10,10 +10,8 @@ import {IBribeInitiative} from "./interfaces/IBribeInitiative.sol";
 
 import {DoubleLinkedList} from "./utils/DoubleLinkedList.sol";
 
-
 import {EncodingDecodingLib} from "src/utils/EncodingDecodingLib.sol";
 import {console} from "forge-std/console.sol";
-
 
 contract BribeInitiative is IInitiative, IBribeInitiative {
     using SafeERC20 for IERC20;
@@ -59,7 +57,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     /// @inheritdoc IBribeInitiative
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external {
-
         uint16 epoch = governance.epoch();
         require(_epoch >= epoch, "BribeInitiative: only-future-epochs");
 
@@ -132,21 +129,18 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
         if (boldAmount != 0) {
             uint256 max = bold.balanceOf(address(this));
-            if(boldAmount > max) {
+            if (boldAmount > max) {
                 boldAmount = max;
             }
             bold.safeTransfer(msg.sender, boldAmount);
         }
         if (bribeTokenAmount != 0) {
             uint256 max = bribeToken.balanceOf(address(this));
-            if(bribeTokenAmount > max) {
+            if (bribeTokenAmount > max) {
                 bribeTokenAmount = max;
             }
             bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
         }
-            
-        
-        
     }
 
     /// @inheritdoc IInitiative
@@ -186,6 +180,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     function _encodeLQTYAllocation(uint88 _lqty, uint32 _averageTimestamp) private pure returns (uint224) {
         return EncodingDecodingLib.encodeLQTYAllocation(_lqty, _averageTimestamp);
     }
+
     function _decodeLQTYAllocation(uint224 _value) private pure returns (uint88, uint32) {
         return EncodingDecodingLib.decodeLQTYAllocation(_value);
     }

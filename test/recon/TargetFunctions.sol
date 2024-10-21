@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.0;
 
@@ -17,19 +16,17 @@ import {IInitiative} from "../../src/interfaces/IInitiative.sol";
 import {IUserProxy} from "../../src/interfaces/IUserProxy.sol";
 import {PermitParams} from "../../src/utils/Types.sol";
 
-
 abstract contract TargetFunctions is GovernanceTargets, BribeInitiativeTargets {
-
     // helper to deploy initiatives for registering that results in more bold transferred to the Governance contract
-    function helper_deployInitiative() withChecks public {
+    function helper_deployInitiative() public withChecks {
         address initiative = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
         deployedInitiatives.push(initiative);
     }
 
     // helper to simulate bold accrual in Governance contract
-    function helper_accrueBold(uint88 boldAmount) withChecks public {
+    function helper_accrueBold(uint88 boldAmount) public withChecks {
         boldAmount = uint88(boldAmount % lusd.balanceOf(user));
         // target contract is the user so it can transfer directly
-        lusd.transfer(address(governance), boldAmount); 
+        lusd.transfer(address(governance), boldAmount);
     }
 }

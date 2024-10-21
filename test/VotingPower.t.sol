@@ -108,7 +108,8 @@ contract VotingPowerTest is Test {
         uint256 powerInTheFuture = governance.lqtyToVotes(lqtyAmount, multiplier + 1, 1);
         // Amt when delta is 1
         // 0 when delta is 0
-        uint256 powerFromMoreDeposits = governance.lqtyToVotes(lqtyAmount * multiplier, uint32(block.timestamp + 1), uint32(block.timestamp));
+        uint256 powerFromMoreDeposits =
+            governance.lqtyToVotes(lqtyAmount * multiplier, uint32(block.timestamp + 1), uint32(block.timestamp));
 
         assertEq(powerInTheFuture, powerFromMoreDeposits, "Same result");
     }
@@ -121,7 +122,8 @@ contract VotingPowerTest is Test {
 
         // Amt when delta is 1
         // 0 when delta is 0
-        uint256 powerFromMoreDeposits = governance.lqtyToVotes(lqtyAmount * multiplier, uint32(block.timestamp + 1), uint32(block.timestamp));
+        uint256 powerFromMoreDeposits =
+            governance.lqtyToVotes(lqtyAmount * multiplier, uint32(block.timestamp + 1), uint32(block.timestamp));
 
         assertEq(powerInTheFuture, powerFromMoreDeposits, "Same result");
     }
@@ -131,7 +133,7 @@ contract VotingPowerTest is Test {
         return _currentTimestamp - _averageTimestamp;
     }
 
-   function _calculateAverageTimestamp(
+    function _calculateAverageTimestamp(
         uint32 _prevOuterAverageTimestamp,
         uint32 _newInnerAverageTimestamp,
         uint88 _prevLQTYBalance,
@@ -195,23 +197,18 @@ contract VotingPowerTest is Test {
 
         uint88 total_liquity = votes + votes_2;
 
-        uint32 avgTs = _calculateAverageTimestamp(
-            time,
-            time_2,
-            votes,
-            total_liquity
-        );
+        uint32 avgTs = _calculateAverageTimestamp(time, time_2, votes, total_liquity);
 
         console.log("votes", votes);
         console.log("time", current_time - time);
         console.log("power", power);
 
         console.log("votes_2", votes_2);
-        console.log("time_2", current_time -  time_2);
+        console.log("time_2", current_time - time_2);
         console.log("power_2", power_2);
 
         uint256 total_power_from_avg = governance.lqtyToVotes(total_liquity, current_time, avgTs);
-        
+
         console.log("total_liquity", total_liquity);
         console.log("avgTs", current_time - avgTs);
         console.log("total_power_from_avg", total_power_from_avg);
@@ -233,14 +230,12 @@ contract VotingPowerTest is Test {
         // NOTE: != time due to rounding error
         console.log("attacked_avg_ts", current_time - attacked_avg_ts);
 
-
         // BASIC VOTING TEST
         // AFTER VOTING POWER IS X
         // AFTER REMOVING VOTING IS 0
 
         // Add a middle of random shit
         // Show that the math remains sound
-        
 
         // Off by 40 BPS????? WAYY TOO MUCH | SOMETHING IS WRONG
 
@@ -268,12 +263,11 @@ contract VotingPowerTest is Test {
 
         vm.warp(block.timestamp + 15);
 
-
         vm.startPrank(user);
         _allocate(address(baseInitiative1), 124, 0);
         uint256 user1_avg = _getAverageTS(baseInitiative1);
 
-         vm.startPrank(user2);
+        vm.startPrank(user2);
         _allocate(address(baseInitiative1), 15, 0);
         uint256 both_avg = _getAverageTS(baseInitiative1);
         _allocate(address(baseInitiative1), 0, 0);
@@ -311,12 +305,11 @@ contract VotingPowerTest is Test {
         vm.startPrank(user2);
         _stakeLQTY(user2, 15);
 
-
         vm.startPrank(user);
         _allocate(address(baseInitiative1), 124, 0);
         uint256 user1_avg = _getAverageTS(baseInitiative1);
 
-         vm.startPrank(user2);
+        vm.startPrank(user2);
         _allocate(address(baseInitiative1), 15, 0);
         uint256 both_avg = _getAverageTS(baseInitiative1);
         _allocate(address(baseInitiative1), 0, 0);
@@ -336,7 +329,7 @@ contract VotingPowerTest is Test {
         console.log("block.timestamp", block.timestamp);
 
         uint256 i;
-        while(i++ < 122) {
+        while (i++ < 122) {
             _allocate(address(baseInitiative1), 15, 0);
             _allocate(address(baseInitiative1), 0, 0);
         }
@@ -346,7 +339,7 @@ contract VotingPowerTest is Test {
         console.log("griefed_avg", ts);
         console.log("delta", delta);
         console.log("block.timestamp", block.timestamp);
-    
+
         // One more time
         _allocate(address(baseInitiative1), 15, 0);
         _allocate(address(baseInitiative1), 0, 0);
@@ -408,17 +401,18 @@ contract VotingPowerTest is Test {
         (uint88 allocatedLQTY, uint32 averageStakingTimestamp1) = governance.userStates(user);
         assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "Half");
 
-
         // Go to Cutoff
         // See that you can reduce
-        // See that you can Veto as much as you want    
+        // See that you can Veto as much as you want
         vm.warp(block.timestamp + (EPOCH_DURATION) - governance.EPOCH_VOTING_CUTOFF() + 1); // warp to end of second epoch before the voting cutoff
 
         // Go to end of epoch, lazy math
-        while(!(governance.secondsWithinEpoch() > governance.EPOCH_VOTING_CUTOFF())) {
+        while (!(governance.secondsWithinEpoch() > governance.EPOCH_VOTING_CUTOFF())) {
             vm.warp(block.timestamp + 6 hours);
         }
-        assertTrue(governance.secondsWithinEpoch() > governance.EPOCH_VOTING_CUTOFF(), "We should not be able to vote more");
+        assertTrue(
+            governance.secondsWithinEpoch() > governance.EPOCH_VOTING_CUTOFF(), "We should not be able to vote more"
+        );
 
         vm.expectRevert(); // cannot allocate more
         _allocate(address(baseInitiative1), lqtyAmount, 0);
@@ -429,7 +423,6 @@ contract VotingPowerTest is Test {
         // Can Veto more than allocate
         _allocate(address(baseInitiative1), 0, lqtyAmount);
     }
-
 
     //// Compare the relative power per epoch
     /// As in, one epoch should reliably increase the power by X amt
@@ -452,7 +445,6 @@ contract VotingPowerTest is Test {
         // =========== epoch 2 (start) ==================
         // 2. user allocates in epoch 2
         vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
-
 
         // Remainer
         _stakeLQTY(user, uint88(lqtyAmount / 2));
@@ -477,7 +469,6 @@ contract VotingPowerTest is Test {
 
         uint256 avgTs_reset_1 = _getAverageTS(baseInitiative1);
         uint256 avgTs_reset_2 = _getAverageTS(baseInitiative2);
-
 
         // Intuition, Delta time * LQTY = POWER
         vm.revertTo(snapshotBefore);
@@ -505,7 +496,6 @@ contract VotingPowerTest is Test {
         assertEq(avgTs_reset_2, avgTs2_diff, "Same as diff means it does reset");
     }
 
-
     // Check if Flashloan can be used to cause issues?
     // A flashloan would cause issues in the measure in which it breaks any specific property
     // Or expectation
@@ -516,19 +506,11 @@ contract VotingPowerTest is Test {
     // Removing just updates that + the weights
     // The weights are the avg time * the number
 
-
     function _getAverageTS(address initiative) internal returns (uint256) {
-        (
-            ,
-            ,
-            uint32 averageStakingTimestampVoteLQTY,
-            ,
-            
-        ) = governance.initiativeStates(initiative);
+        (,, uint32 averageStakingTimestampVoteLQTY,,) = governance.initiativeStates(initiative);
 
         return averageStakingTimestampVoteLQTY;
     }
-
 
     function _stakeLQTY(address _user, uint88 amount) internal {
         address userProxy = governance.deriveUserProxyAddress(_user);
@@ -536,7 +518,6 @@ contract VotingPowerTest is Test {
 
         governance.depositLQTY(amount);
     }
-
 
     function _allocate(address initiative, int88 votes, int88 vetos) internal {
         address[] memory initiativesToReset = new address[](3);
@@ -549,7 +530,7 @@ contract VotingPowerTest is Test {
         deltaLQTYVotes[0] = votes;
         int88[] memory deltaLQTYVetos = new int88[](1);
         deltaLQTYVetos[0] = vetos;
-        
+
         governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 }

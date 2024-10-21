@@ -13,30 +13,28 @@ function hasMinGas(uint256 _minGas, uint256 _reservedGas) view returns (bool) {
 }
 
 /// @dev Performs a call ignoring the recipient existing or not, passing the exact gas value, ignoring any return value
-function safeCallWithMinGas(
-    address _target,
-    uint256 _gas,
-    uint256 _value,
-    bytes memory _calldata
-) returns (bool success) {
+function safeCallWithMinGas(address _target, uint256 _gas, uint256 _value, bytes memory _calldata)
+    returns (bool success)
+{
     /// @audit This is not necessary
     ///     But this is basically a worst case estimate of mem exp cost + operations before the call
-    require(hasMinGas(_gas, 1_000), "Must have minGas"); 
+    require(hasMinGas(_gas, 1_000), "Must have minGas");
 
     // dispatch message to recipient
     // by assembly calling "handle" function
     // we call via assembly to avoid memcopying a very large returndata
     // returned by a malicious contract
     assembly {
-        success := call(
-            _gas, // gas
-            _target, // recipient
-            _value, // ether value
-            add(_calldata, 0x20), // inloc
-            mload(_calldata), // inlen
-            0, // outloc
-            0 // outlen
-        )
+        success :=
+            call(
+                _gas, // gas
+                _target, // recipient
+                _value, // ether value
+                add(_calldata, 0x20), // inloc
+                mload(_calldata), // inlen
+                0, // outloc
+                0 // outlen
+            )
 
         // Ignore all return values
     }

@@ -165,7 +165,7 @@ contract GovernanceTest is Test {
             ? _prevOuterAverageTimestamp
             : _newInnerAverageTimestamp;
         if (highestTimestamp > block.timestamp) vm.warp(highestTimestamp);
-         governanceInternal.calculateAverageTimestamp(
+        governanceInternal.calculateAverageTimestamp(
             _prevOuterAverageTimestamp, _newInnerAverageTimestamp, _prevLQTYBalance, _newLQTYBalance
         );
     }
@@ -477,7 +477,8 @@ contract GovernanceTest is Test {
         uint128 _votingThresholdFactor,
         uint88 _minClaim
     ) public {
-        _votingThresholdFactor = _votingThresholdFactor % 1e18; /// Clamp to prevent misconfig
+        _votingThresholdFactor = _votingThresholdFactor % 1e18;
+        /// Clamp to prevent misconfig
         governance = new Governance(
             address(lqty),
             address(lusd),
@@ -601,13 +602,14 @@ contract GovernanceTest is Test {
         // should revert if the initiative isn't registered
         vm.expectRevert("Governance: initiative-not-registered");
         governance.unregisterInitiative(baseInitiative3);
-        
+
         governance.registerInitiative(baseInitiative3);
         uint16 atEpoch = governance.registeredInitiatives(baseInitiative3);
         assertEq(atEpoch, governance.epoch());
 
         // should revert if the initiative is still in the registration warm up period
-        vm.expectRevert("Governance: initiative-in-warm-up"); /// @audit should fail due to not waiting enough time
+        vm.expectRevert("Governance: initiative-in-warm-up");
+        /// @audit should fail due to not waiting enough time
         governance.unregisterInitiative(baseInitiative3);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
@@ -645,7 +647,6 @@ contract GovernanceTest is Test {
         governance.registerInitiative(baseInitiative3);
     }
 
-
     // Test: You can always remove allocation
     // forge test --match-test test_crit_accounting_mismatch -vv
     function test_crit_accounting_mismatch() public {
@@ -672,37 +673,33 @@ contract GovernanceTest is Test {
         (uint256 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1_000e18);
 
-        (
-            uint88 voteLQTY1,
-            ,
-            uint32 averageStakingTimestampVoteLQTY1,
-            ,
-        ) = governance.initiativeStates(baseInitiative1);
+        (uint88 voteLQTY1,, uint32 averageStakingTimestampVoteLQTY1,,) = governance.initiativeStates(baseInitiative1);
 
-        (
-            uint88 voteLQTY2,
-            ,
-            ,
-            ,
-        ) = governance.initiativeStates(baseInitiative2);
+        (uint88 voteLQTY2,,,,) = governance.initiativeStates(baseInitiative2);
 
         // Get power at time of vote
         uint256 votingPower = governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
         assertGt(votingPower, 0, "Non zero power");
-        
+
         /// @audit TODO Fully digest and explain the bug
         // Warp to end so we check the threshold against future threshold
-        
+
         {
             vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
-            (IGovernance.VoteSnapshot memory snapshot, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1) = governance.snapshotVotesForInitiative(baseInitiative1);
-            (, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot2) = governance.snapshotVotesForInitiative(baseInitiative2);
+            (
+                IGovernance.VoteSnapshot memory snapshot,
+                IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1
+            ) = governance.snapshotVotesForInitiative(baseInitiative1);
+            (, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot2) =
+                governance.snapshotVotesForInitiative(baseInitiative2);
 
             uint256 threshold = governance.getLatestVotingThreshold();
             assertLt(initiativeVoteSnapshot1.votes, threshold, "it didn't get rewards");
 
-            uint256 votingPowerWithProjection = governance.lqtyToVotes(voteLQTY1, governance.epochStart() + governance.EPOCH_DURATION(), averageStakingTimestampVoteLQTY1);
+            uint256 votingPowerWithProjection = governance.lqtyToVotes(
+                voteLQTY1, governance.epochStart() + governance.EPOCH_DURATION(), averageStakingTimestampVoteLQTY1
+            );
             assertLt(votingPower, threshold, "Current Power is not enough - Desynch A");
             assertLt(votingPowerWithProjection, threshold, "Future Power is also not enough - Desynch B");
         }
@@ -732,13 +729,15 @@ contract GovernanceTest is Test {
 
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
-    
         // Warp to end so we check the threshold against future threshold
-        
+
         {
             vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
-            (IGovernance.VoteSnapshot memory snapshot, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1) = governance.snapshotVotesForInitiative(baseInitiative1);
+            (
+                IGovernance.VoteSnapshot memory snapshot,
+                IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1
+            ) = governance.snapshotVotesForInitiative(baseInitiative1);
 
             uint256 threshold = governance.getLatestVotingThreshold();
             assertLt(initiativeVoteSnapshot1.votes, threshold, "it didn't get rewards");
@@ -783,7 +782,6 @@ contract GovernanceTest is Test {
         governance.allocateLQTY(reAddInitiatives, reAddInitiatives, reAddDeltaLQTYVotes, reAddDeltaLQTYVetos);
     }
 
-
     // Remove allocation but check accounting
     // Need to find bug in accounting code
     // forge test --match-test test_addRemoveAllocation_accounting -vv
@@ -812,7 +810,10 @@ contract GovernanceTest is Test {
         {
             vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
-            (IGovernance.VoteSnapshot memory snapshot, IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1) = governance.snapshotVotesForInitiative(baseInitiative1);
+            (
+                IGovernance.VoteSnapshot memory snapshot,
+                IGovernance.InitiativeVoteSnapshot memory initiativeVoteSnapshot1
+            ) = governance.snapshotVotesForInitiative(baseInitiative1);
 
             uint256 threshold = governance.getLatestVotingThreshold();
             assertLt(initiativeVoteSnapshot1.votes, threshold, "it didn't get rewards");
@@ -824,20 +825,11 @@ contract GovernanceTest is Test {
         /// === END SETUP === ///
 
         // Grab values b4 unregistering and b4 removing user allocation
-        
-        (
-            uint88 b4_countedVoteLQTY, 
-            uint32 b4_countedVoteLQTYAverageTimestamp
-        ) = governance.globalState();
+
+        (uint88 b4_countedVoteLQTY, uint32 b4_countedVoteLQTYAverageTimestamp) = governance.globalState();
         (uint88 b4_allocatedLQTY, uint32 b4_averageStakingTimestamp) = governance.userStates(user);
-        (
-            uint88 b4_voteLQTY,
-            ,
-            ,
-            ,
-            
-        ) = governance.initiativeStates(baseInitiative1);
-        
+        (uint88 b4_voteLQTY,,,,) = governance.initiativeStates(baseInitiative1);
+
         // Unregistering
         governance.unregisterInitiative(baseInitiative1);
 
@@ -846,16 +838,13 @@ contract GovernanceTest is Test {
         // We expect the state to already have those removed
         // We expect the user to not have any changes
 
-        (
-            uint88 after_countedVoteLQTY, 
-            
-        ) = governance.globalState();
+        (uint88 after_countedVoteLQTY,) = governance.globalState();
 
         assertEq(after_countedVoteLQTY, b4_countedVoteLQTY - b4_voteLQTY, "Global Lqty change after unregister");
         assertEq(1e18, b4_voteLQTY, "sanity check");
 
         (uint88 after_allocatedLQTY, uint32 after_averageStakingTimestamp) = governance.userStates(user);
-        
+
         // We expect no changes here
         (
             uint88 after_voteLQTY,
@@ -885,10 +874,8 @@ contract GovernanceTest is Test {
 
         // After user counts LQTY the
         {
-            (
-                uint88 after_user_countedVoteLQTY, 
-                uint32 after_user_countedVoteLQTYAverageTimestamp
-            ) = governance.globalState();
+            (uint88 after_user_countedVoteLQTY, uint32 after_user_countedVoteLQTYAverageTimestamp) =
+                governance.globalState();
             // The LQTY was already removed
             assertEq(after_user_countedVoteLQTY, 0, "Removal 1");
         }
@@ -896,20 +883,14 @@ contract GovernanceTest is Test {
         // User State allocated LQTY changes by entire previous allocation amount
         // Timestamp should not change
         {
-            (uint88 after_user_allocatedLQTY, ) = governance.userStates(user);
+            (uint88 after_user_allocatedLQTY,) = governance.userStates(user);
             assertEq(after_user_allocatedLQTY, 0, "Removal 2");
         }
 
         // Check user math only change is the LQTY amt
-        // user was the only one allocated so since all alocations were reset, the initative lqty should be 0 
+        // user was the only one allocated so since all alocations were reset, the initative lqty should be 0
         {
-            (
-                uint88 after_user_voteLQTY,
-                ,
-                ,
-                ,
-                
-            ) = governance.initiativeStates(baseInitiative1);
+            (uint88 after_user_voteLQTY,,,,) = governance.initiativeStates(baseInitiative1);
 
             assertEq(after_user_voteLQTY, 0, "Removal 3");
         }
@@ -972,9 +953,7 @@ contract GovernanceTest is Test {
     /// Ensure chunks above 1 wei
     /// Go ahead and remove
     /// Ensure that at the end you remove 100%
-    function test_fuzz_canRemoveExtact() public {
-
-    }
+    function test_fuzz_canRemoveExtact() public {}
 
     function test_allocateLQTY_single() public {
         vm.startPrank(user);
@@ -998,7 +977,7 @@ contract GovernanceTest is Test {
         // should revert if the initiative has been registered in the current epoch
         vm.expectRevert("Governance: active-vote-fsm");
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
-        
+
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
@@ -1009,8 +988,7 @@ contract GovernanceTest is Test {
             uint88 voteLQTY,
             uint88 vetoLQTY,
             uint32 averageStakingTimestampVoteLQTY,
-            uint32 averageStakingTimestampVetoLQTY
-            ,
+            uint32 averageStakingTimestampVetoLQTY,
         ) = governance.initiativeStates(baseInitiative1);
         // should update the `voteLQTY` and `vetoLQTY` variables
         assertEq(voteLQTY, 1e18);
@@ -1021,7 +999,7 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
         // should remove or add the initiatives voting LQTY from the counter
-        
+
         (countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 1e18);
 
@@ -1036,7 +1014,7 @@ contract GovernanceTest is Test {
         // should snapshot the global and initiatives votes if there hasn't been a snapshot in the current epoch yet
         (, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(forEpoch, governance.epoch() - 1);
-        (, forEpoch, ,) = governance.votesForInitiativeSnapshot(baseInitiative1);
+        (, forEpoch,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(forEpoch, governance.epoch() - 1);
 
         vm.stopPrank();
@@ -1066,7 +1044,7 @@ contract GovernanceTest is Test {
         (allocatedLQTY,) = governance.userStates(user2);
         assertEq(allocatedLQTY, 1e18);
 
-        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, ) =
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY,) =
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 2e18);
         assertEq(vetoLQTY, 0);
@@ -1091,7 +1069,7 @@ contract GovernanceTest is Test {
         console.log("countedVoteLQTY: ", countedVoteLQTY);
         assertEq(countedVoteLQTY, 1e18);
 
-        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, ) =
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY,) =
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
@@ -1123,7 +1101,7 @@ contract GovernanceTest is Test {
         // should revert if the initiative has been registered in the current epoch
         vm.expectRevert("Governance: active-vote-fsm");
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
-        
+
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
@@ -1134,8 +1112,7 @@ contract GovernanceTest is Test {
             uint88 voteLQTY,
             uint88 vetoLQTY,
             uint32 averageStakingTimestampVoteLQTY,
-            uint32 averageStakingTimestampVetoLQTY
-            ,
+            uint32 averageStakingTimestampVetoLQTY,
         ) = governance.initiativeStates(baseInitiative1);
         // should update the `voteLQTY` and `vetoLQTY` variables
         assertEq(voteLQTY, 1e18);
@@ -1146,7 +1123,7 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
         // should remove or add the initiatives voting LQTY from the counter
-        
+
         (countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 1e18);
 
@@ -1161,7 +1138,7 @@ contract GovernanceTest is Test {
         // should snapshot the global and initiatives votes if there hasn't been a snapshot in the current epoch yet
         (, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(forEpoch, governance.epoch() - 1);
-        (, forEpoch, ,) = governance.votesForInitiativeSnapshot(baseInitiative1);
+        (, forEpoch,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(forEpoch, governance.epoch() - 1);
 
         vm.stopPrank();
@@ -1191,7 +1168,7 @@ contract GovernanceTest is Test {
         (allocatedLQTY,) = governance.userStates(user2);
         assertEq(allocatedLQTY, 1e18);
 
-        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, ) =
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY,) =
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 2e18);
         assertEq(vetoLQTY, 0);
@@ -1212,7 +1189,7 @@ contract GovernanceTest is Test {
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         (allocatedLQTY,) = governance.userStates(msg.sender);
         // this no longer reverts but the user allocation doesn't increase either way
-        assertEq(allocatedLQTY, 0 , "user can allocate after voting cutoff");
+        assertEq(allocatedLQTY, 0, "user can allocate after voting cutoff");
 
         vm.stopPrank();
     }
@@ -1258,7 +1235,7 @@ contract GovernanceTest is Test {
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
 
-        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY, ) =
+        (voteLQTY, vetoLQTY, averageStakingTimestampVoteLQTY, averageStakingTimestampVetoLQTY,) =
             governance.initiativeStates(baseInitiative2);
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
@@ -1378,13 +1355,12 @@ contract GovernanceTest is Test {
         assertEq(governance.claimForInitiative(baseInitiative1), 10000e18);
         assertEq(governance.claimForInitiative(baseInitiative1), 0);
 
-
         assertEq(lusd.balanceOf(baseInitiative1), 15000e18);
 
-        (Governance.InitiativeStatus status, , uint256 claimable) = governance.getInitiativeState(baseInitiative2);
+        (Governance.InitiativeStatus status,, uint256 claimable) = governance.getInitiativeState(baseInitiative2);
         console.log("res", uint8(status));
         console.log("claimable", claimable);
-        (uint224 votes, , , uint224 vetos) = governance.votesForInitiativeSnapshot(baseInitiative2);
+        (uint224 votes,,, uint224 vetos) = governance.votesForInitiativeSnapshot(baseInitiative2);
         console.log("snapshot votes", votes);
         console.log("snapshot vetos", vetos);
 
@@ -1493,7 +1469,6 @@ contract GovernanceTest is Test {
         int88[] memory deltaVoteLQTY_ = new int88[](1);
         deltaVoteLQTY_[0] = 0;
 
-
         data[0] = abi.encodeWithSignature("deployUserProxy()");
         data[1] = abi.encodeWithSignature("depositLQTY(uint88)", lqtyAmount);
         data[2] = abi.encodeWithSignature(
@@ -1582,7 +1557,7 @@ contract GovernanceTest is Test {
                 )
             )
         );
-        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch, ) =
+        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch,) =
             governance.votesForInitiativeSnapshot(address(mockInitiative));
         assertEq(votes_, 1);
         assertEq(forEpoch_, governance.epoch() - 1);
@@ -1604,7 +1579,7 @@ contract GovernanceTest is Test {
                 )
             )
         );
-        (votes_, forEpoch_, lastCountedEpoch, ) = governance.votesForInitiativeSnapshot(address(mockInitiative));
+        (votes_, forEpoch_, lastCountedEpoch,) = governance.votesForInitiativeSnapshot(address(mockInitiative));
         assertEq(votes_, 0, "votes");
         assertEq(forEpoch_, governance.epoch() - 1, "forEpoch_");
         assertEq(lastCountedEpoch, 0, "lastCountedEpoch");
@@ -1675,7 +1650,8 @@ contract GovernanceTest is Test {
         uint240 currentUserPower0 = governance.lqtyToVotes(allocatedLQTY0, block.timestamp, averageStakingTimestamp0);
 
         (uint88 voteLQTY0,, uint32 averageStakingTimestampVoteLQTY0,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower0 = governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestampVoteLQTY0);
+        uint240 currentInitiativePower0 =
+            governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestampVoteLQTY0);
 
         // (uint224 votes, uint16 forEpoch,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         // console2.log("votes0: ", votes);
@@ -1690,12 +1666,13 @@ contract GovernanceTest is Test {
         (uint88 allocatedLQTY1, uint32 averageStakingTimestamp1) = governance.userStates(user);
         uint240 currentUserPower1 = governance.lqtyToVotes(allocatedLQTY1, block.timestamp, averageStakingTimestamp1);
         // user's allocated lqty should immediately increase their voting power
-        assertGt(currentUserPower1, 0, "current user voting power is 0"); 
+        assertGt(currentUserPower1, 0, "current user voting power is 0");
 
         // check initiative voting power for the current epoch
         (uint88 voteLQTY1,, uint32 averageStakingTimestampVoteLQTY1,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower1 = governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
-        assertGt(currentInitiativePower1, 0, "current initiative voting power is 0"); 
+        uint240 currentInitiativePower1 =
+            governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
+        assertGt(currentInitiativePower1, 0, "current initiative voting power is 0");
         assertEq(currentUserPower1, currentInitiativePower1, "initiative and user voting power should be equal");
 
         // (uint224 votes, uint16 forEpoch,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
@@ -1713,8 +1690,11 @@ contract GovernanceTest is Test {
 
         // initiative voting power should increase over a given chunk of time
         (uint88 voteLQTY2,, uint32 averageStakingTimestampVoteLQTY2,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower2 = governance.lqtyToVotes(voteLQTY2, block.timestamp, averageStakingTimestampVoteLQTY2);
-        assertEq(currentUserPower2, currentInitiativePower2, "user power and initiative power should increase by same amount");
+        uint240 currentInitiativePower2 =
+            governance.lqtyToVotes(voteLQTY2, block.timestamp, averageStakingTimestampVoteLQTY2);
+        assertEq(
+            currentUserPower2, currentInitiativePower2, "user power and initiative power should increase by same amount"
+        );
 
         // votes should only get counted in the next epoch after they were allocated
         (uint224 votes, uint16 forEpoch,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
@@ -1731,9 +1711,10 @@ contract GovernanceTest is Test {
 
         // votes should match the voting power for the initiative and subsequently the user since they're the only one allocated
         (uint88 voteLQTY3,, uint32 averageStakingTimestampVoteLQTY3,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower3 = governance.lqtyToVotes(voteLQTY3, block.timestamp, averageStakingTimestampVoteLQTY3);
+        uint240 currentInitiativePower3 =
+            governance.lqtyToVotes(voteLQTY3, block.timestamp, averageStakingTimestampVoteLQTY3);
 
-        // votes should be counted in this epoch 
+        // votes should be counted in this epoch
         (votes, forEpoch,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(votes, currentUserPower3, "initiative votes != user allocated lqty power");
         assertEq(votes, currentInitiativePower3, "initiative votes != iniative allocated lqty power");
@@ -1746,10 +1727,11 @@ contract GovernanceTest is Test {
         uint240 currentUserPower4 = governance.lqtyToVotes(allocatedLQTY4, block.timestamp, averageStakingTimestamp4);
 
         (uint88 voteLQTY4,, uint32 averageStakingTimestampVoteLQTY4,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower4 = governance.lqtyToVotes(voteLQTY4, block.timestamp, averageStakingTimestampVoteLQTY4);
+        uint240 currentInitiativePower4 =
+            governance.lqtyToVotes(voteLQTY4, block.timestamp, averageStakingTimestampVoteLQTY4);
 
         // checking if snapshotting at the end of an epoch increases the voting power
-        (uint224 votes2, ,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
+        (uint224 votes2,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(votes, votes2, "votes for an initiative snapshot increase in same epoch");
 
         // =========== epoch 3 (end) ==================
@@ -1795,8 +1777,9 @@ contract GovernanceTest is Test {
 
         // check initiative voting power before allocation at epoch start
         (uint88 voteLQTY0,, uint32 averageStakingTimestampVoteLQTY0,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower0 = governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestampVoteLQTY0);
-        assertEq(currentInitiativePower0, 0, "current initiative voting power is > 0"); 
+        uint240 currentInitiativePower0 =
+            governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestampVoteLQTY0);
+        assertEq(currentInitiativePower0, 0, "current initiative voting power is > 0");
 
         _allocateLQTY(user, lqtyAmount);
 
@@ -1810,13 +1793,14 @@ contract GovernanceTest is Test {
 
         // check initiative voting power after allocation at epoch end
         (uint88 voteLQTY1,, uint32 averageStakingTimestampVoteLQTY1,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower1 = governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
+        uint240 currentInitiativePower1 =
+            governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
         assertGt(currentInitiativePower1, 0, "initiative has no voting power after allocation");
 
         // check that user and initiative voting power is equivalent at epoch end
         assertEq(currentUserPower1, currentInitiativePower1, "currentUserPower1 != currentInitiativePower1");
 
-        vm.warp(block.timestamp + (EPOCH_DURATION * 40)); 
+        vm.warp(block.timestamp + (EPOCH_DURATION * 40));
         assertEq(42, governance.epoch(), "not in epoch 42");
 
         // get user voting power after multiple epochs
@@ -1826,11 +1810,12 @@ contract GovernanceTest is Test {
 
         // get initiative voting power after multiple epochs
         (uint88 voteLQTY2,, uint32 averageStakingTimestampVoteLQTY2,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower2 = governance.lqtyToVotes(voteLQTY2, block.timestamp, averageStakingTimestampVoteLQTY2);
+        uint240 currentInitiativePower2 =
+            governance.lqtyToVotes(voteLQTY2, block.timestamp, averageStakingTimestampVoteLQTY2);
         assertGt(currentInitiativePower2, currentInitiativePower1, "initiative voting power doesn't increase");
 
         // check that initiative and user voting always track each other
-        assertEq(currentUserPower2, currentInitiativePower2, "voting powers don't match"); 
+        assertEq(currentUserPower2, currentInitiativePower2, "voting powers don't match");
     }
 
     // initiative's increase in voting power after a snapshot is the same as the increase in power calculated using the initiative's allocation at the start and end of the epoch
@@ -1867,9 +1852,10 @@ contract GovernanceTest is Test {
         // 2. user allocates in epoch 2 for initiative to be active
         vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
 
-        // get initiative voting power at start of epoch 
+        // get initiative voting power at start of epoch
         (uint88 voteLQTY0,, uint32 averageStakingTimestampVoteLQTY0,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower0 = governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestampVoteLQTY0);
+        uint240 currentInitiativePower0 =
+            governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestampVoteLQTY0);
         assertEq(currentInitiativePower0, 0, "initiative voting power is > 0");
 
         _allocateLQTY(user, lqtyAmount);
@@ -1881,17 +1867,18 @@ contract GovernanceTest is Test {
 
         // get initiative voting power at time of snapshot
         (uint88 voteLQTY1,, uint32 averageStakingTimestampVoteLQTY1,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower1 = governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
+        uint240 currentInitiativePower1 =
+            governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
         assertGt(currentInitiativePower1, 0, "initiative voting power is 0");
 
         uint240 deltaInitiativeVotingPower = currentInitiativePower1 - currentInitiativePower0;
 
-        // 4. votes should be counted in this epoch 
+        // 4. votes should be counted in this epoch
         (uint224 votes,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(votes, deltaInitiativeVotingPower, "voting power should increase by amount user allocated");
     }
 
-    // checking that voting power calculated from lqtyAllocatedByUserToInitiative is equivalent to the voting power using values returned by userStates 
+    // checking that voting power calculated from lqtyAllocatedByUserToInitiative is equivalent to the voting power using values returned by userStates
     function test_voting_power_lqtyAllocatedByUserToInitiative() public {
         // =========== epoch 1 ==================
         governance = new Governance(
@@ -1928,10 +1915,16 @@ contract GovernanceTest is Test {
         // get user voting power at start of epoch from lqtyAllocatedByUserToInitiative
         (uint88 voteLQTY0,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
         (uint88 allocatedLQTY, uint32 averageStakingTimestamp) = governance.userStates(user);
-        uint240 currentInitiativePowerFrom1 = governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestamp);
-        uint240 currentInitiativePowerFrom2 = governance.lqtyToVotes(allocatedLQTY, block.timestamp, averageStakingTimestamp);
+        uint240 currentInitiativePowerFrom1 =
+            governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestamp);
+        uint240 currentInitiativePowerFrom2 =
+            governance.lqtyToVotes(allocatedLQTY, block.timestamp, averageStakingTimestamp);
 
-        assertEq(currentInitiativePowerFrom1, currentInitiativePowerFrom2, "currentInitiativePowerFrom1 != currentInitiativePowerFrom2");
+        assertEq(
+            currentInitiativePowerFrom1,
+            currentInitiativePowerFrom2,
+            "currentInitiativePowerFrom1 != currentInitiativePowerFrom2"
+        );
     }
 
     // checking if allocating to a different initiative in a different epoch modifies the avgStakingTimestamp
@@ -2067,7 +2060,7 @@ contract GovernanceTest is Test {
         // 2. user allocates in epoch 2
         vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
 
-        // clamp lqtyAmount by half of what user staked 
+        // clamp lqtyAmount by half of what user staked
         uint88 lqtyAmount2 = uint88(bound(allocateAmount, 1, lqtyAmount));
         _allocateLQTY(user, lqtyAmount2);
 
@@ -2078,7 +2071,7 @@ contract GovernanceTest is Test {
         // 3. user allocates to baseInitiative1 in epoch 3
         vm.warp(block.timestamp + EPOCH_DURATION); // warp to third epoch
 
-        // clamp lqtyAmount by amount user staked 
+        // clamp lqtyAmount by amount user staked
         vm.assume(lqtyAmount > lqtyAmount2);
         vm.assume(lqtyAmount - lqtyAmount2 > 1);
         uint88 lqtyAmount3 = uint88(bound(allocateAmount, 1, lqtyAmount - lqtyAmount2));
@@ -2086,7 +2079,9 @@ contract GovernanceTest is Test {
 
         // get user voting power at start of epoch 3 from lqtyAllocatedByUserToInitiative
         (, uint32 averageStakingTimestamp2) = governance.userStates(user);
-        assertEq(averageStakingTimestamp1, averageStakingTimestamp2, "averageStakingTimestamp1 != averageStakingTimestamp2");
+        assertEq(
+            averageStakingTimestamp1, averageStakingTimestamp2, "averageStakingTimestamp1 != averageStakingTimestamp2"
+        );
     }
 
     function test_voting_snapshot_start_vs_end_epoch() public {
@@ -2117,12 +2112,13 @@ contract GovernanceTest is Test {
         _stakeLQTY(user, lqtyAmount);
 
         // =========== epoch 2 (start) ==================
-        // 2. user allocates in epoch 2 
+        // 2. user allocates in epoch 2
         vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
 
-        // get initiative voting power at start of epoch 
+        // get initiative voting power at start of epoch
         (uint88 voteLQTY0,, uint32 averageStakingTimestampVoteLQTY0,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower0 = governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestampVoteLQTY0);
+        uint240 currentInitiativePower0 =
+            governance.lqtyToVotes(voteLQTY0, block.timestamp, averageStakingTimestampVoteLQTY0);
         assertEq(currentInitiativePower0, 0, "initiative voting power is > 0");
 
         _allocateLQTY(user, lqtyAmount);
@@ -2137,7 +2133,8 @@ contract GovernanceTest is Test {
 
         // get initiative voting power at start of epoch
         (uint88 voteLQTY1,, uint32 averageStakingTimestampVoteLQTY1,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower1 = governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
+        uint240 currentInitiativePower1 =
+            governance.lqtyToVotes(voteLQTY1, block.timestamp, averageStakingTimestampVoteLQTY1);
 
         // 4a. votes from snapshotting at begging of epoch
         (uint224 votes,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
@@ -2149,7 +2146,7 @@ contract GovernanceTest is Test {
         // revert EVM to state before snapshotting
         vm.revertTo(stateBeforeSnapshottingVotes);
 
-        // 3b. warp to end of third epoch 
+        // 3b. warp to end of third epoch
         vm.warp(block.timestamp + (EPOCH_DURATION * 2) - 1);
         assertEq(3, governance.epoch(), "not in 3rd epoch");
         governance.snapshotVotesForInitiative(baseInitiative1);
@@ -2207,11 +2204,11 @@ contract GovernanceTest is Test {
         // ===== revert to initial state ==========
         // ========================================
 
-        // ===============  epoch 1 =============== 
+        // ===============  epoch 1 ===============
         // revert EVM to state before allocation
         vm.revertTo(stateBeforeAllocation);
 
-        // ===============  epoch 2 (end - just before cutoff) =============== 
+        // ===============  epoch 2 (end - just before cutoff) ===============
         // 2b. user allocates at end of epoch 2
         vm.warp(block.timestamp + (EPOCH_DURATION * 2) - governance.EPOCH_VOTING_CUTOFF()); // warp to end of second epoch before the voting cutoff
 
@@ -2224,7 +2221,11 @@ contract GovernanceTest is Test {
 
         // get voting power from allocation in previous epoch
         (uint224 votesFromAllocatingAtEpochEnd,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
-        assertEq(votesFromAllocatingAtEpochStart, votesFromAllocatingAtEpochEnd, "allocating is more favorable at certain point in epoch");
+        assertEq(
+            votesFromAllocatingAtEpochStart,
+            votesFromAllocatingAtEpochEnd,
+            "allocating is more favorable at certain point in epoch"
+        );
     }
 
     // deallocating is correctly reflected in voting power for next epoch
@@ -2267,7 +2268,7 @@ contract GovernanceTest is Test {
         console2.log("current epoch A: ", governance.epoch());
         governance.snapshotVotesForInitiative(baseInitiative1);
 
-        // 4. votes should be counted in this epoch 
+        // 4. votes should be counted in this epoch
         (uint224 votes,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertGt(votes, 0, "voting power should increase");
 
@@ -2275,7 +2276,7 @@ contract GovernanceTest is Test {
 
         governance.snapshotVotesForInitiative(baseInitiative1);
 
-        // 5. votes should still be counted in this epoch 
+        // 5. votes should still be counted in this epoch
         (uint224 votes2,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertGt(votes2, 0, "voting power should not decrease this epoch");
 
@@ -2284,7 +2285,7 @@ contract GovernanceTest is Test {
         console2.log("current epoch B: ", governance.epoch());
         governance.snapshotVotesForInitiative(baseInitiative1);
 
-        // 6. votes should be decreased in this epoch 
+        // 6. votes should be decreased in this epoch
         (uint224 votes3,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(votes3, 0, "voting power should be decreased in this epoch");
     }
@@ -2328,14 +2329,13 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + EPOCH_DURATION);
         governance.snapshotVotesForInitiative(baseInitiative1);
 
-        (,uint32 averageStakingTimestampBefore) = governance.userStates(user);
+        (, uint32 averageStakingTimestampBefore) = governance.userStates(user);
 
         _deAllocateLQTY(user, 0);
 
-        (,uint32 averageStakingTimestampAfter) = governance.userStates(user);
+        (, uint32 averageStakingTimestampAfter) = governance.userStates(user);
         assertEq(averageStakingTimestampBefore, averageStakingTimestampAfter);
     }
-
 
     // vetoing shouldn't affect voting power of the initiative
     function test_vote_and_veto() public {
@@ -2368,7 +2368,6 @@ contract GovernanceTest is Test {
         // 1. user2 stakes lqty
         _stakeLQTY(user2, lqtyAmount);
 
-
         // =========== epoch 2 (start) ==================
         // 2a. user allocates votes in epoch 2 for initiative
         vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
@@ -2376,7 +2375,7 @@ contract GovernanceTest is Test {
         _allocateLQTY(user, lqtyAmount);
 
         // 2b. user2 allocates vetos for initiative
-        _veto(user2, lqtyAmount); 
+        _veto(user2, lqtyAmount);
 
         // =========== epoch 3 ==================
         // 3. warp to third epoch and check voting power
@@ -2386,12 +2385,13 @@ contract GovernanceTest is Test {
 
         // voting power for initiative should be the same as votes from snapshot
         (uint88 voteLQTY,, uint32 averageStakingTimestampVoteLQTY,,) = governance.initiativeStates(baseInitiative1);
-        uint240 currentInitiativePower = governance.lqtyToVotes(voteLQTY, block.timestamp, averageStakingTimestampVoteLQTY);
+        uint240 currentInitiativePower =
+            governance.lqtyToVotes(voteLQTY, block.timestamp, averageStakingTimestampVoteLQTY);
 
-        // 4. votes should not affect accounting for votes 
+        // 4. votes should not affect accounting for votes
         (uint224 votes,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(votes, currentInitiativePower, "voting power of initiative should not be affected by vetos");
-    } 
+    }
 
     function _stakeLQTY(address staker, uint88 amount) internal {
         vm.startPrank(staker);
@@ -2404,14 +2404,14 @@ contract GovernanceTest is Test {
 
     function _allocateLQTY(address allocator, uint88 amount) internal {
         vm.startPrank(allocator);
-        
+
         // always pass all possible initiatives to deregister for simplicity
         address[] memory initiativesToDeRegister = new address[](4);
         initiativesToDeRegister[0] = baseInitiative1;
         initiativesToDeRegister[1] = baseInitiative2;
         initiativesToDeRegister[2] = baseInitiative3;
         initiativesToDeRegister[3] = address(0x123123);
-        
+
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
         int88[] memory deltaLQTYVotes = new int88[](1);

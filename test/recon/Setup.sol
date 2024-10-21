@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.0;
 
@@ -26,12 +25,12 @@ abstract contract Setup is BaseSetup {
     address internal user2 = address(0x537C8f3d3E18dF5517a58B3fB9D9143697996802); // derived using makeAddrAndKey
     address internal stakingV1;
     address internal userProxy;
-    address[] internal users = new address[](2); 
+    address[] internal users = new address[](2);
     address[] internal deployedInitiatives;
     uint256 internal user2Pk = 23868421370328131711506074113045611601786642648093516849953535378706721142721; // derived using makeAddrAndKey
     bool internal claimedTwice;
     bool internal unableToClaim;
-    
+
     mapping(uint16 => uint88) internal ghostTotalAllocationAtEpoch;
     mapping(address => uint88) internal ghostLqtyAllocationByUserAtEpoch;
     // initiative => epoch => bribe
@@ -48,71 +47,70 @@ abstract contract Setup is BaseSetup {
     uint32 internal constant EPOCH_DURATION = 604800;
     uint32 internal constant EPOCH_VOTING_CUTOFF = 518400;
 
+    function setup() internal virtual override {
+        vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back after the constructor
+        // Random TS that is realistic
+        users.push(user);
+        users.push(user2);
 
-  function setup() internal virtual override {
-      vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back after the constructor
-      // Random TS that is realistic
-      users.push(user);
-      users.push(user2);
+        uint256 initialMintAmount = type(uint88).max;
+        lqty = new MockERC20Tester(user, initialMintAmount, "Liquity", "LQTY", 18);
+        lusd = new MockERC20Tester(user, initialMintAmount, "Liquity USD", "LUSD", 18);
+        lqty.mint(user2, initialMintAmount);
 
-      uint256 initialMintAmount = type(uint88).max;
-      lqty = new MockERC20Tester(user, initialMintAmount, "Liquity", "LQTY", 18);
-      lusd = new MockERC20Tester(user, initialMintAmount, "Liquity USD", "LUSD", 18);
-      lqty.mint(user2, initialMintAmount);
+        stakingV1 = address(new MockStakingV1(address(lqty)));
+        governance = new Governance(
+            address(lqty),
+            address(lusd),
+            stakingV1,
+            address(lusd), // bold
+            IGovernance.Configuration({
+                registrationFee: REGISTRATION_FEE,
+                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+                minClaim: MIN_CLAIM,
+                minAccrual: MIN_ACCRUAL,
+                epochStart: uint32(block.timestamp - EPOCH_DURATION),
+                /// @audit will this work?
+                epochDuration: EPOCH_DURATION,
+                epochVotingCutoff: EPOCH_VOTING_CUTOFF
+            }),
+            deployedInitiatives // no initial initiatives passed in because don't have cheatcodes for calculating address where gov will be deployed
+        );
 
-      stakingV1 = address(new MockStakingV1(address(lqty)));
-      governance = new Governance(
-          address(lqty), 
-          address(lusd),
-          stakingV1,
-          address(lusd), // bold
-          IGovernance.Configuration({
-              registrationFee: REGISTRATION_FEE,
-              registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-              unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-              registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-              unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-              votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-              minClaim: MIN_CLAIM,
-              minAccrual: MIN_ACCRUAL,
-              epochStart: uint32(block.timestamp - EPOCH_DURATION), /// @audit will this work?
-              epochDuration: EPOCH_DURATION,
-              epochVotingCutoff: EPOCH_VOTING_CUTOFF
-          }),
-          deployedInitiatives // no initial initiatives passed in because don't have cheatcodes for calculating address where gov will be deployed
-      );
+        // deploy proxy so user can approve it
+        userProxy = governance.deployUserProxy();
+        lqty.approve(address(userProxy), initialMintAmount);
+        lusd.approve(address(userProxy), initialMintAmount);
 
-      // deploy proxy so user can approve it
-      userProxy = governance.deployUserProxy();
-      lqty.approve(address(userProxy), initialMintAmount);
-      lusd.approve(address(userProxy), initialMintAmount);
+        // approve governance for user's tokens
+        lqty.approve(address(governance), initialMintAmount);
+        lusd.approve(address(governance), initialMintAmount);
 
-      // approve governance for user's tokens
-      lqty.approve(address(governance), initialMintAmount);
-      lusd.approve(address(governance), initialMintAmount);
+        // register one of the initiatives, leave the other for registering/unregistering via TargetFunction
+        initiative1 = IBribeInitiative(address(new BribeInitiative(address(governance), address(lusd), address(lqty))));
+        deployedInitiatives.push(address(initiative1));
 
-      // register one of the initiatives, leave the other for registering/unregistering via TargetFunction
-      initiative1 = IBribeInitiative(address(new BribeInitiative(address(governance), address(lusd), address(lqty))));
-      deployedInitiatives.push(address(initiative1));
+        governance.registerInitiative(address(initiative1));
+    }
 
-      governance.registerInitiative(address(initiative1));
-  }
+    function _getDeployedInitiative(uint8 index) internal returns (address initiative) {
+        return deployedInitiatives[index % deployedInitiatives.length];
+    }
 
-  function _getDeployedInitiative(uint8 index) internal returns (address initiative) {
-    return deployedInitiatives[index % deployedInitiatives.length];
-  }
+    function _getClampedTokenBalance(address token, address holder) internal returns (uint256 balance) {
+        return IERC20(token).balanceOf(holder);
+    }
 
-  function _getClampedTokenBalance(address token, address holder) internal returns (uint256 balance) {
-    return IERC20(token).balanceOf(holder);
-  }
-
-  function _getRandomUser(uint8 index) internal returns (address randomUser) { 
-    return users[index % users.length];
-  }
+    function _getRandomUser(uint8 index) internal returns (address randomUser) {
+        return users[index % users.length];
+    }
 
     function _getInitiativeStatus(address _initiative) internal returns (uint256) {
-      (Governance.InitiativeStatus status, , ) = governance.getInitiativeState(_getDeployedInitiative(0)); 
-      return uint256(status);
-  }
-  
+        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(_getDeployedInitiative(0));
+        return uint256(status);
+    }
 }

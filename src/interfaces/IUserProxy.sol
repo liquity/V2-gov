@@ -9,9 +9,7 @@ import {PermitParams} from "../utils/Types.sol";
 
 interface IUserProxy {
     event Stake(uint256 amount, address lqtyFrom);
-    event Unstake(
-        uint256 lqtyUnstaked, address indexed lqtyRecipient, uint256 lusdAmount, uint256 ethAmount
-    );
+    event Unstake(uint256 lqtyUnstaked, address indexed lqtyRecipient, uint256 lusdAmount, uint256 ethAmount);
 
     /// @notice Address of the LQTY token
     /// @return lqty Address of the LQTY token
@@ -41,9 +39,7 @@ interface IUserProxy {
     /// @param _recipient Address to which the tokens should be sent
     /// @return lusdAmount Amount of LUSD tokens claimed
     /// @return ethAmount Amount of ETH claimed
-    function unstake(uint256 _amount, address _recipient)
-        external
-        returns (uint256 lusdAmount, uint256 ethAmount);
+    function unstake(uint256 _amount, address _recipient) external returns (uint256 lusdAmount, uint256 ethAmount);
     /// @notice Returns the current amount LQTY staked by a user in the V1 staking contract
     /// @return staked Amount of LQTY tokens staked
     function staked() external view returns (uint88);

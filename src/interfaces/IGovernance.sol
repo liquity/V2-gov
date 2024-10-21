@@ -131,7 +131,8 @@ interface IGovernance {
     struct GlobalState {
         uint88 countedVoteLQTY; // Total LQTY that is included in vote counting
         uint32 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
-    } /// TODO: Bold balance? Prob cheaper
+    }
+    /// TODO: Bold balance? Prob cheaper
 
     /// @notice Returns the user's state
     /// @param _user Address of the user
@@ -249,8 +250,12 @@ interface IGovernance {
     /// @param _initiatives Addresses of the initiatives to allocate to, can match or be different from `_resetInitiatives`
     /// @param _absoluteLQTYVotes Delta LQTY to allocate to the initiatives as votes
     /// @param absoluteLQTYVetos Delta LQTY to allocate to the initiatives as vetos
-    function allocateLQTY(address[] calldata _resetInitiatives, address[] memory _initiatives, int88[] memory _absoluteLQTYVotes, int88[] memory absoluteLQTYVetos)
-        external;
+    function allocateLQTY(
+        address[] calldata _resetInitiatives,
+        address[] memory _initiatives,
+        int88[] memory _absoluteLQTYVotes,
+        int88[] memory absoluteLQTYVetos
+    ) external;
 
     /// @notice Splits accrued funds according to votes received between all initiatives
     /// @param _initiative Addresse of the initiative
