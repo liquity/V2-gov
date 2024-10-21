@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {IGovernance} from "./IGovernance.sol";
+
 interface IInitiative {
     /// @notice Callback hook that is called by Governance after the initiative was successfully registered
     /// @param _atEpoch Epoch at which the initiative is registered
@@ -13,9 +15,16 @@ interface IInitiative {
     /// @notice Callback hook that is called by Governance after the LQTY allocation is updated by a user
     /// @param _currentEpoch Epoch at which the LQTY allocation is updated
     /// @param _user Address of the user that updated their LQTY allocation
-    /// @param _voteLQTY Allocated voting LQTY
-    /// @param _vetoLQTY Allocated vetoing LQTY
-    function onAfterAllocateLQTY(uint16 _currentEpoch, address _user, uint88 _voteLQTY, uint88 _vetoLQTY) external;
+    /// @param _userState User state
+    /// @param _allocation Allocation state from user to initiative
+    /// @param _initiativeState Initiative state
+    function onAfterAllocateLQTY(
+        uint16 _currentEpoch,
+        address _user,
+        IGovernance.UserState calldata _userState,
+        IGovernance.Allocation calldata _allocation,
+        IGovernance.InitiativeState calldata _initiativeState
+    ) external;
 
     /// @notice Callback hook that is called by Governance after the claim for the last epoch was distributed
     /// to the initiative
