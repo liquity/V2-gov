@@ -12,6 +12,7 @@ import {DoubleLinkedList} from "./utils/DoubleLinkedList.sol";
 
 
 import {EncodingDecodingLib} from "src/utils/EncodingDecodingLib.sol";
+import {console} from "forge-std/console.sol";
 
 
 contract BribeInitiative is IInitiative, IBribeInitiative {
@@ -129,8 +130,23 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             bribeTokenAmount += bribeTokenAmount_;
         }
 
-        if (boldAmount != 0) bold.safeTransfer(msg.sender, boldAmount);
-        if (bribeTokenAmount != 0) bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
+        if (boldAmount != 0) {
+            uint256 max = bold.balanceOf(address(this));
+            if(boldAmount > max) {
+                boldAmount = max;
+            }
+            bold.safeTransfer(msg.sender, boldAmount);
+        }
+        if (bribeTokenAmount != 0) {
+            uint256 max = bribeToken.balanceOf(address(this));
+            if(bribeTokenAmount > max) {
+                bribeTokenAmount = max;
+            }
+            bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
+        }
+            
+        
+        
     }
 
     /// @inheritdoc IInitiative
@@ -180,6 +196,20 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     function _loadLQTYAllocation(address _user, uint16 _epoch) private view returns (uint88, uint32) {
         return _decodeLQTYAllocation(lqtyAllocationByUserAtEpoch[_user].items[_epoch].value);
+    }
+
+    /// @inheritdoc IBribeInitiative
+    function getMostRecentUserEpoch(address _user) external view returns (uint16) {
+        uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
+
+        return mostRecentUserEpoch;
+    }
+
+    /// @inheritdoc IBribeInitiative
+    function getMostRecentTotalEpoch() external view returns (uint16) {
+        uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
+
+        return mostRecentTotalEpoch;
     }
 
     function onAfterAllocateLQTY(

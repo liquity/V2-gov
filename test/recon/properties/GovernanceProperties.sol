@@ -280,6 +280,23 @@ abstract contract GovernanceProperties is BeforeAfter {
 
     }
 
+    function check_claim_soundness() public {
+        // Check if initiative is claimable
+        // If it is assert the check
+        uint256 initiativeVotesSum;
+        for(uint256 i; i < deployedInitiatives.length; i++) {
+            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+
+            (Governance.InitiativeVoteSnapshot memory initiativeSnapshot, Governance.InitiativeState memory initiativeState,) = governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
+
+            if(status == Governance.InitiativeStatus.CLAIMABLE) {
+                t(governance.epoch() > 0, "Can never be claimable in epoch 0!"); // Overflow Check, also flags misconfiguration
+                // Normal check
+                t(initiativeState.lastEpochClaim < governance.epoch() - 1, "Cannot be CLAIMABLE, should be CLAIMED");
+            }
+        }
+    }
+
 
     function _getUserAllocation(address theUser, address initiative) internal view returns (uint88 votes, uint88 vetos) {
         (votes, vetos, ) = governance.lqtyAllocatedByUserToInitiative(theUser, initiative);

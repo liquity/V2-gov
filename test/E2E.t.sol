@@ -214,6 +214,6 @@ contract E2ETests is Test {
     function _getInitiativeStatus(address _initiative) internal returns (uint256) {
       (Governance.InitiativeStatus status, , ) = governance.getInitiativeState(_initiative); 
       return uint256(status);
-  }
+      }
 
 }

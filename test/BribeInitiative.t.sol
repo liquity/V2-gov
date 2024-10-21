@@ -314,6 +314,39 @@ contract BribeInitiativeTest is Test {
         assertEq(bribeTokenAmount, 1e18);
     }
 
+    // user that votes in an epoch that has bribes allocated to it will receive bribes on claiming
+    // forge test --match-test test_high_deny_last_claim -vv
+    function test_high_deny_last_claim() public {
+        /// @audit Overflow due to rounding error in bribes total math vs user math
+        // See: `test_we_can_compare_votes_and_vetos`
+        // And `test_crit_user_can_dilute_total_votes`
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // =========== epoch 1 ==================
+        // user stakes in epoch 1
+        vm.warp(block.timestamp + 5);
+        _stakeLQTY(user1, 1e18);
+        vm.warp(block.timestamp + 7);
+        _stakeLQTY(user2, 1e18);
+
+        // lusdHolder deposits lqty and lusd bribes claimable in epoch 3
+        _depositBribe(1e18, 1e18, governance.epoch());
+        _allocateLQTY(user1, 1e18, 0);
+        _allocateLQTY(user2, 1, 0);
+        _allocateLQTY(user2, 0, 0);
+
+        // =========== epoch 2 ==================
+        vm.warp(block.timestamp + EPOCH_DURATION); // Needs to cause rounding error
+        assertEq(3, governance.epoch(), "not in epoch 2");
+
+        // user votes on bribeInitiative
+
+        // user should receive bribe from their allocated stake
+        (uint256 boldAmount, uint256 bribeTokenAmount) = _claimBribe(user1, 2, 2, 2);
+        assertEq(boldAmount, 1e18);
+        assertEq(bribeTokenAmount, 1e18);
+    }
+
     // check that bribes deposited after user votes can be claimed
     function test_claimBribes_deposited_after_vote() public {
         // =========== epoch 1 ==================

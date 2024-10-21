@@ -51,21 +51,56 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
 
         for(uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
-            (uint88 lqtyAllocatedByUserAtEpoch, ) = initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
-            eq(ghostLqtyAllocationByUserAtEpoch[user], lqtyAllocatedByUserAtEpoch, "BI-03: Accounting for user allocation amount is always correct");
+
+            (uint88 voteLQTY, , uint16 epoch) = governance.lqtyAllocatedByUserToInitiative(user, deployedInitiatives[i]);
+
+            try initiative.lqtyAllocatedByUserAtEpoch(user, epoch) returns (uint88 amt, uint32) {
+                eq(voteLQTY, amt, "Allocation must match");
+            } catch {
+                t(false, "Allocation doesn't match governance");
+            }
         }
     }
 
-    function property_BI04() public {
+function property_BI04() public {
         uint16 currentEpoch = governance.epoch();
         for(uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
-            (uint88 totalLQTYAllocatedAtEpoch, ) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
-            eq(ghostTotalAllocationAtEpoch[currentEpoch], totalLQTYAllocatedAtEpoch, "BI-04: Accounting for total allocation amount is always correct");
+
+            // NOTE: This doesn't revert in the future!
+            uint88 lastKnownLQTYAlloc = _getLastLQTYAllocationKnown(initiative, currentEpoch);
+
+            // We compare when we don't get a revert (a change happened this epoch)
+
+            (
+                uint88 voteLQTY,
+                ,
+                ,
+                ,
+                
+            ) = governance.initiativeStates(deployedInitiatives[i]);
+
+            
+
+            eq(lastKnownLQTYAlloc, voteLQTY, "BI-04: Initiative Account matches governace");
         }
     }
 
-    // TODO: double check that this implementation is correct
+    function _getLastLQTYAllocationKnown(IBribeInitiative initiative, uint16 targetEpoch) internal returns (uint88) {
+        uint16 currenEpoch;
+        uint88 found;
+
+        uint16 mostRecentTotalEpoch = initiative.getMostRecentTotalEpoch();
+ 
+        if(targetEpoch < mostRecentTotalEpoch) {
+            (uint88 totalLQTYAllocatedAtEpoch, uint32 ts) = initiative.totalLQTYAllocatedByEpoch(targetEpoch);
+            return totalLQTYAllocatedAtEpoch;
+        }
+
+        (uint88 totalLQTYAllocatedAtEpoch, uint32 ts) = initiative.totalLQTYAllocatedByEpoch(mostRecentTotalEpoch); 
+        return totalLQTYAllocatedAtEpoch;
+    }
+
     function property_BI05() public {
         // users can't claim for current epoch so checking for previous
         uint16 checkEpoch = governance.epoch() - 1;
@@ -133,6 +168,27 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
             }
             (uint88 totalLQTYAllocated, ) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
             eq(sumLqtyAllocated, totalLQTYAllocated, "BI-07: Sum of user LQTY allocations for an epoch != total LQTY allocation for the epoch");
+        }
+    }
+
+
+    function property_sum_of_votes_in_bribes_match() public { 
+        uint16 currentEpoch = governance.epoch();
+
+        // sum user allocations for an epoch
+        // check that this matches the total allocation for the epoch
+        for(uint8 i; i < deployedInitiatives.length; i++) {
+            IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
+            uint256 sumOfPower;
+            for(uint8 j; j < users.length; j++) {
+                (uint88 lqtyAllocated, uint32 userTS) = initiative.lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
+                sumOfPower += governance.lqtyToVotes(lqtyAllocated, userTS, uint32(block.timestamp));
+            }
+            (uint88 totalLQTYAllocated, uint32 totalTS) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
+
+            uint256 totalRecordedPower = governance.lqtyToVotes(totalLQTYAllocated, totalTS, uint32(block.timestamp));
+
+            gte(totalRecordedPower, sumOfPower, "property_sum_of_votes_in_bribes_match");
         }
     }
 

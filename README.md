@@ -44,14 +44,11 @@ In order to unstake and withdraw LQTY, a User must first deallocate a sufficient
 Initiative can be added permissionlessly, requiring the payment of a 100 BOLD fee, and in the following epoch become active
 for voting. During each snapshot, Initiatives which received as sufficient number of Votes that their incentive payout equals
 at least 500 BOLD, will be eligible to Claim ("minimum qualifying threshold"). Initiatives failing to meet the minimum qualifying threshold will not qualify to claim for that epoch.
-Initiatives failing to meet the minimum qualifying threshold for a claim during four consecutive epochs may be deregistered permissionlessly, requiring
-reregistration to become eligible for voting again.
+Initiatives failing to meet the minimum qualifying threshold for a claim during four consecutive epochs may be deregistered permissionlessly, requiring reregistration to become eligible for voting again.
 
-Claims for Initiatives which have met the minimum qualifying threshold, can be claimed permissionlessly, but must be claimed by the end of the epoch
-in which they are awarded. Failure to do so will result in the unclaimed portion being reused in the following epoch.
+Claims for Initiatives which have met the minimum qualifying threshold, can be claimed permissionlessly, but must be claimed by the end of the epoch in which they are awarded. Failure to do so will result in the unclaimed portion being reused in the following epoch.
 
-As Initiatives are assigned to arbitrary addresses, they can be used for any purpose, including EOAs, Multisigs, or smart contracts designed
-for targetted purposes. Smart contracts should be designed in a way that they can support BOLD and include any additional logic about how BOLD is to be used.
+As Initiatives are assigned to arbitrary addresses, they can be used for any purpose, including EOAs, Multisigs, or smart contracts designed for targetted purposes. Smart contracts should be designed in a way that they can support BOLD and include any additional logic about how BOLD is to be used.
 
 ### Malicious Initiatives
 
@@ -82,8 +79,7 @@ BaseInitiative.sol is a reference implementation which allows for bribes to be s
 ## Example Initiatives
 
 To facilitate the development of liquidity for BOLD and other relevant tokens after the launch of Liquity v2, initial example initiatives will be added.
-They will be available from the first epoch in which claims are available (epoch 1), added in the construtor. Following epoch 1, these examples have
-no further special status and can be removed by LQTY voters
+They will be available from the first epoch in which claims are available (epoch 1), added in the construtor. Following epoch 1, these examples have no further special status and can be removed by LQTY voters
 
 ### Curve v2
 
@@ -109,8 +105,24 @@ see: `test_voteVsVeto` as well as the miro and comments
 
 See `test_property_sum_of_lqty_global_user_matches_0`
 
-## Voting power total sum can be gamed
+## Testing
 
-Old votes retain their avgTimestamp, meaning that keeping old allocations is a way to get more votes in that re-setting and allocating again
+To run foundry, just 
+```
+forge test
+```
 
-https://github.com/liquity/V2-gov/issues/42
+
+Please note the `TrophiesToFoundry`, which are repros of broken invariants, left failing on purpose
+
+### Invariant Testing
+
+We had a few issues with Medusa due to the use of `vm.warp`, we recommend using Echidna
+
+Run echidna with:
+
+```
+echidna . --contract CryticTester --config echidna.yaml
+```
+
+You can also run Echidna on Recon by simply pasting the URL of the Repo / Branch
