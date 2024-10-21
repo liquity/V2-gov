@@ -81,8 +81,7 @@ contract GovernanceTest is Test {
     // All calls should never revert due to malicious initiative
     function test_all_revert_attacks_hardcoded() public {
         uint256 zeroSnapshot = vm.snapshot();
-        uint256 timeIncrease = 86400 * 30;
-        vm.warp(block.timestamp + timeIncrease);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         vm.startPrank(user);
 
@@ -97,7 +96,6 @@ contract GovernanceTest is Test {
         assertEq(allocatedLQTY, 0);
         // first deposit should have an averageStakingTimestamp if block.timestamp
         assertEq(averageStakingTimestamp, block.timestamp);
-        vm.warp(block.timestamp + timeIncrease);
         vm.stopPrank();
 
 

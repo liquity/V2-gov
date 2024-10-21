@@ -551,7 +551,7 @@ contract GovernanceTest is Test {
 
         lqty.approve(address(userProxy), 1e18);
         governance.depositLQTY(1e18);
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         // should revert if `_initiative` is zero
         vm.expectRevert("Governance: zero-address");
@@ -569,6 +569,7 @@ contract GovernanceTest is Test {
     }
 
     // TODO: Broken: Fix it by simplifying most likely
+    // forge test --match-test test_unregisterInitiative -vv
     function test_unregisterInitiative() public {
         vm.startPrank(user);
 
@@ -595,7 +596,7 @@ contract GovernanceTest is Test {
         lusd.approve(address(governance), 1e18);
         lqty.approve(address(userProxy), 1e18);
         governance.depositLQTY(1e18);
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         // should revert if the initiative isn't registered
         vm.expectRevert("Governance: initiative-not-registered");
@@ -609,13 +610,13 @@ contract GovernanceTest is Test {
         vm.expectRevert("Governance: initiative-in-warm-up"); /// @audit should fail due to not waiting enough time
         governance.unregisterInitiative(baseInitiative3);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         // should revert if the initiative is still active or the vetos don't meet the threshold
         /// @audit TO REVIEW, this never got any votes, so it seems correct to remove
         // No votes = can be kicked
-        // vm.expectRevert("Governance: cannot-unregister-initiative");
-        // governance.unregisterInitiative(baseInitiative3);
+        vm.expectRevert("Governance: cannot-unregister-initiative");
+        governance.unregisterInitiative(baseInitiative3);
 
         snapshot = IGovernance.VoteSnapshot(1e18, governance.epoch() - 1);
         vm.store(
@@ -627,24 +628,7 @@ contract GovernanceTest is Test {
         assertEq(votes, 1e18);
         assertEq(forEpoch, governance.epoch() - 1);
 
-        IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot =
-            IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0, 0);
-        vm.store(
-            address(governance),
-            keccak256(abi.encode(baseInitiative3, uint256(3))),
-            bytes32(
-                abi.encodePacked(
-                    uint16(initiativeSnapshot.lastCountedEpoch),
-                    uint16(initiativeSnapshot.forEpoch),
-                    uint224(initiativeSnapshot.votes)
-                )
-            )
-        );
-        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch, ) =
-            governance.votesForInitiativeSnapshot(baseInitiative3);
-        assertEq(votes_, 0);
-        assertEq(forEpoch_, governance.epoch() - 1);
-        assertEq(lastCountedEpoch, 0);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION() * 3); // 3 more epochs
 
         governance.unregisterInitiative(baseInitiative3);
 
@@ -1015,7 +999,7 @@ contract GovernanceTest is Test {
         vm.expectRevert("Governance: active-vote-fsm");
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         (allocatedLQTY,) = governance.userStates(user);
@@ -1033,7 +1017,7 @@ contract GovernanceTest is Test {
         assertEq(vetoLQTY, 0);
         // should update the average staking timestamp for the initiative based on the average staking timestamp of the user's
         // voting and vetoing LQTY
-        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - 365 days);
+        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - governance.EPOCH_DURATION());
         assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
         // should remove or add the initiatives voting LQTY from the counter
@@ -1057,7 +1041,7 @@ contract GovernanceTest is Test {
 
         vm.stopPrank();
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         vm.startPrank(user2);
 
@@ -1086,7 +1070,7 @@ contract GovernanceTest is Test {
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 2e18);
         assertEq(vetoLQTY, 0);
-        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - 365 days);
+        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - governance.EPOCH_DURATION());
         assertGt(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
 
@@ -1140,7 +1124,7 @@ contract GovernanceTest is Test {
         vm.expectRevert("Governance: active-vote-fsm");
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         (allocatedLQTY,) = governance.userStates(user);
@@ -1158,7 +1142,7 @@ contract GovernanceTest is Test {
         assertEq(vetoLQTY, 0);
         // should update the average staking timestamp for the initiative based on the average staking timestamp of the user's
         // voting and vetoing LQTY
-        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - 365 days);
+        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - governance.EPOCH_DURATION(), "TS");
         assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
         // should remove or add the initiatives voting LQTY from the counter
@@ -1182,7 +1166,7 @@ contract GovernanceTest is Test {
 
         vm.stopPrank();
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         vm.startPrank(user2);
 
@@ -1211,7 +1195,7 @@ contract GovernanceTest is Test {
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 2e18);
         assertEq(vetoLQTY, 0);
-        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - 365 days);
+        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - governance.EPOCH_DURATION(), "TS 2");
         assertGt(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
 
@@ -1256,7 +1240,7 @@ contract GovernanceTest is Test {
         deltaLQTYVotes[1] = 1e18;
         int88[] memory deltaLQTYVetos = new int88[](2);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
@@ -1297,7 +1281,7 @@ contract GovernanceTest is Test {
         deltaLQTYVotes[0] = int88(uint88(_deltaLQTYVotes));
         int88[] memory deltaLQTYVetos = new int88[](1);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
@@ -1321,7 +1305,7 @@ contract GovernanceTest is Test {
         int88[] memory deltaLQTYVetos = new int88[](1);
         deltaLQTYVetos[0] = int88(uint88(_deltaLQTYVetos));
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         /// @audit needs overflow tests!!
@@ -1338,7 +1322,7 @@ contract GovernanceTest is Test {
         lqty.approve(address(userProxy), 1000e18);
         governance.depositLQTY(1000e18);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         vm.stopPrank();
 
@@ -1425,7 +1409,7 @@ contract GovernanceTest is Test {
         lqty.approve(address(userProxy), 1000e18);
         governance.depositLQTY(1000e18);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         vm.stopPrank();
 
@@ -1492,7 +1476,7 @@ contract GovernanceTest is Test {
     function test_multicall() public {
         vm.startPrank(user);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         uint88 lqtyAmount = 1000e18;
         uint256 lqtyBalance = lqty.balanceOf(user);
@@ -1560,13 +1544,13 @@ contract GovernanceTest is Test {
 
         lqty.approve(address(userProxy), 1e18);
         governance.depositLQTY(1e18);
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         governance.registerInitiative(address(mockInitiative));
         uint16 atEpoch = governance.registeredInitiatives(address(mockInitiative));
         assertEq(atEpoch, governance.epoch());
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(mockInitiative);
@@ -1645,7 +1629,7 @@ contract GovernanceTest is Test {
         deltaLQTYVetos[0] = 0;
         deltaLQTYVetos[1] = 0;
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
         vm.expectRevert("Governance: insufficient-or-allocated-lqty");
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 

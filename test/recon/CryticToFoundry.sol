@@ -36,41 +36,6 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
         property_BI04();
     }
 
-    // forge test --match-test test_property_BI04_0 -vv 
-    function test_property_BI04_0() public {
-
-            governance_depositLQTY(2);
-
-            vm.roll(block.number + 1);
-            vm.warp(block.timestamp + 794178);
-            check_skip_consistecy(0);
-
-            IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(0));
-
-            (uint88 totalLQTYAllocatedAtEpochPrev, ) = initiative.totalLQTYAllocatedByEpoch(governance.epoch());
-            vm.roll(block.number + 1);
-            vm.warp(block.timestamp + 1022610);
-            
-            governance_allocateLQTY_clamped_single_initiative(0,1,0);
-
-            (uint88 totalLQTYAllocatedAtEpoch, ) = initiative.totalLQTYAllocatedByEpoch(governance.epoch());
-            (
-                uint88 voteLQTY,
-                ,
-                ,
-                ,
-                
-            ) = governance.initiativeStates(_getDeployedInitiative(0));
-
-            check_unregisterable_consistecy(0);
-
-            console.log("totalLQTYAllocatedAtEpochPrev", totalLQTYAllocatedAtEpochPrev);
-            console.log("totalLQTYAllocatedAtEpoch", totalLQTYAllocatedAtEpoch);
-            console.log("voteLQTY", voteLQTY);
-
-            property_BI04();
-    }
-
 
 // forge test --match-test test_property_resetting_never_reverts_0 -vv 
  function test_property_resetting_never_reverts_0() public {

@@ -613,9 +613,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             (InitiativeStatus status, , ) = getInitiativeState(initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
 
             if(deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
-                /// @audit INVARIANT: `check_unregisterable_consistecy` 
-                // FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives - Prob should fix
-                require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED  || status == InitiativeStatus.UNREGISTERABLE, "Governance: active-vote-fsm");
+                /// @audit FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives | This fixes it
+                require(status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE || status == InitiativeStatus.CLAIMED, "Governance: active-vote-fsm");
             }
             
             if(status == InitiativeStatus.DISABLED) {

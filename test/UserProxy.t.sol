@@ -115,7 +115,7 @@ contract UserProxyTest is Test {
         assertEq(lusdAmount, 0);
         assertEq(ethAmount, 0);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + 7 days);
 
         uint256 ethBalance = uint256(vm.load(stakingV1, bytes32(uint256(3))));
         vm.store(stakingV1, bytes32(uint256(3)), bytes32(abi.encodePacked(ethBalance + 1e18)));
