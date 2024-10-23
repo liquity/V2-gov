@@ -40,7 +40,7 @@ Governance:
   - should return the correct number of seconds elapsed within an epoch for a given block.timestamp
 - lqtyToVotes()
   - should not revert under any input
-- calculateVotingThreshold()
+- getLatestVotingThreshold()
   - should return a votingThreshold that's either
     - high enough such that MIN_CLAIM is met
     - 4% of the votes from the previous epoch

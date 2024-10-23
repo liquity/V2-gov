@@ -7,6 +7,6 @@
 [submodule "lib/v4-core"]
 	path = lib/v4-core
 	url = https://github.com/Uniswap/v4-core
-[submodule "lib/solmate"]
-	path = lib/solmate
-	url = git@github.com:Transmissions11/solmate
+[submodule "lib/chimera"]
+	path = lib/chimera
+	url = https://github.com/Recon-Fuzz/chimera

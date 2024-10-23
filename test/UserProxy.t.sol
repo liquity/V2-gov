@@ -111,11 +111,11 @@ contract UserProxyTest is Test {
 
         userProxy.stake(1e18, user);
 
-        (uint256 lusdAmount, uint256 ethAmount) = userProxy.unstake(0, user, user);
+        (uint256 lusdAmount, uint256 ethAmount) = userProxy.unstake(0, user);
         assertEq(lusdAmount, 0);
         assertEq(ethAmount, 0);
 
-        vm.warp(block.timestamp + 365 days);
+        vm.warp(block.timestamp + 7 days);
 
         uint256 ethBalance = uint256(vm.load(stakingV1, bytes32(uint256(3))));
         vm.store(stakingV1, bytes32(uint256(3)), bytes32(abi.encodePacked(ethBalance + 1e18)));
@@ -123,7 +123,7 @@ contract UserProxyTest is Test {
         uint256 lusdBalance = uint256(vm.load(stakingV1, bytes32(uint256(4))));
         vm.store(stakingV1, bytes32(uint256(4)), bytes32(abi.encodePacked(lusdBalance + 1e18)));
 
-        (lusdAmount, ethAmount) = userProxy.unstake(1e18, user, user);
+        (lusdAmount, ethAmount) = userProxy.unstake(1e18, user);
         assertEq(lusdAmount, 1e18);
         assertEq(ethAmount, 1e18);
 
