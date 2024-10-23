@@ -95,6 +95,16 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         }
     }
 
+    function governance_claimForInitiativeDoesntRevert(uint8 initiativeIndex) public withChecks {
+        require(governance.epoch() > 2); // Prevent reverts due to timewarp
+        address initiative = _getDeployedInitiative(initiativeIndex);
+
+        try governance.claimForInitiative(initiative) {
+        } catch {
+            t(false, "claimForInitiative should never revert");
+        }
+    }
+
     function governance_claimFromStakingV1(uint8 recipientIndex) public withChecks {
         address rewardRecipient = _getRandomUser(recipientIndex);
         governance.claimFromStakingV1(rewardRecipient);
