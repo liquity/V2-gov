@@ -19,10 +19,13 @@ import {Hooks} from "../src/utils/BaseHook.sol";
 import {MockStakingV1} from "../test/mocks/MockStakingV1.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
 
+import "forge-std/console2.sol";
+
 contract DeploySepoliaScript is Script, Deployers {
+    address constant BOLD_ADDRESS = 0x31764dCd10FfF1514DB117e3Db84b48b30db5B43;
     // Environment Constants
     MockERC20 private lqty;
-    MockERC20 private bold;
+    MockERC20 private lusd;
     address private stakingV1;
     MockERC20 private usdc;
 
@@ -72,7 +75,7 @@ contract DeploySepoliaScript is Script, Deployers {
 
     function deployEnvironment() private {
         lqty = deployMockERC20("Liquity", "LQTY", 18);
-        bold = deployMockERC20("Bold", "BOLD", 18);
+        lusd = deployMockERC20("Liquity USD", "LUSD", 18);
         usdc = deployMockERC20("USD Coin", "USDC", 6);
         stakingV1 = address(new MockStakingV1(address(lqty)));
     }
@@ -80,9 +83,9 @@ contract DeploySepoliaScript is Script, Deployers {
     function deployGovernance() private {
         governance = new Governance(
             address(lqty),
-            address(bold),
+            address(lusd),
             stakingV1,
-            address(bold),
+            BOLD_ADDRESS,
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
@@ -113,7 +116,7 @@ contract DeploySepoliaScript is Script, Deployers {
             type(UniV4Donations).creationCode,
             abi.encode(
                 gov,
-                address(bold),
+                BOLD_ADDRESS,
                 address(lqty),
                 block.timestamp,
                 EPOCH_DURATION,
@@ -126,7 +129,7 @@ contract DeploySepoliaScript is Script, Deployers {
 
         uniV4Donations = new UniV4Donations{salt: salt}(
             gov,
-            address(bold),
+            BOLD_ADDRESS,
             address(lqty),
             block.timestamp,
             EPOCH_DURATION,
@@ -141,7 +144,7 @@ contract DeploySepoliaScript is Script, Deployers {
 
     function deployCurveV2GaugeRewards(uint256 _nonce) private {
         address[] memory _coins = new address[](2);
-        _coins[0] = address(bold);
+        _coins[0] = BOLD_ADDRESS;
         _coins[1] = address(usdc);
         uint8[] memory _asset_types = new uint8[](2);
         _asset_types[0] = 0;
@@ -163,7 +166,7 @@ contract DeploySepoliaScript is Script, Deployers {
 
         curveV2GaugeRewards = new CurveV2GaugeRewards(
             address(vm.computeCreateAddress(address(this), _nonce)),
-            address(bold),
+            BOLD_ADDRESS,
             address(lqty),
             address(gauge),
             DURATION
