@@ -564,6 +564,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         _requireNoDuplicates(_initiatives);
         _requireNoDuplicates(_initiativesToReset);
 
+        // TODO: Add explicit negative values checks
+
         // You MUST always reset
         ResetInitiativeData[] memory cachedData = _resetInitiatives(_initiativesToReset);
 
@@ -699,6 +701,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // update the average staking timestamp for all counted voting LQTY
             /// Discount previous only if the initiative was not unregistered
 
+            /// @audit We update the state only for non-disabled initiaitives
+            /// Disabled initiaitves have had their totals subtracted already
+            /// Math is also non associative so we cannot easily compare values
             if (status != InitiativeStatus.DISABLED) {
                 /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
                 /// Removing votes from state desynchs the state until all users remove their votes from the initiative
@@ -713,17 +718,17 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 assert(state.countedVoteLQTY >= prevInitiativeState.voteLQTY);
                 /// @audit INVARIANT: Never overflows
                 state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
+
+                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                    state.countedVoteLQTYAverageTimestamp,
+                    initiativeState.averageStakingTimestampVoteLQTY,
+                    state.countedVoteLQTY,
+                    state.countedVoteLQTY + initiativeState.voteLQTY
+                );
+
+                state.countedVoteLQTY += initiativeState.voteLQTY;
             }
-
-            /// Add current
-            state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                state.countedVoteLQTYAverageTimestamp,
-                initiativeState.averageStakingTimestampVoteLQTY,
-                state.countedVoteLQTY,
-                state.countedVoteLQTY + initiativeState.voteLQTY
-            );
-            state.countedVoteLQTY += initiativeState.voteLQTY;
-
+            
             // == USER ALLOCATION == //
 
             // allocate the voting and vetoing LQTY to the initiative
