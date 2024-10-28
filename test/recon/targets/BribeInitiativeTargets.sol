@@ -5,9 +5,9 @@ import {Test} from "forge-std/Test.sol";
 import {BaseTargetFunctions} from "@chimera/BaseTargetFunctions.sol";
 import {vm} from "@chimera/Hevm.sol";
 
-import {IInitiative} from "../../../src/interfaces/IInitiative.sol";
-import {IBribeInitiative} from "../../../src/interfaces/IBribeInitiative.sol";
-import {DoubleLinkedList} from "../../../src/utils/DoubleLinkedList.sol";
+import {IInitiative} from "src/interfaces/IInitiative.sol";
+import {IBribeInitiative} from "src/interfaces/IBribeInitiative.sol";
+import {DoubleLinkedList} from "src/utils/DoubleLinkedList.sol";
 import {Properties} from "../Properties.sol";
 
 abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Properties {

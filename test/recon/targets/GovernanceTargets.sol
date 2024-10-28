@@ -8,12 +8,13 @@ import {console2} from "forge-std/Test.sol";
 
 import {Properties} from "../Properties.sol";
 import {MaliciousInitiative} from "../../mocks/MaliciousInitiative.sol";
-import {BribeInitiative} from "../../../src/BribeInitiative.sol";
-import {ILQTYStaking} from "../../../src/interfaces/ILQTYStaking.sol";
-import {IInitiative} from "../../../src/interfaces/IInitiative.sol";
-import {IUserProxy} from "../../../src/interfaces/IUserProxy.sol";
-import {PermitParams} from "../../../src/utils/Types.sol";
-import {add} from "../../../src/utils/Math.sol";
+import {BribeInitiative} from "src/BribeInitiative.sol";
+import {Governance} from "src/Governance.sol";
+import {ILQTYStaking} from "src/interfaces/ILQTYStaking.sol";
+import {IInitiative} from "src/interfaces/IInitiative.sol";
+import {IUserProxy} from "src/interfaces/IUserProxy.sol";
+import {PermitParams} from "src/utils/Types.sol";
+import {add} from "src/utils/Math.sol";
 
 abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     // clamps to a single initiative to ensure coverage in case both haven't been registered yet
@@ -32,19 +33,39 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         int88[] memory deltaLQTYVetosArray = new int88[](1);
         deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % stakedAmount));
 
+        // User B4
+        (uint88 b4_user_allocatedLQTY,) = governance.userStates(user);
+        // StateB4
+        (uint88 b4_global_allocatedLQTY,) = governance.globalState();
+
+        (Governance.InitiativeStatus status, ,) = governance.getInitiativeState(initiatives[0]);
+
+
+
         governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
 
-        // if call was successful update the ghost tracking variables
-        // allocation only allows voting OR vetoing at a time so need to check which was executed
-        if (deltaLQTYVotesArray[0] > 0) {
-            ghostLqtyAllocationByUserAtEpoch[user] = add(ghostLqtyAllocationByUserAtEpoch[user], deltaLQTYVotesArray[0]);
-            ghostTotalAllocationAtEpoch[currentEpoch] =
-                add(ghostTotalAllocationAtEpoch[currentEpoch], deltaLQTYVotesArray[0]);
-        } else {
-            ghostLqtyAllocationByUserAtEpoch[user] = add(ghostLqtyAllocationByUserAtEpoch[user], deltaLQTYVetosArray[0]);
-            ghostTotalAllocationAtEpoch[currentEpoch] =
-                add(ghostTotalAllocationAtEpoch[currentEpoch], deltaLQTYVetosArray[0]);
+        // The test here should be:
+        // If initiative was DISABLED
+        // No Global State accounting should change
+        // User State accounting should change
+
+        // If Initiative was anything else
+        // Global state and user state accounting should change
+
+
+        (uint88 after_user_allocatedLQTY,) = governance.userStates(user);
+        (uint88 after_global_allocatedLQTY,) = governance.globalState();
+
+        if(status == Governance.InitiativeStatus.DISABLED) {
+            // State allocation must never change
+            // Whereas for the user it could | TODO
+            eq(after_global_allocatedLQTY, b4_global_allocatedLQTY, "Same alloc");
         }
+
+
+        // Math should be:
+        // Result of reset
+        // Result of vote 
     }
 
     // Resetting never fails and always resets
@@ -65,7 +86,6 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     // For every initiative, make ghost values and ensure they match
     // For all operations, you also need to add the VESTED AMT?
 
-    /// TODO: This is not really working
     function governance_allocateLQTY(int88[] calldata _deltaLQTYVotes, int88[] calldata _deltaLQTYVetos)
         public
         withChecks

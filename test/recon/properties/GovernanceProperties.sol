@@ -92,11 +92,12 @@ abstract contract GovernanceProperties is BeforeAfter {
 
     // Function sound total math
 
-    // NOTE: Global vs USer vs Initiative requires changes
+    // NOTE: Global vs Uer vs Initiative requires changes
     // User is tracking votes and vetos together
     // Whereas Votes and Initiatives only track Votes
     /// The Sum of LQTY allocated by Users matches the global state
     // NOTE: Sum of positive votes
+    // Remove the initiative from Unregistered Initiatives
     function property_sum_of_lqty_global_user_matches() public {
         // Get state
         // Get all users
@@ -116,6 +117,8 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         eq(totalCountedLQTY, totalUserCountedLQTY, "Global vs SUM(Users_lqty) must match");
     }
+
+
 
     // NOTE: In principle this will work since this is a easier to reach property vs checking each initiative
     function property_ensure_user_alloc_cannot_dos() public {
