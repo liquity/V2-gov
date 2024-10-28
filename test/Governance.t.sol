@@ -764,7 +764,7 @@ contract GovernanceTest is Test {
 
         removeDeltaLQTYVotes[0] = -1e18;
 
-        vm.expectRevert();
+        vm.expectRevert("Cannot be negative");
         governance.allocateLQTY(removeInitiatives, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
 
         address[] memory reAddInitiatives = new address[](1);
@@ -997,7 +997,6 @@ contract GovernanceTest is Test {
         removeInitiatives[0] = baseInitiative1;
         removeInitiatives[1] = baseInitiative2;
         int88[] memory removeDeltaLQTYVotes = new int88[](2);
-        // removeDeltaLQTYVotes[0] = int88(-1e18); // @audit deallocating is no longer possible
         removeDeltaLQTYVotes[0] = 0;
         int88[] memory removeDeltaLQTYVetos = new int88[](2);
 

@@ -13,7 +13,7 @@ import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 
 import {add, max} from "./utils/Math.sol";
-import {_requireNoDuplicates} from "./utils/UniqueArray.sol";
+import {_requireNoDuplicates, _requireNoNegatives} from "./utils/UniqueArray.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
@@ -564,7 +564,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         _requireNoDuplicates(_initiatives);
         _requireNoDuplicates(_initiativesToReset);
 
-        // TODO: Add explicit negative values checks
+        // Explicit >= 0 checks for all values since we reset values below
+        _requireNoNegatives(_absoluteLQTYVotes);
+        _requireNoNegatives(_absoluteLQTYVetos);
 
         // You MUST always reset
         ResetInitiativeData[] memory cachedData = _resetInitiatives(_initiativesToReset);
