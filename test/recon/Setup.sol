@@ -28,8 +28,7 @@ abstract contract Setup is BaseSetup {
     bool internal claimedTwice;
     bool internal unableToClaim;
 
-    mapping(uint16 => uint88) internal ghostTotalAllocationAtEpoch;
-    mapping(address => uint88) internal ghostLqtyAllocationByUserAtEpoch;
+
     // initiative => epoch => bribe
     mapping(address => mapping(uint16 => IBribeInitiative.Bribe)) internal ghostBribeByEpoch;
 
