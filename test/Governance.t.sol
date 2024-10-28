@@ -647,7 +647,7 @@ contract GovernanceTest is Test {
         governance.registerInitiative(baseInitiative3);
     }
 
-    // Test: You can always remove allocation
+    /// Used to demonstrate how composite voting could allow using more power than intended
     // forge test --match-test test_crit_accounting_mismatch -vv
     function test_crit_accounting_mismatch() public {
         // User setup
@@ -750,10 +750,8 @@ contract GovernanceTest is Test {
         // @audit Warmup is not necessary
         // Warmup would only work for urgent veto
         // But urgent veto is not relevant here
-        // TODO: Check and prob separate
 
-        // CRIT - I want to remove my allocation
-        // I cannot
+        // I want to remove my allocation
         address[] memory removeInitiatives = new address[](2);
         removeInitiatives[0] = baseInitiative1;
         removeInitiatives[1] = baseInitiative2;
@@ -764,11 +762,9 @@ contract GovernanceTest is Test {
 
         governance.allocateLQTY(removeInitiatives, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
 
-        // Security Check | TODO: MORE INVARIANTS
-        // trying to explicitly remove allocation fails because allocation gets reset
         removeDeltaLQTYVotes[0] = -1e18;
 
-        vm.expectRevert(); // TODO: This is a panic
+        vm.expectRevert();
         governance.allocateLQTY(removeInitiatives, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
 
         address[] memory reAddInitiatives = new address[](1);
@@ -780,6 +776,77 @@ contract GovernanceTest is Test {
         /// @audit This MUST revert, an initiative should not be re-votable once disabled
         vm.expectRevert("Governance: active-vote-fsm");
         governance.allocateLQTY(reAddInitiatives, reAddInitiatives, reAddDeltaLQTYVotes, reAddDeltaLQTYVetos);
+    }
+
+
+    // Used to identify an accounting bug where vote power could be added to global state
+    // While initiative is unregistered
+    // forge test --match-test test_allocationRemovalTotalLqtyMathIsSound -vv
+    function test_allocationRemovalTotalLqtyMathIsSound() public {
+        vm.startPrank(user2);
+        address userProxy_2 = governance.deployUserProxy();
+
+        lqty.approve(address(userProxy_2), 1_000e18);
+        governance.depositLQTY(1_000e18);
+
+
+        // User setup
+        vm.startPrank(user);
+        address userProxy = governance.deployUserProxy();
+
+        lqty.approve(address(userProxy), 1_000e18);
+        governance.depositLQTY(1_000e18);
+
+        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+
+        /// Setup and vote for 2 initiatives, 0.1% vs 99.9%
+        address[] memory initiatives = new address[](2);
+        initiatives[0] = baseInitiative1;
+        initiatives[1] = baseInitiative2;
+        int88[] memory deltaLQTYVotes = new int88[](2);
+        deltaLQTYVotes[0] = 1e18;
+        deltaLQTYVotes[1] = 999e18;
+        int88[] memory deltaLQTYVetos = new int88[](2);
+
+        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+        vm.startPrank(user2);
+        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+
+        vm.startPrank(user);
+
+        // Roll for the rest of the epochs so we can unregister
+        vm.warp(block.timestamp + (governance.UNREGISTRATION_AFTER_EPOCHS()) * governance.EPOCH_DURATION());
+        governance.unregisterInitiative(baseInitiative1);
+
+        // Get state here
+        // Get initiative state
+        (uint88 b4_countedVoteLQTY, uint32 b4_countedVoteLQTYAverageTimestamp) = governance.globalState();
+
+
+
+        // I want to remove my allocation
+        address[] memory removeInitiatives = new address[](2);
+        removeInitiatives[0] = baseInitiative1;
+        removeInitiatives[1] = baseInitiative2;
+        int88[] memory removeDeltaLQTYVotes = new int88[](2);
+        // don't need to explicitly remove allocation because it already gets reset
+        removeDeltaLQTYVotes[0] = 0;
+        removeDeltaLQTYVotes[1] = 999e18;
+
+        int88[] memory removeDeltaLQTYVetos = new int88[](2);
+
+        governance.allocateLQTY(removeInitiatives, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+
+        {
+            // Get state here
+            // TODO Get initiative state
+            (uint88 after_countedVoteLQTY, uint32 after_countedVoteLQTYAverageTimestamp) = governance.globalState();
+
+            assertEq(after_countedVoteLQTY, b4_countedVoteLQTY, "LQTY should not change");
+            assertEq(b4_countedVoteLQTYAverageTimestamp, after_countedVoteLQTYAverageTimestamp, "Avg TS should not change");
+        }
+
     }
 
     // Remove allocation but check accounting
