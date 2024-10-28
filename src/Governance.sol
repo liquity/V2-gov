@@ -668,13 +668,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // update the average staking timestamp for the initiative based on the user's average staking timestamp
             initiativeState.averageStakingTimestampVoteLQTY = _calculateAverageTimestamp(
                 initiativeState.averageStakingTimestampVoteLQTY,
-                userState.averageStakingTimestamp,
+                userState.averageStakingTimestamp, /// @audit This is wrong, we need to remove it from the allocation
                 initiativeState.voteLQTY,
                 add(initiativeState.voteLQTY, deltaLQTYVotes)
             );
             initiativeState.averageStakingTimestampVetoLQTY = _calculateAverageTimestamp(
                 initiativeState.averageStakingTimestampVetoLQTY,
-                userState.averageStakingTimestamp,
+                userState.averageStakingTimestamp, /// @audit This is wrong, we need to remove it from the allocation
                 initiativeState.vetoLQTY,
                 add(initiativeState.vetoLQTY, deltaLQTYVetos)
             );
