@@ -35,7 +35,6 @@ contract CurveV2GaugeRewards is BribeInitiative {
             return;
         }
 
-        
         remainder = 0;
 
         bold.approve(address(gauge), total);
