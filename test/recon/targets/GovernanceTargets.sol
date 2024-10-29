@@ -23,6 +23,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         uint96 deltaLQTYVotes,
         uint96 deltaLQTYVetos
     ) public withChecks {
+
         uint16 currentEpoch = governance.epoch();
         uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
 
@@ -39,7 +40,6 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         (uint88 b4_global_allocatedLQTY,) = governance.globalState();
 
         (Governance.InitiativeStatus status, ,) = governance.getInitiativeState(initiatives[0]);
-
 
 
         governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
@@ -61,6 +61,28 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
             // Whereas for the user it could | TODO
             eq(after_global_allocatedLQTY, b4_global_allocatedLQTY, "Same alloc");
         }
+    }
+
+    function governance_allocateLQTY_clamped_single_initiative_2nd_user(
+        uint8 initiativesIndex,
+        uint96 deltaLQTYVotes,
+        uint96 deltaLQTYVetos
+    ) public withChecks {
+
+        uint16 currentEpoch = governance.epoch();
+        uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user2)).staked(); // clamp using the user's staked balance
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = _getDeployedInitiative(initiativesIndex);
+        int88[] memory deltaLQTYVotesArray = new int88[](1);
+        deltaLQTYVotesArray[0] = int88(uint88(deltaLQTYVotes % stakedAmount));
+        int88[] memory deltaLQTYVetosArray = new int88[](1);
+        deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % stakedAmount));
+
+        require(stakedAmount > 0, "0 stake");
+
+        vm.prank(user2);
+        governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
     }
 
     // Resetting never fails and always resets
@@ -133,6 +155,20 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
         governance.depositLQTY(lqtyAmount);
     }
+    function governance_depositLQTY_2(uint88 lqtyAmount) public withChecks {
+        // Deploy and approve since we don't do it in constructor
+        vm.prank(user2);
+        try governance.deployUserProxy() returns (address proxy) {
+             vm.prank(user2);
+             lqty.approve(proxy, type(uint88).max);
+        } catch {
+
+        }
+
+        lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user2));
+        vm.prank(user2);
+        governance.depositLQTY(lqtyAmount);
+    }
 
     function governance_depositLQTYViaPermit(uint88 _lqtyAmount) public withChecks {
         // Get the current block timestamp for the deadline
@@ -154,7 +190,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
         PermitParams memory permitParams =
             PermitParams({owner: user2, spender: user, value: _lqtyAmount, deadline: deadline, v: v, r: r, s: s});
-
+        // TODO: BROKEN
         governance.depositLQTYViaPermit(_lqtyAmount, permitParams);
     }
 

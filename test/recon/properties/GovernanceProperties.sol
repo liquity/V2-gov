@@ -362,8 +362,13 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         // Deposit (Changes total LQTY an hopefully also changes ts)
         {
+            (, uint32 averageStakingTimestamp1) = governance.userStates(user);
+
             lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
             governance.depositLQTY(lqtyAmount);
+            (, uint32 averageStakingTimestamp2) = governance.userStates(user);
+            
+            require(averageStakingTimestamp2 > averageStakingTimestamp1, "Must have changed");
         }
 
         // REMOVE STUFF to remove the user data

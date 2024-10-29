@@ -79,4 +79,28 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
 
         property_BI04();
     }
+
+    // forge test --match-test test_manual_check -vv
+    function test_manual_check() public {
+        governance_depositLQTY(1e18);
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 123);
+        governance_depositLQTY_2(1e18 + 1);
+
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 654326);
+        governance_allocateLQTY_clamped_single_initiative(0, 99999999999999999, 0);
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 654326);
+        governance_allocateLQTY_clamped_single_initiative_2nd_user(0, 99999999999999999, 0);
+        console.log("user2 is done");
+
+        vm.roll(block.number + 1);
+        vm.warp(block.timestamp + 654326);
+        property_alloc_deposit_reset_is_idempotent(0, 99999999999999999, 0, 99999999999999999);
+        console.log("user 1 do undo is done");
+    }
 }
