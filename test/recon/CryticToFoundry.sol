@@ -103,4 +103,24 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
         property_alloc_deposit_reset_is_idempotent(0, 99999999999999999, 0, 99999999999999999);
         console.log("user 1 do undo is done");
     }
+
+    // forge test --match-test test_property_alloc_deposit_reset_is_idempotent_3 -vv 
+ function test_property_alloc_deposit_reset_is_idempotent_3() public {
+
+    vm.roll(block.number + 1);
+    vm.warp(block.timestamp + 429952);
+    governance_depositLQTY_2(2);
+
+    vm.roll(block.number + 1);
+    vm.warp(block.timestamp + 179265);
+
+    governance_allocateLQTY_clamped_single_initiative_2nd_user(0,1,0);
+
+    governance_depositLQTY(2);
+
+    check_skip_consistecy(0);
+
+    property_alloc_deposit_reset_is_idempotent(0,1,0,1);
+
+ }
 }
