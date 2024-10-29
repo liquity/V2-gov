@@ -85,6 +85,16 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
     }
 
+    function governance_resetAllocations() public {
+        governance.resetAllocations(deployedInitiatives);
+    }
+    function governance_resetAllocations_user_2() public {
+        vm.prank(user2);
+        governance.resetAllocations(deployedInitiatives);
+    }
+
+    // TODO: if userState.allocatedLQTY != 0 deposit and withdraw must always revert
+
     // Resetting never fails and always resets
     function property_resetting_never_reverts() public withChecks {
         int88[] memory zeroes = new int88[](deployedInitiatives.length);
@@ -97,6 +107,29 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         (uint88 user_allocatedLQTY,) = governance.userStates(user);
 
         eq(user_allocatedLQTY, 0, "User has 0 allocated on a reset");
+    }
+
+    function depositMustFailOnNonZeroAlloc(uint88 lqtyAmount) public withChecks {
+        (uint88 user_allocatedLQTY,) = governance.userStates(user);
+
+        require(user_allocatedLQTY != 0);
+
+        lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
+        try governance.depositLQTY(lqtyAmount) {
+            t(false, "Deposit Must always revert when user is not reset");
+        } catch {
+        }
+    }
+    
+    function withdrwaMustFailOnNonZeroAcc(uint88 _lqtyAmount) public withChecks {
+        (uint88 user_allocatedLQTY,) = governance.userStates(user);
+
+        require(user_allocatedLQTY != 0);
+
+        try governance.withdrawLQTY(_lqtyAmount) {
+            t(false, "Withdraw Must always revert when user is not reset");
+        } catch {
+        }
     }
 
     // For every previous epoch go grab ghost values and ensure they match snapshot
