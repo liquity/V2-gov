@@ -170,6 +170,7 @@ contract GovernanceTest is Test {
         );
     }
 
+    // forge test --match-test test_depositLQTY_withdrawLQTY -vv
     function test_depositLQTY_withdrawLQTY() public {
         uint256 timeIncrease = 86400 * 30;
         vm.warp(block.timestamp + timeIncrease);
@@ -219,9 +220,6 @@ contract GovernanceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(user);
-
-        vm.expectRevert("Governance: insufficient-unallocated-lqty");
-        governance.withdrawLQTY(type(uint88).max);
 
         governance.withdrawLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
@@ -1119,7 +1117,7 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestampVetoLQTY, 0);
 
         // should revert if the user doesn't have enough unallocated LQTY available
-        vm.expectRevert("Governance: insufficient-unallocated-lqty");
+        vm.expectRevert("Governance: must-allocate-zero");
         governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);
@@ -1243,7 +1241,7 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestampVetoLQTY, 0);
 
         // should revert if the user doesn't have enough unallocated LQTY available
-        vm.expectRevert("Governance: insufficient-unallocated-lqty");
+        vm.expectRevert("Governance: must-allocate-zero");
         governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);

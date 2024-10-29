@@ -23,6 +23,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         uint96 deltaLQTYVotes,
         uint96 deltaLQTYVetos
     ) public withChecks {
+
         uint16 currentEpoch = governance.epoch();
         uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
 
@@ -39,7 +40,6 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         (uint88 b4_global_allocatedLQTY,) = governance.globalState();
 
         (Governance.InitiativeStatus status, ,) = governance.getInitiativeState(initiatives[0]);
-
 
 
         governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
@@ -61,12 +61,39 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
             // Whereas for the user it could | TODO
             eq(after_global_allocatedLQTY, b4_global_allocatedLQTY, "Same alloc");
         }
-
-
-        // Math should be:
-        // Result of reset
-        // Result of vote 
     }
+
+    function governance_allocateLQTY_clamped_single_initiative_2nd_user(
+        uint8 initiativesIndex,
+        uint96 deltaLQTYVotes,
+        uint96 deltaLQTYVetos
+    ) public withChecks {
+
+        uint16 currentEpoch = governance.epoch();
+        uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user2)).staked(); // clamp using the user's staked balance
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = _getDeployedInitiative(initiativesIndex);
+        int88[] memory deltaLQTYVotesArray = new int88[](1);
+        deltaLQTYVotesArray[0] = int88(uint88(deltaLQTYVotes % stakedAmount));
+        int88[] memory deltaLQTYVetosArray = new int88[](1);
+        deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % stakedAmount));
+
+        require(stakedAmount > 0, "0 stake");
+
+        vm.prank(user2);
+        governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
+    }
+
+    function governance_resetAllocations() public {
+        governance.resetAllocations(deployedInitiatives);
+    }
+    function governance_resetAllocations_user_2() public {
+        vm.prank(user2);
+        governance.resetAllocations(deployedInitiatives);
+    }
+
+    // TODO: if userState.allocatedLQTY != 0 deposit and withdraw must always revert
 
     // Resetting never fails and always resets
     function property_resetting_never_reverts() public withChecks {
@@ -80,6 +107,29 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         (uint88 user_allocatedLQTY,) = governance.userStates(user);
 
         eq(user_allocatedLQTY, 0, "User has 0 allocated on a reset");
+    }
+
+    function depositMustFailOnNonZeroAlloc(uint88 lqtyAmount) public withChecks {
+        (uint88 user_allocatedLQTY,) = governance.userStates(user);
+
+        require(user_allocatedLQTY != 0);
+
+        lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
+        try governance.depositLQTY(lqtyAmount) {
+            t(false, "Deposit Must always revert when user is not reset");
+        } catch {
+        }
+    }
+    
+    function withdrwaMustFailOnNonZeroAcc(uint88 _lqtyAmount) public withChecks {
+        (uint88 user_allocatedLQTY,) = governance.userStates(user);
+
+        require(user_allocatedLQTY != 0);
+
+        try governance.withdrawLQTY(_lqtyAmount) {
+            t(false, "Withdraw Must always revert when user is not reset");
+        } catch {
+        }
     }
 
     // For every previous epoch go grab ghost values and ensure they match snapshot
@@ -138,6 +188,20 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
         governance.depositLQTY(lqtyAmount);
     }
+    function governance_depositLQTY_2(uint88 lqtyAmount) public withChecks {
+        // Deploy and approve since we don't do it in constructor
+        vm.prank(user2);
+        try governance.deployUserProxy() returns (address proxy) {
+             vm.prank(user2);
+             lqty.approve(proxy, type(uint88).max);
+        } catch {
+
+        }
+
+        lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user2));
+        vm.prank(user2);
+        governance.depositLQTY(lqtyAmount);
+    }
 
     function governance_depositLQTYViaPermit(uint88 _lqtyAmount) public withChecks {
         // Get the current block timestamp for the deadline
@@ -159,7 +223,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
         PermitParams memory permitParams =
             PermitParams({owner: user2, spender: user, value: _lqtyAmount, deadline: deadline, v: v, r: r, s: s});
-
+        // TODO: BROKEN
         governance.depositLQTYViaPermit(_lqtyAmount, permitParams);
     }
 

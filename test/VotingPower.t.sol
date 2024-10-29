@@ -424,77 +424,6 @@ contract VotingPowerTest is Test {
         _allocate(address(baseInitiative1), 0, lqtyAmount);
     }
 
-    //// Compare the relative power per epoch
-    /// As in, one epoch should reliably increase the power by X amt
-    // forge test --match-test test_allocation_avg_ts_mismatch -vv
-    function test_allocation_avg_ts_mismatch() public {
-        uint256 snapshot0 = vm.snapshot();
-
-        uint256 snapshotBefore = vm.snapshot();
-
-        vm.startPrank(user);
-        // =========== epoch 1 ==================
-        // 1. user stakes lqty
-        int88 lqtyAmount = 2e18;
-        _stakeLQTY(user, uint88(lqtyAmount / 2));
-
-        // user allocates to baseInitiative1
-        _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-        (, uint32 averageStakingTimestamp1) = governance.userStates(user);
-
-        // =========== epoch 2 (start) ==================
-        // 2. user allocates in epoch 2
-        vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
-
-        // Remainer
-        _stakeLQTY(user, uint88(lqtyAmount / 2));
-        _allocate(address(baseInitiative2), lqtyAmount / 2, 0); // 50% to it
-
-        (, uint32 averageStakingTimestamp2) = governance.userStates(user);
-
-        assertGt(averageStakingTimestamp2, averageStakingTimestamp1, "Time increase");
-
-        // Get TS for "exploit"
-        uint256 avgTs1 = _getAverageTS(baseInitiative1);
-        uint256 avgTs2 = _getAverageTS(baseInitiative2);
-        assertGt(avgTs2, avgTs1, "TS in initiative is increased");
-
-        // Check if Resetting will fix the issue
-
-        _allocate(address(baseInitiative1), 0, 0);
-        _allocate(address(baseInitiative2), 0, 0);
-
-        _allocate(address(baseInitiative1), 0, 0);
-        _allocate(address(baseInitiative2), 0, 0);
-
-        uint256 avgTs_reset_1 = _getAverageTS(baseInitiative1);
-        uint256 avgTs_reset_2 = _getAverageTS(baseInitiative2);
-
-        // Intuition, Delta time * LQTY = POWER
-        vm.revertTo(snapshotBefore);
-
-        // Compare against
-        // Deposit 1 on epoch 1
-        // Deposit 2 on epoch 2
-        // Vote on epoch 2 exclusively
-        _stakeLQTY(user, uint88(lqtyAmount / 2));
-
-        vm.warp(block.timestamp + EPOCH_DURATION); // warp to second epoch
-        _stakeLQTY(user, uint88(lqtyAmount / 2));
-        _allocate(address(baseInitiative2), lqtyAmount / 2, 0); // 50% to it
-        _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-
-        uint256 avgTs1_diff = _getAverageTS(baseInitiative1);
-        uint256 avgTs2_diff = _getAverageTS(baseInitiative2);
-        // assertEq(avgTs2_diff, avgTs1_diff, "TS in initiative is increased");
-        assertGt(avgTs1_diff, avgTs2_diff, "TS in initiative is increased");
-
-        assertLt(avgTs2_diff, avgTs2, "Ts2 is same");
-        assertGt(avgTs1_diff, avgTs1, "Ts1 lost the power");
-
-        assertLt(avgTs_reset_1, avgTs1_diff, "Same as diff means it does reset");
-        assertEq(avgTs_reset_2, avgTs2_diff, "Same as diff means it does reset");
-    }
 
     // Check if Flashloan can be used to cause issues?
     // A flashloan would cause issues in the measure in which it breaks any specific property
@@ -532,5 +461,14 @@ contract VotingPowerTest is Test {
         deltaLQTYVetos[0] = vetos;
 
         governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+    }
+
+    function _reset() internal {
+        address[] memory initiativesToReset = new address[](3);
+        initiativesToReset[0] = baseInitiative1;
+        initiativesToReset[1] = baseInitiative2;
+        initiativesToReset[2] = baseInitiative3;
+        
+        governance.resetAllocations(initiativesToReset);
     }
 }

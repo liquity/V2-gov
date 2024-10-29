@@ -6,6 +6,7 @@ import {Governance} from "src/Governance.sol";
 import {IGovernance} from "src/interfaces/IGovernance.sol";
 import {MockStakingV1} from "test/mocks/MockStakingV1.sol";
 import {vm} from "@chimera/Hevm.sol";
+import {IUserProxy} from "src/interfaces/IUserProxy.sol";
 
 abstract contract GovernanceProperties is BeforeAfter {
     /// A Initiative cannot change in status
@@ -310,6 +311,93 @@ abstract contract GovernanceProperties is BeforeAfter {
                 governance.lqtyAllocatedByUserToInitiative(theUser, deployedInitiatives[i]);
             votes += allocVotes;
             vetos += allocVetos;
+        }
+    }
+
+    function property_alloc_deposit_reset_is_idempotent(
+        uint8 initiativesIndex,
+        uint96 deltaLQTYVotes,
+        uint96 deltaLQTYVetos,
+        uint88 lqtyAmount
+    ) public withChecks {
+
+        address targetInitiative = _getDeployedInitiative(initiativesIndex);
+
+        // 0. Reset first to ensure we start fresh, else the totals can be out of whack
+        // TODO: prob unnecessary
+        // Cause we always reset anyway
+        {
+            int88[] memory zeroes = new int88[](deployedInitiatives.length);
+
+            governance.allocateLQTY(deployedInitiatives, deployedInitiatives, zeroes, zeroes);
+        }
+
+        // GET state and initiative data before allocation
+        (   
+            uint88 totalCountedLQTY,
+            uint32 user_countedVoteLQTYAverageTimestamp 
+        ) = governance.globalState();
+        (
+            uint88 voteLQTY,
+            uint88 vetoLQTY,
+            uint32 averageStakingTimestampVoteLQTY,
+            uint32 averageStakingTimestampVetoLQTY,
+
+        ) = governance.initiativeStates(targetInitiative);
+        
+        // Allocate
+        {
+            uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked();
+
+            address[] memory initiatives = new address[](1);
+            initiatives[0] = targetInitiative;
+            int88[] memory deltaLQTYVotesArray = new int88[](1);
+            deltaLQTYVotesArray[0] = int88(uint88(deltaLQTYVotes % stakedAmount));
+            int88[] memory deltaLQTYVetosArray = new int88[](1);
+            deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % stakedAmount));
+
+            governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
+        }
+
+
+        // Deposit (Changes total LQTY an hopefully also changes ts)
+        {
+            (, uint32 averageStakingTimestamp1) = governance.userStates(user);
+
+            lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
+            governance.depositLQTY(lqtyAmount);
+            (, uint32 averageStakingTimestamp2) = governance.userStates(user);
+            
+            require(averageStakingTimestamp2 > averageStakingTimestamp1, "Must have changed");
+        }
+
+        // REMOVE STUFF to remove the user data
+        {
+            int88[] memory zeroes = new int88[](deployedInitiatives.length);
+            governance.allocateLQTY(deployedInitiatives, deployedInitiatives, zeroes, zeroes);
+        }
+
+        // Check total allocation and initiative allocation
+        {
+            (   
+                uint88 after_totalCountedLQTY,
+                uint32 after_user_countedVoteLQTYAverageTimestamp 
+            ) = governance.globalState();
+            (
+                uint88 after_voteLQTY,
+                uint88 after_vetoLQTY,
+                uint32 after_averageStakingTimestampVoteLQTY,
+                uint32 after_averageStakingTimestampVetoLQTY,
+
+            ) = governance.initiativeStates(targetInitiative);
+
+            eq(voteLQTY, after_voteLQTY, "Same vote");
+            eq(vetoLQTY, after_vetoLQTY, "Same veto");
+            eq(averageStakingTimestampVoteLQTY, after_averageStakingTimestampVoteLQTY, "Same ts vote");
+            eq(averageStakingTimestampVetoLQTY, after_averageStakingTimestampVetoLQTY, "Same ts veto");
+
+            eq(totalCountedLQTY, after_totalCountedLQTY, "Same total LQTY");
+            eq(user_countedVoteLQTYAverageTimestamp, after_user_countedVoteLQTYAverageTimestamp, "Same total ts");
         }
     }
 }
