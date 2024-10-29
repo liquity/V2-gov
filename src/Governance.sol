@@ -170,8 +170,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         uint88 lqtyStaked = uint88(stakingV1.stakes(userProxyAddress));
 
-        // update the average staked timestamp for LQTY staked by the user
         UserState memory userState = userStates[msg.sender];
+        // Assert that we have resetted here
+        require(userState.allocatedLQTY == 0, "Governance: must-be-zero-allocation");
+
+        // update the average staked timestamp for LQTY staked by the user
+        
         userState.averageStakingTimestamp = _calculateAverageTimestamp(
             userState.averageStakingTimestamp, uint32(block.timestamp), lqtyStaked, lqtyStaked + _lqtyAmount
         );
@@ -204,7 +208,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         UserState storage userState = userStates[msg.sender];
 
         // check if user has enough unallocated lqty
-        require(_lqtyAmount <= lqtyStaked - userState.allocatedLQTY, "Governance: insufficient-unallocated-lqty");
+        require(userState.allocatedLQTY == 0, "Governance: must-allocate-zero");
 
         (uint256 accruedLUSD, uint256 accruedETH) = userProxy.unstake(_lqtyAmount, msg.sender);
 
@@ -550,9 +554,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         return cachedData;
     }
 
+    /// @notice Reset the allocations for the initiatives being passed, must pass all initiatives else it will revert
+    ///     NOTE: If you reset at the last day of the epoch, you won't be able to vote again
+    ///         Use `allocateLQTY` to reset and vote
     function resetAllocations(address[] calldata _initiativesToReset) external nonReentrant {
         _requireNoDuplicates(_initiativesToReset);
         _resetInitiatives(_initiativesToReset);
+        require(userStates[msg.sender].allocatedLQTY == 0, "must be a reset");
     }
 
     /// @inheritdoc IGovernance

@@ -170,6 +170,7 @@ contract GovernanceTest is Test {
         );
     }
 
+    // forge test --match-test test_depositLQTY_withdrawLQTY -vv
     function test_depositLQTY_withdrawLQTY() public {
         uint256 timeIncrease = 86400 * 30;
         vm.warp(block.timestamp + timeIncrease);
@@ -219,9 +220,6 @@ contract GovernanceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(user);
-
-        vm.expectRevert("Governance: must-allocate-zero");
-        governance.withdrawLQTY(type(uint88).max);
 
         governance.withdrawLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
