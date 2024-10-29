@@ -157,7 +157,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                                 STAKING
     //////////////////////////////////////////////////////////////*/
 
-    function _deposit(uint88 _lqtyAmount) private returns (UserProxy) {
+    function _updateUserStakes(uint88 _lqtyAmount) private returns (UserProxy) {
         require(_lqtyAmount > 0, "Governance: zero-lqty-amount");
 
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
@@ -184,13 +184,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function depositLQTY(uint88 _lqtyAmount) external nonReentrant {
-        UserProxy userProxy = _deposit(_lqtyAmount);
+        UserProxy userProxy = _updateUserStakes(_lqtyAmount);
         userProxy.stake(_lqtyAmount, msg.sender);
     }
 
     /// @inheritdoc IGovernance
     function depositLQTYViaPermit(uint88 _lqtyAmount, PermitParams calldata _permitParams) external nonReentrant {
-        UserProxy userProxy = _deposit(_lqtyAmount);
+        UserProxy userProxy = _updateUserStakes(_lqtyAmount);
         userProxy.stakeViaPermit(_lqtyAmount, msg.sender, _permitParams);
     }
 
@@ -548,6 +548,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         _allocateLQTY(_initiativesToReset, deltaLQTYVotes, deltaLQTYVetos);
 
         return cachedData;
+    }
+
+    function resetAllocations(address[] calldata _initiativesToReset) external nonReentrant {
+        _requireNoDuplicates(_initiativesToReset);
+        _resetInitiatives(_initiativesToReset);
+
+        assert(userState.allocatedLQTY == 0);
     }
 
     /// @inheritdoc IGovernance
