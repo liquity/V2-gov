@@ -21,9 +21,32 @@ Because that's key
 
 - From there, reason around the deeper rounding errors
 
-
+---------
 
 Optimizations
 Put the data in the storage
 Remove all castings that are not safe
 Invariant test it
+
+---------
+
+TODO: Most likely need to review this
+https://github.com/liquity/V2-gov/blob/81f3e55ab9c145cf185d1aeb2417f03807a4caf3/src/BribeInitiative.sol#L129-L142
+
+```solidity
+if (boldAmount != 0) {
+            uint256 max = bold.balanceOf(address(this));
+            if (boldAmount > max) {
+                boldAmount = max;
+            }
+            bold.safeTransfer(msg.sender, boldAmount);
+        }
+        if (bribeTokenAmount != 0) {
+            uint256 max = bribeToken.balanceOf(address(this));
+            if (bribeTokenAmount > max) {
+                bribeTokenAmount = max;
+            }
+            bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
+        }
+```
+And find revert cases

@@ -195,13 +195,13 @@ abstract contract GovernanceProperties is BeforeAfter {
                 (, uint32 averageStakingTimestamp) = governance.userStates(users[j]);
                 // add the weight calculated for each user's allocation to the accumulator
                 userWeightAccumulatorForInitiative +=
-                    governance.lqtyToVotes(userVoteLQTY, block.timestamp, averageStakingTimestamp);
+                    governance.lqtyToVotes(userVoteLQTY, uint32(block.timestamp), averageStakingTimestamp);
             }
 
             (uint88 initiativeVoteLQTY,, uint32 initiativeAverageStakingTimestampVoteLQTY,,) =
                 governance.initiativeStates(deployedInitiatives[i]);
             uint240 initiativeWeight =
-                governance.lqtyToVotes(initiativeVoteLQTY, block.timestamp, initiativeAverageStakingTimestampVoteLQTY);
+                governance.lqtyToVotes(initiativeVoteLQTY, uint32(block.timestamp), initiativeAverageStakingTimestampVoteLQTY);
             eq(
                 initiativeWeight,
                 userWeightAccumulatorForInitiative,
@@ -251,7 +251,7 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
         if (status == Governance.InitiativeStatus.SKIP) {
-            vm.warp(block.timestamp + governance.EPOCH_DURATION());
+            vm.warp(uint32(block.timestamp) + governance.EPOCH_DURATION());
             (Governance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
             t(
                 uint256(status) == uint256(newStatus)
@@ -274,7 +274,7 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
         if (status == Governance.InitiativeStatus.UNREGISTERABLE) {
-            vm.warp(block.timestamp + governance.EPOCH_DURATION());
+            vm.warp(uint32(block.timestamp) + governance.EPOCH_DURATION());
             (Governance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
             t(uint256(status) == uint256(newStatus), "UNREGISTERABLE must remain UNREGISTERABLE");
         }

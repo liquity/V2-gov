@@ -248,12 +248,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function lqtyToVotes(uint88 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp)
+    function lqtyToVotes(uint88 _lqtyAmount, uint32 _currentTimestamp, uint32 _averageTimestamp)
         public
         pure
-        returns (uint240)
+        returns (uint120)
     {
-        return uint240(_lqtyAmount) * _averageAge(uint32(_currentTimestamp), _averageTimestamp);
+        return uint120(_lqtyAmount) * _averageAge(_currentTimestamp, _averageTimestamp);
     }
 
     /*//////////////////////////////////////////////////////////////
