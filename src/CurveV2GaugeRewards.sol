@@ -27,13 +27,14 @@ contract CurveV2GaugeRewards is BribeInitiative {
     }
 
     function _depositIntoGauge(uint256 amount) internal {
+        uint256 total = amount + remainder;
+        
         // For small donations queue them into the contract
-        if (amount < duration * 1000) {
+        if (total < duration * 1000) {
             remainder += amount;
             return;
         }
 
-        uint256 total = amount + remainder;
         remainder = 0;
 
         bold.approve(address(gauge), total);

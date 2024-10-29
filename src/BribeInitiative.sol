@@ -151,7 +151,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     function _setTotalLQTYAllocationByEpoch(uint16 _epoch, uint88 _lqty, uint32 _averageTimestamp, bool _insert)
         private
     {
-        uint224 value = (uint224(_lqty) << 32) | _averageTimestamp;
+        uint224 value = _encodeLQTYAllocation(_lqty, _averageTimestamp);
         if (_insert) {
             totalLQTYAllocationByEpoch.insert(_epoch, value, 0);
         } else {
@@ -167,7 +167,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         uint32 _averageTimestamp,
         bool _insert
     ) private {
-        uint224 value = (uint224(_lqty) << 32) | _averageTimestamp;
+        uint224 value = _encodeLQTYAllocation(_lqty, _averageTimestamp);
         if (_insert) {
             lqtyAllocationByUserAtEpoch[_user].insert(_epoch, value, 0);
         } else {
