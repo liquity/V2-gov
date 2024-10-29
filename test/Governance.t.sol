@@ -220,7 +220,7 @@ contract GovernanceTest is Test {
 
         vm.startPrank(user);
 
-        vm.expectRevert("Governance: insufficient-unallocated-lqty");
+        vm.expectRevert("Governance: must-allocate-zero");
         governance.withdrawLQTY(type(uint88).max);
 
         governance.withdrawLQTY(1e18);
@@ -1119,7 +1119,7 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestampVetoLQTY, 0);
 
         // should revert if the user doesn't have enough unallocated LQTY available
-        vm.expectRevert("Governance: insufficient-unallocated-lqty");
+        vm.expectRevert("Governance: must-allocate-zero");
         governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);
@@ -1243,7 +1243,7 @@ contract GovernanceTest is Test {
         assertEq(averageStakingTimestampVetoLQTY, 0);
 
         // should revert if the user doesn't have enough unallocated LQTY available
-        vm.expectRevert("Governance: insufficient-unallocated-lqty");
+        vm.expectRevert("Governance: must-allocate-zero");
         governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);

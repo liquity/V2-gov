@@ -553,8 +553,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     function resetAllocations(address[] calldata _initiativesToReset) external nonReentrant {
         _requireNoDuplicates(_initiativesToReset);
         _resetInitiatives(_initiativesToReset);
-
-        assert(userState.allocatedLQTY == 0);
     }
 
     /// @inheritdoc IGovernance
