@@ -4,5 +4,6 @@ pragma solidity ^0.8.0;
 import {BeforeAfter} from "./BeforeAfter.sol";
 import {GovernanceProperties} from "./properties/GovernanceProperties.sol";
 import {BribeInitiativeProperties} from "./properties/BribeInitiativeProperties.sol";
+import {SynchProperties} from "./properties/SynchProperties.sol";
 
-abstract contract Properties is GovernanceProperties, BribeInitiativeProperties {}
+abstract contract Properties is GovernanceProperties, BribeInitiativeProperties, SynchProperties {}
