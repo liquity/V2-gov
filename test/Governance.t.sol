@@ -416,9 +416,9 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint120(0), uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
+        (uint120 votes, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(votes, 1e18);
         assertEq(forEpoch, 1);
 
@@ -454,7 +454,7 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint120(0), uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
         (votes, forEpoch) = governance.votesSnapshot();
         assertEq(votes, 10000e18);
@@ -468,8 +468,10 @@ contract GovernanceTest is Test {
     }
 
     // should not revert under any state
+    // THIS TEST IS USELESS | JUST USE THE FUNCTION CALL AND BE DONE
+    // ALSO WE CAN JUST USE INVAIRANTS
     function test_calculateVotingThreshold_fuzz(
-        uint128 _votes,
+        uint120 _votes,
         uint16 _forEpoch,
         uint88 _boldAccrued,
         uint128 _votingThresholdFactor,
@@ -502,11 +504,11 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint120(0), uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
-        assertEq(votes, _votes);
-        assertEq(forEpoch, _forEpoch);
+        (uint120 votes, uint16 forEpoch) = governance.votesSnapshot();
+        assertEq(votes, _votes, "votes");
+        assertEq(forEpoch, _forEpoch, "epoch");
 
         vm.store(address(governance), bytes32(uint256(1)), bytes32(abi.encode(_boldAccrued)));
         assertEq(governance.boldAccrued(), _boldAccrued);
@@ -578,11 +580,11 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint120(0), uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 1e18);
-        assertEq(forEpoch, 1);
+        (uint120 votes, uint16 forEpoch) = governance.votesSnapshot();
+        assertEq(votes, 1e18, "votes");
+        assertEq(forEpoch, 1, "forEpoch");
 
         vm.stopPrank();
 
@@ -622,11 +624,11 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint120(0), uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
         (votes, forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 1e18);
-        assertEq(forEpoch, governance.epoch() - 1);
+        assertEq(votes, 1e18, "votes 1");
+        assertEq(forEpoch, governance.epoch() - 1, "for epoch 1");
 
         vm.warp(uint32(block.timestamp) + governance.EPOCH_DURATION() * 3); // 3 more epochs
 
@@ -1567,11 +1569,11 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint120(0), uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 1e18);
-        assertEq(forEpoch, 1);
+        (uint120 votes, uint16 forEpoch) = governance.votesSnapshot();
+        assertEq(votes, 1e18, "votes");
+        assertEq(forEpoch, 1, "epoch");
 
         vm.startPrank(lusdHolder);
         lusd.transfer(user, 2e18);
@@ -1602,11 +1604,11 @@ contract GovernanceTest is Test {
         vm.store(
             address(governance),
             bytes32(uint256(2)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
+            bytes32(abi.encodePacked(uint120(0), uint16(snapshot.forEpoch), uint120(snapshot.votes)))
         );
         (votes, forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 1);
-        assertEq(forEpoch, governance.epoch() - 1);
+        assertEq(votes, 1, "votes");
+        assertEq(forEpoch, governance.epoch() - 1, "forEpoch");
 
         IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot =
             IGovernance.InitiativeVoteSnapshot(1, governance.epoch() - 1, governance.epoch() - 1, 0);
@@ -1615,17 +1617,18 @@ contract GovernanceTest is Test {
             keccak256(abi.encode(address(mockInitiative), uint256(3))),
             bytes32(
                 abi.encodePacked(
+                    uint104(0),
                     uint16(initiativeSnapshot.lastCountedEpoch),
                     uint16(initiativeSnapshot.forEpoch),
-                    uint224(initiativeSnapshot.votes)
+                    uint120(initiativeSnapshot.votes)
                 )
             )
         );
-        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch,) =
+        (uint120 votes_, uint16 forEpoch_, uint16 lastCountedEpoch,) =
             governance.votesForInitiativeSnapshot(address(mockInitiative));
-        assertEq(votes_, 1);
-        assertEq(forEpoch_, governance.epoch() - 1);
-        assertEq(lastCountedEpoch, governance.epoch() - 1);
+        assertEq(votes_, 1, "votes 3");
+        assertEq(forEpoch_, governance.epoch() - 1, "epoch 3");
+        assertEq(lastCountedEpoch, governance.epoch() - 1, "last epoch 3");
 
         governance.claimForInitiative(address(mockInitiative));
 
@@ -1637,9 +1640,10 @@ contract GovernanceTest is Test {
             keccak256(abi.encode(address(mockInitiative), uint256(3))),
             bytes32(
                 abi.encodePacked(
+                    uint104(0),
                     uint16(initiativeSnapshot.lastCountedEpoch),
                     uint16(initiativeSnapshot.forEpoch),
-                    uint224(initiativeSnapshot.votes)
+                    uint120(initiativeSnapshot.votes)
                 )
             )
         );

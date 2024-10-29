@@ -11,8 +11,8 @@ interface IGovernance {
     event DepositLQTY(address user, uint256 depositedLQTY);
     event WithdrawLQTY(address user, uint256 withdrawnLQTY, uint256 accruedLUSD, uint256 accruedETH);
 
-    event SnapshotVotes(uint240 votes, uint16 forEpoch);
-    event SnapshotVotesForInitiative(address initiative, uint240 votes, uint16 forEpoch);
+    event SnapshotVotes(uint120 votes, uint16 forEpoch);
+    event SnapshotVotesForInitiative(address initiative, uint120 votes, uint16 forEpoch);
 
     event RegisterInitiative(address initiative, address registrant, uint16 atEpoch);
     event UnregisterInitiative(address initiative, uint16 atEpoch);
@@ -84,21 +84,21 @@ interface IGovernance {
     function boldAccrued() external view returns (uint256 boldAccrued);
 
     struct VoteSnapshot {
-        uint240 votes; // Votes at epoch transition
+        uint120 votes; // Votes at epoch transition
         uint16 forEpoch; // Epoch for which the votes are counted
     }
 
     struct InitiativeVoteSnapshot {
-        uint224 votes; // Votes at epoch transition
+        uint120 votes; // Votes at epoch transition
         uint16 forEpoch; // Epoch for which the votes are counted
         uint16 lastCountedEpoch; // Epoch at which which the votes where counted last in the global snapshot
-        uint224 vetos; // Vetos at epoch transition
+        uint120 vetos; // Vetos at epoch transition
     }
 
     /// @notice Returns the vote count snapshot of the previous epoch
     /// @return votes Number of votes
     /// @return forEpoch Epoch for which the votes are counted
-    function votesSnapshot() external view returns (uint240 votes, uint16 forEpoch);
+    function votesSnapshot() external view returns (uint120 votes, uint16 forEpoch);
     /// @notice Returns the vote count snapshot for an initiative of the previous epoch
     /// @param _initiative Address of the initiative
     /// @return votes Number of votes
@@ -107,7 +107,7 @@ interface IGovernance {
     function votesForInitiativeSnapshot(address _initiative)
         external
         view
-        returns (uint224 votes, uint16 forEpoch, uint16 lastCountedEpoch, uint224 vetos);
+        returns (uint120 votes, uint16 forEpoch, uint16 lastCountedEpoch, uint120 vetos);
 
     struct Allocation {
         uint88 voteLQTY; // LQTY allocated vouching for the initiative

@@ -357,12 +357,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             shouldUpdate = true;
 
             uint32 start = epochStart();
-            uint240 votes =
+            uint120 votes =
                 lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.averageStakingTimestampVoteLQTY);
-            uint240 vetos =
+            uint120 vetos =
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
-            initiativeSnapshot.votes = uint224(votes);
-            initiativeSnapshot.vetos = uint224(vetos);
+            initiativeSnapshot.votes = uint120(votes);
+            initiativeSnapshot.vetos = uint120(vetos);
 
             initiativeSnapshot.forEpoch = currentEpoch - 1;
         }
