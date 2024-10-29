@@ -532,7 +532,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             // Must be below, else we cannot reset"
             // Makes cast safe
-            /// @audit INVARIANT: property_ensure_user_alloc_cannot_dos
+            /// @audit Check INVARIANT: property_ensure_user_alloc_cannot_dos
             assert(alloc.voteLQTY <= uint88(type(int88).max));
             assert(alloc.vetoLQTY <= uint88(type(int88).max));
 
@@ -654,7 +654,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                 getInitiativeState(initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
 
             if (deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
-                /// @audit FSM CHECK, note that the original version allowed voting on `Unregisterable` Initiatives | This fixes it
+                /// @audit You cannot vote on `unregisterable` but a vote may have been there
                 require(
                     status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE
                         || status == InitiativeStatus.CLAIMED,
@@ -681,13 +681,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // update the average staking timestamp for the initiative based on the user's average staking timestamp
             initiativeState.averageStakingTimestampVoteLQTY = _calculateAverageTimestamp(
                 initiativeState.averageStakingTimestampVoteLQTY,
-                userState.averageStakingTimestamp, /// @audit This is wrong, we need to remove it from the allocation
+                userState.averageStakingTimestamp, /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
                 initiativeState.voteLQTY,
                 add(initiativeState.voteLQTY, deltaLQTYVotes)
             );
             initiativeState.averageStakingTimestampVetoLQTY = _calculateAverageTimestamp(
                 initiativeState.averageStakingTimestampVetoLQTY,
-                userState.averageStakingTimestamp, /// @audit This is wrong, we need to remove it from the allocation
+                userState.averageStakingTimestamp, /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
                 initiativeState.vetoLQTY,
                 add(initiativeState.vetoLQTY, deltaLQTYVetos)
             );
