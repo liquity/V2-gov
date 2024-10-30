@@ -56,9 +56,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
 
     /// @inheritdoc IGovernance
-    uint256 public boldAccrued;
-
-    /// @inheritdoc IGovernance
     VoteSnapshot public votesSnapshot;
     /// @inheritdoc IGovernance
     mapping(address => InitiativeVoteSnapshot) public votesForInitiativeSnapshot;
@@ -227,6 +224,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IGovernance
+    function boldAccrued() external view returns (uint120) {
+        return votesSnapshot.boldAccrued;
+    }
+
+    /// @inheritdoc IGovernance
     function epoch() public view returns (uint16) {
         if (block.timestamp < EPOCH_START) {
             return 0;
@@ -283,7 +285,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         if (_votes == 0) return 0;
 
         uint256 minVotes; // to reach MIN_CLAIM: snapshotVotes * MIN_CLAIM / boldAccrued
-        uint256 payoutPerVote = boldAccrued * WAD / _votes;
+        uint256 payoutPerVote = uint256(votesSnapshot.boldAccrued) * uint256(WAD) / uint256(_votes);
         if (payoutPerVote != 0) {
             minVotes = MIN_CLAIM * WAD / payoutPerVote;
         }
@@ -298,7 +300,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         if (shouldUpdate) {
             votesSnapshot = snapshot;
             uint256 boldBalance = bold.balanceOf(address(this));
-            boldAccrued = (boldBalance < MIN_ACCRUAL) ? 0 : boldBalance;
+            
+            // Cap to u120 or set to 0 if below threshold
+            if(boldBalance > type(uint120).max) {
+                boldBalance = type(uint120).max;
+            } else {
+                boldBalance = (boldBalance < MIN_ACCRUAL) ? 0 : boldBalance;
+            }
+
+            votesSnapshot.boldAccrued = uint120(boldBalance);
             emit SnapshotVotes(snapshot.votes, snapshot.forEpoch);
         }
     }
@@ -449,6 +459,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // NOTE: Pass the snapshot value so we get accurate result
         uint256 votingTheshold = calculateVotingThreshold(_votesSnapshot.votes);
 
+        // TODO: All of these values below need to be checked not to cause runtime overflows
+
         // If it's voted and can get rewards
         // Votes > calculateVotingThreshold
         // == Rewards Conditions (votes can be zero, logic is the same) == //
@@ -458,7 +470,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             _votesForInitiativeSnapshot.votes > votingTheshold
                 && !(_votesForInitiativeSnapshot.vetos >= _votesForInitiativeSnapshot.votes)
         ) {
-            uint256 claim = _votesForInitiativeSnapshot.votes * boldAccrued / _votesSnapshot.votes;
+            uint256 claim = uint256(_votesForInitiativeSnapshot.votes) * uint256(_votesSnapshot.boldAccrued) / uint256(_votesSnapshot.votes);
             return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
 

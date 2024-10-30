@@ -1,3 +1,4 @@
+
 - Add properties check to ensure that the math is sound <- HUGE, let's add it now
 
 A vote is: User TS * Votes

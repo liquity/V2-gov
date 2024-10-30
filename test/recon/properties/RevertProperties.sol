@@ -81,4 +81,29 @@ abstract contract RevertProperties is BeforeAfter {
             t(false, "should never revert");
         }
     }
+    function property_shouldNeverRevertgetInitiativeState_arbitrary(address initiative) public {
+        try governance.getInitiativeState(initiative) {} catch {
+            t(false, "should never revert");
+        }
+    }
+
+    // TODO: Consider adding `getInitiativeState` with random params
+    // Technically not real, but IMO we should make sure it's safe for all params
+
+    function property_shouldNeverRevertgetInitiativeState_arbitrary(
+        address _initiative,
+        IGovernance.VoteSnapshot memory _votesSnapshot,
+        IGovernance.InitiativeVoteSnapshot memory _votesForInitiativeSnapshot,
+        IGovernance.InitiativeState memory _initiativeState
+    ) public {
+        // NOTE: Maybe this can revert due to specific max values
+        try governance.getInitiativeState(
+            _initiative,
+            _votesSnapshot,
+            _votesForInitiativeSnapshot,
+            _initiativeState
+        ) {} catch {
+            t(false, "should never revert");
+        }
+    }
 }

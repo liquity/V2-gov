@@ -81,11 +81,12 @@ interface IGovernance {
 
     /// @notice Returns the amount of BOLD accrued since last epoch (last snapshot)
     /// @return boldAccrued BOLD accrued
-    function boldAccrued() external view returns (uint256 boldAccrued);
+    function boldAccrued() external view returns (uint120 boldAccrued);
 
     struct VoteSnapshot {
         uint120 votes; // Votes at epoch transition
         uint16 forEpoch; // Epoch for which the votes are counted
+        uint120 boldAccrued; /// 1e18 * 1e18
     }
 
     struct InitiativeVoteSnapshot {
@@ -98,7 +99,7 @@ interface IGovernance {
     /// @notice Returns the vote count snapshot of the previous epoch
     /// @return votes Number of votes
     /// @return forEpoch Epoch for which the votes are counted
-    function votesSnapshot() external view returns (uint120 votes, uint16 forEpoch);
+    function votesSnapshot() external view returns (uint120 votes, uint16 forEpoch, uint120 boldAccrued);
     /// @notice Returns the vote count snapshot for an initiative of the previous epoch
     /// @param _initiative Address of the initiative
     /// @return votes Number of votes
