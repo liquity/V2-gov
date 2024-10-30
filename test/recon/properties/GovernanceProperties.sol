@@ -262,6 +262,26 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
     }
 
+    function check_warmup_unregisterable_consistency(uint8 initiativeIndex) public {
+        // Status after MUST NOT be UNREGISTERABLE
+        address initiative = _getDeployedInitiative(initiativeIndex);
+        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
+
+        if (status == Governance.InitiativeStatus.WARM_UP) {
+            vm.warp(block.timestamp + governance.EPOCH_DURATION());
+            (Governance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
+
+            // Next status must be SKIP, because by definition it has
+            // Received no votes (cannot)
+            // Must not be UNREGISTERABLE
+            t(
+                uint256(newStatus) == uint256(Governance.InitiativeStatus.SKIP),
+                "Must be SKIP"
+            );
+        }
+
+    }
+
     /// NOTE: This property can break in some specific combinations of:
     /// Becomes unregisterable due to high treshold
     /// Is not unregistered
