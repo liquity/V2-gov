@@ -299,18 +299,22 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         if (shouldUpdate) {
             votesSnapshot = snapshot;
-            uint256 boldBalance = bold.balanceOf(address(this));
             
-            // Cap to u120 or set to 0 if below threshold
-            if(boldBalance > type(uint120).max) {
-                boldBalance = type(uint120).max;
-            } else {
-                boldBalance = (boldBalance < MIN_ACCRUAL) ? 0 : boldBalance;
-            }
-
-            votesSnapshot.boldAccrued = uint120(boldBalance);
             emit SnapshotVotes(snapshot.votes, snapshot.forEpoch);
         }
+    }
+
+    function _computeBoldAccrued() internal view returns (uint120) {
+        uint256 boldBalance = bold.balanceOf(address(this));
+            
+        // Cap to u120 or set to 0 if below threshold
+        if(boldBalance > type(uint120).max) {
+            boldBalance = type(uint120).max;
+        } else {
+            boldBalance = (boldBalance < MIN_ACCRUAL) ? 0 : boldBalance;
+        }
+
+        return uint120(boldBalance);
     }
 
     /// @notice Return the most up to date global snapshot and state as well as a flag to notify whether the state can be updated
@@ -329,6 +333,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
             snapshot.votes = lqtyToVotes(state.countedVoteLQTY, epochStart(), state.countedVoteLQTYAverageTimestamp);
             snapshot.forEpoch = currentEpoch - 1;
+            snapshot.boldAccrued = _computeBoldAccrued();
         }
     }
 
