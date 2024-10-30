@@ -951,11 +951,11 @@ contract BribeInitiativeTest is Test {
         vm.stopPrank();
     }
 
-    function _depositBribe(address initiative, uint128 boldAmount, uint128 bribeAmount, uint16 epoch) public {
+    function _depositBribe(address _initiative, uint128 boldAmount, uint128 bribeAmount, uint16 epoch) public {
         vm.startPrank(lusdHolder);
-        lqty.approve(initiative, boldAmount);
-        lusd.approve(initiative, bribeAmount);
-        BribeInitiative(initiative).depositBribe(boldAmount, bribeAmount, epoch);
+        lqty.approve(_initiative, boldAmount);
+        lusd.approve(_initiative, bribeAmount);
+        BribeInitiative(_initiative).depositBribe(boldAmount, bribeAmount, epoch);
         vm.stopPrank();
     }
 

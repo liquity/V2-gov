@@ -499,6 +499,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint16 currentEpoch = epoch();
 
         registeredInitiatives[_initiative] = currentEpoch;
+        
+        /// @audit This ensures that the initiatives has UNREGISTRATION_AFTER_EPOCHS even after the first epoch
+        initiativeStates[_initiative].lastEpochClaim = epoch() - 1; 
+
+        
 
         emit RegisterInitiative(_initiative, msg.sender, currentEpoch);
 
@@ -557,13 +562,18 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     /// @notice Reset the allocations for the initiatives being passed, must pass all initiatives else it will revert
     ///     NOTE: If you reset at the last day of the epoch, you won't be able to vote again
     ///         Use `allocateLQTY` to reset and vote
-    function resetAllocations(address[] calldata _initiativesToReset) external nonReentrant {
+    function resetAllocations(address[] calldata _initiativesToReset, bool checkAll) external nonReentrant {
         _requireNoDuplicates(_initiativesToReset);
         _resetInitiatives(_initiativesToReset);
 
-        // TODO: Remove this as we may be in a scenario in which this causes DOS due to
-        // having too many initiatives
-        require(userStates[msg.sender].allocatedLQTY == 0, "must be a reset");
+        // NOTE: In most cases, the check will pass
+        // But if you allocate too many initiatives, we may run OOG
+        // As such the check is optional here
+        // All other calls to the system enforce this
+        // So it's recommended that your last call to `resetAllocations` passes the check
+        if(checkAll) {
+            require(userStates[msg.sender].allocatedLQTY == 0, "Governance: must be a reset");
+        }
     }
 
     /// @inheritdoc IGovernance

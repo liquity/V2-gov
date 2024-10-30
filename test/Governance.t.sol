@@ -615,8 +615,6 @@ contract GovernanceTest is Test {
         vm.warp(uint32(block.timestamp) + governance.EPOCH_DURATION());
 
         // should revert if the initiative is still active or the vetos don't meet the threshold
-        /// @audit TO REVIEW, this never got any votes, so it seems correct to remove
-        // No votes = can be kicked
         vm.expectRevert("Governance: cannot-unregister-initiative");
         governance.unregisterInitiative(baseInitiative3);
 
@@ -630,7 +628,7 @@ contract GovernanceTest is Test {
         assertEq(votes, 1e18, "votes 1");
         assertEq(forEpoch, governance.epoch() - 1, "for epoch 1");
 
-        vm.warp(uint32(block.timestamp) + governance.EPOCH_DURATION() * 3); // 3 more epochs
+        vm.warp(block.timestamp + governance.EPOCH_DURATION() * UNREGISTRATION_AFTER_EPOCHS); 
 
         governance.unregisterInitiative(baseInitiative3);
 

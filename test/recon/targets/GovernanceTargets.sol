@@ -23,8 +23,6 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         uint96 deltaLQTYVotes,
         uint96 deltaLQTYVetos
     ) public withChecks {
-
-        uint16 currentEpoch = governance.epoch();
         uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
 
         address[] memory initiatives = new address[](1);
@@ -35,7 +33,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % stakedAmount));
 
         // User B4
-        (uint88 b4_user_allocatedLQTY,) = governance.userStates(user);
+        // (uint88 b4_user_allocatedLQTY,) = governance.userStates(user); // TODO
         // StateB4
         (uint88 b4_global_allocatedLQTY,) = governance.globalState();
 
@@ -53,7 +51,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         // Global state and user state accounting should change
 
 
-        (uint88 after_user_allocatedLQTY,) = governance.userStates(user);
+        // (uint88 after_user_allocatedLQTY,) = governance.userStates(user); // TODO
         (uint88 after_global_allocatedLQTY,) = governance.globalState();
 
         if(status == Governance.InitiativeStatus.DISABLED) {
@@ -69,7 +67,6 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         uint96 deltaLQTYVetos
     ) public withChecks {
 
-        uint16 currentEpoch = governance.epoch();
         uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user2)).staked(); // clamp using the user's staked balance
 
         address[] memory initiatives = new address[](1);
@@ -86,11 +83,11 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     }
 
     function governance_resetAllocations() public {
-        governance.resetAllocations(deployedInitiatives);
+        governance.resetAllocations(deployedInitiatives, true);
     }
     function governance_resetAllocations_user_2() public {
         vm.prank(user2);
-        governance.resetAllocations(deployedInitiatives);
+        governance.resetAllocations(deployedInitiatives, true);
     }
 
     // TODO: if userState.allocatedLQTY != 0 deposit and withdraw must always revert
@@ -112,7 +109,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     function depositMustFailOnNonZeroAlloc(uint88 lqtyAmount) public withChecks {
         (uint88 user_allocatedLQTY,) = governance.userStates(user);
 
-        require(user_allocatedLQTY != 0);
+        require(user_allocatedLQTY != 0, "0 alloc");
 
         lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
         try governance.depositLQTY(lqtyAmount) {
