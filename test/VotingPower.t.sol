@@ -114,7 +114,7 @@ contract VotingPowerTest is Test {
         assertEq(powerInTheFuture, powerFromMoreDeposits, "Same result");
     }
 
-    function test_math_soundness_fuzz(uint32 multiplier) public {
+    function test_math_soundness_fuzz(uint32 multiplier) public view {
         vm.assume(multiplier < type(uint32).max - 1);
         uint88 lqtyAmount = 1e10;
 
@@ -269,7 +269,6 @@ contract VotingPowerTest is Test {
 
         vm.startPrank(user2);
         _allocate(address(baseInitiative1), 15, 0);
-        uint256 both_avg = _getAverageTS(baseInitiative1);
         _allocate(address(baseInitiative1), 0, 0);
 
         uint256 griefed_avg = _getAverageTS(baseInitiative1);
@@ -307,11 +306,9 @@ contract VotingPowerTest is Test {
 
         vm.startPrank(user);
         _allocate(address(baseInitiative1), 124, 0);
-        uint256 user1_avg = _getAverageTS(baseInitiative1);
 
         vm.startPrank(user2);
         _allocate(address(baseInitiative1), 15, 0);
-        uint256 both_avg = _getAverageTS(baseInitiative1);
         _allocate(address(baseInitiative1), 0, 0);
 
         uint256 griefed_avg = _getAverageTS(baseInitiative1);
@@ -365,10 +362,6 @@ contract VotingPowerTest is Test {
 
     // forge test --match-test test_basic_reset_flow -vv
     function test_basic_reset_flow() public {
-        uint256 snapshot0 = vm.snapshot();
-
-        uint256 snapshotBefore = vm.snapshot();
-
         vm.startPrank(user);
         // =========== epoch 1 ==================
         // 1. user stakes lqty
@@ -377,7 +370,7 @@ contract VotingPowerTest is Test {
 
         // user allocates to baseInitiative1
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-        (uint88 allocatedLQTY, uint32 averageStakingTimestamp1) = governance.userStates(user);
+        (uint88 allocatedLQTY, ) = governance.userStates(user);
         assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "half");
 
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
@@ -386,10 +379,6 @@ contract VotingPowerTest is Test {
 
     // forge test --match-test test_cutoff_logic -vv
     function test_cutoff_logic() public {
-        uint256 snapshot0 = vm.snapshot();
-
-        uint256 snapshotBefore = vm.snapshot();
-
         vm.startPrank(user);
         // =========== epoch 1 ==================
         // 1. user stakes lqty
@@ -398,7 +387,7 @@ contract VotingPowerTest is Test {
 
         // user allocates to baseInitiative1
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-        (uint88 allocatedLQTY, uint32 averageStakingTimestamp1) = governance.userStates(user);
+        (uint88 allocatedLQTY, ) = governance.userStates(user);
         assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "Half");
 
         // Go to Cutoff
@@ -435,7 +424,7 @@ contract VotingPowerTest is Test {
     // Removing just updates that + the weights
     // The weights are the avg time * the number
 
-    function _getAverageTS(address initiative) internal returns (uint256) {
+    function _getAverageTS(address initiative) internal view returns (uint256) {
         (,, uint32 averageStakingTimestampVoteLQTY,,) = governance.initiativeStates(initiative);
 
         return averageStakingTimestampVoteLQTY;
