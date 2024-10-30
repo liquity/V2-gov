@@ -479,7 +479,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         if (
             (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
                 || _votesForInitiativeSnapshot.vetos > _votesForInitiativeSnapshot.votes
-                    && _votesForInitiativeSnapshot.vetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
+                    && uint256(_votesForInitiativeSnapshot.vetos) > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
             return (InitiativeStatus.UNREGISTERABLE, lastEpochClaim, 0);
         }
