@@ -112,7 +112,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     function depositMustFailOnNonZeroAlloc(uint88 lqtyAmount) public withChecks {
         (uint88 user_allocatedLQTY,) = governance.userStates(user);
 
-        require(user_allocatedLQTY != 0);
+        require(user_allocatedLQTY != 0, "0 alloc");
 
         lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
         try governance.depositLQTY(lqtyAmount) {

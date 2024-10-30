@@ -300,6 +300,8 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
     }
 
+    // TODO: Maybe check snapshot of states and ensure it can never be less than 4 epochs b4 unregisterable
+
     function check_claim_soundness() public {
         // Check if initiative is claimable
         // If it is assert the check
