@@ -137,16 +137,16 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint88 newOuterAverageAge;
         if (_prevLQTYBalance <= _newLQTYBalance) {
             uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
-            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
-            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
-            uint240 votes = prevVotes + newVotes;
-            newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
+            uint120 prevVotes = uint120(_prevLQTYBalance) * uint120(prevOuterAverageAge);
+            uint120 newVotes = uint120(deltaLQTY) * uint120(newInnerAverageAge);
+            uint120 votes = prevVotes + newVotes;
+            newOuterAverageAge = uint32(votes / uint120(_newLQTYBalance));
         } else {
             uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
-            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
-            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
-            uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
-            newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
+            uint120 prevVotes = uint120(_prevLQTYBalance) * uint120(prevOuterAverageAge);
+            uint120 newVotes = uint120(deltaLQTY) * uint120(newInnerAverageAge);
+            uint120 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
+            newOuterAverageAge = uint32(votes / uint120(_newLQTYBalance));
         }
 
         if (newOuterAverageAge > block.timestamp) return 0;
