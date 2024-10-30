@@ -86,11 +86,11 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     }
 
     function governance_resetAllocations() public {
-        governance.resetAllocations(deployedInitiatives);
+        governance.resetAllocations(deployedInitiatives, true);
     }
     function governance_resetAllocations_user_2() public {
         vm.prank(user2);
-        governance.resetAllocations(deployedInitiatives);
+        governance.resetAllocations(deployedInitiatives, true);
     }
 
     // TODO: if userState.allocatedLQTY != 0 deposit and withdraw must always revert

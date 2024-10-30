@@ -469,6 +469,6 @@ contract VotingPowerTest is Test {
         initiativesToReset[1] = baseInitiative2;
         initiativesToReset[2] = baseInitiative3;
         
-        governance.resetAllocations(initiativesToReset);
+        governance.resetAllocations(initiativesToReset, true);
     }
 }
