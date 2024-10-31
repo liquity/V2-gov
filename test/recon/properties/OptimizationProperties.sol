@@ -9,9 +9,10 @@ import {vm} from "@chimera/Hevm.sol";
 import {IUserProxy} from "src/interfaces/IUserProxy.sol";
 import {GovernanceProperties} from "./GovernanceProperties.sol";
 
+// NOTE: These run only if you use `optimization` mode and set the correct prefix
+// See echidna.yaml
 abstract contract OptimizationProperties is GovernanceProperties {
 
-    // TODO: Add Optimization for property_sum_of_user_voting_weights
     function optimize_max_sum_of_user_voting_weights_insolvent() public returns (int256) {
         VotesSumAndInitiativeSum[] memory results = _getUserVotesSumAndInitiativesVotes();
 
@@ -42,8 +43,6 @@ abstract contract OptimizationProperties is GovernanceProperties {
     }
     
 
-
-    // TODO: Add Optimization for property_sum_of_lqty_global_user_matches
     function optimize_property_sum_of_lqty_global_user_matches_insolvency() public returns (int256) {
 
         int256 max = 0;
@@ -68,8 +67,6 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         return max;
     }
-
-        // TODO: Add Optimization for property_sum_of_initatives_matches_total_votes
 
     function optimize_property_sum_of_initatives_matches_total_votes_insolvency() public returns (int256) {
 
