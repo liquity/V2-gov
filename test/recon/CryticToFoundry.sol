@@ -271,4 +271,31 @@ uint256 loggerCount;
      property_BI07();
 
  }
+
+ // forge test --match-test test_property_sum_of_user_voting_weights_0 -vv 
+ function test_property_sum_of_user_voting_weights_1() public {
+
+     vm.warp(block.timestamp + 365090);
+
+     vm.roll(block.number + 1);
+
+     governance_depositLQTY_2(3);
+
+     vm.warp(block.timestamp + 164968);
+
+     vm.roll(block.number + 1);
+
+     governance_depositLQTY(2);
+
+     vm.warp(block.timestamp + 74949);
+
+     vm.roll(block.number + 1);
+
+     governance_allocateLQTY_clamped_single_initiative_2nd_user(0,2,0);
+
+     governance_allocateLQTY_clamped_single_initiative(0,1,0);
+
+     property_sum_of_user_voting_weights();
+
+ }
 }
