@@ -79,4 +79,53 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
 
         property_BI04();
     }
+
+    // forge test --match-test test_governance_claimForInitiativeDoesntRevert_5 -vv 
+ function test_governance_claimForInitiativeDoesntRevert_5() public {
+
+     governance_depositLQTY_2(96505858);
+
+     vm.roll(block.number + 3);
+     vm.warp(block.timestamp + 191303);
+     property_BI03();
+
+     vm.warp(block.timestamp + 100782);
+
+     vm.roll(block.number + 1);
+
+     vm.roll(block.number + 1);
+     vm.warp(block.timestamp + 344203);
+     governance_allocateLQTY_clamped_single_initiative_2nd_user(0,1,0);
+
+     vm.warp(block.timestamp + 348184);
+
+     vm.roll(block.number + 177);
+
+     helper_deployInitiative();
+
+     helper_accrueBold(1000135831883853852074);
+
+     governance_depositLQTY(2293362807359);
+
+     vm.roll(block.number + 2);
+     vm.warp(block.timestamp + 151689);
+     property_BI04();
+
+     governance_registerInitiative(1);
+
+     vm.roll(block.number + 3);
+     vm.warp(block.timestamp + 449572);
+     governance_allocateLQTY_clamped_single_initiative(1,330671315851182842292,0);
+
+     governance_resetAllocations();
+
+     vm.warp(block.timestamp + 231771);
+
+     vm.roll(block.number + 5);
+
+        // WOW, 7X off
+    console.log("Balance prev", lusd.balanceOf(address(governance)));
+     governance_claimForInitiativeDoesntRevert(0);
+
+ }
 }
