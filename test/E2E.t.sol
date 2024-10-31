@@ -121,6 +121,24 @@ contract E2ETests is Test {
         _allocate(address(0x123123), 1e18, 0);
     }
 
+    // forge test --match-test test_noVetoGriefAtEpochOne -vv
+    function test_noVetoGriefAtEpochOne() public {
+        /// @audit NOTE: In order for this to work, the constructor must set the start time a week behind
+        /// This will make the initiatives work on the first epoch
+        vm.startPrank(user);
+        // Check that we can vote on the first epoch, right after deployment
+        _deposit(1000e18);
+
+        console.log("epoch", governance.epoch());
+        _allocate(baseInitiative1, 0, 1e18); // Doesn't work due to cool down I think
+
+        vm.expectRevert();
+        governance.unregisterInitiative(baseInitiative1);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+        governance.unregisterInitiative(baseInitiative1);
+    }
+
     // forge test --match-test test_deregisterIsSound -vv
     function test_deregisterIsSound() public {
         // Deregistration works as follows:
@@ -292,8 +310,8 @@ contract E2ETests is Test {
         ++skipCount;
         assertEq(
             uint256(Governance.InitiativeStatus.CLAIMABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE"
-        );    }
-
+        );    
+    }
 
     function _deposit(uint88 amt) internal {
         address userProxy = governance.deployUserProxy();
