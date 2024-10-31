@@ -864,6 +864,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         /// If `lastEpochClaim` is older than epoch() - 1 it means the initiative couldn't claim any rewards this epoch
         initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
 
+        // @audit INVARIANT, because of rounding errors the system can overpay
+        /// We upscale the timestamp to reduce the impact of the loss
+        /// However this is still possible
+        uint256 available = bold.balanceOf(address(this));
+        if(claimableAmount > available) {
+            claimableAmount = available;
+        }
+
         bold.safeTransfer(_initiative, claimableAmount);
 
         emit ClaimForInitiative(_initiative, claimableAmount, votesSnapshot_.forEpoch);

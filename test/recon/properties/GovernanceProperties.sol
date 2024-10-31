@@ -104,6 +104,13 @@ abstract contract GovernanceProperties is BeforeAfter {
         // Get all users
         // Sum up all voted users
         // Total must match
+        (uint256 totalUserCountedLQTY, uint256 totalCountedLQTY) = _getGlobalLQTYAndUserSum();
+        
+
+        eq(totalUserCountedLQTY, totalCountedLQTY, "Global vs SUM(Users_lqty) must match");
+    }
+
+    function _getGlobalLQTYAndUserSum() internal returns (uint256, uint256) {
         (
             uint88 totalCountedLQTY,
             // uint32 after_user_countedVoteLQTYAverageTimestamp // TODO: How do we do this?
@@ -116,7 +123,7 @@ abstract contract GovernanceProperties is BeforeAfter {
             totalUserCountedLQTY += user_voteLQTY;
         }
 
-        eq(totalUserCountedLQTY, totalCountedLQTY, "Global vs SUM(Users_lqty) must match");
+        return (totalUserCountedLQTY, totalCountedLQTY);
     }
 
 
@@ -179,6 +186,8 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
     }
 
+
+
     // sum of voting power for users that allocated to an initiative == the voting power of the initiative
     /// TODO ??
     function property_sum_of_user_voting_weights() public {
@@ -186,7 +195,23 @@ abstract contract GovernanceProperties is BeforeAfter {
         // - calculate user voting weight for the given timestamp
         // - sum user voting weights for the given epoch
         // - compare with the voting weight of the initiative for the epoch for the same timestamp
+        VotesSumAndInitiativeSum[] memory votesSumAndInitiativeValues = _getUserVotesSumAndInitiativesVotes();
 
+        for(uint256 i; i < votesSumAndInitiativeValues.length; i++) {
+            eq(
+                votesSumAndInitiativeValues[i].userSum,
+                votesSumAndInitiativeValues[i].initiativeWeight,
+                "initiative voting weights and user's allocated weight differs for initiative"
+            );
+        }
+    }
+    struct VotesSumAndInitiativeSum {
+        uint256 userSum;
+        uint256 initiativeWeight;
+    }
+    
+    function _getUserVotesSumAndInitiativesVotes() internal returns (VotesSumAndInitiativeSum[] memory){
+        VotesSumAndInitiativeSum[] memory acc = new VotesSumAndInitiativeSum[](deployedInitiatives.length);
         for (uint256 i; i < deployedInitiatives.length; i++) {
             uint240 userWeightAccumulatorForInitiative;
             for (uint256 j; j < users.length; j++) {
@@ -202,12 +227,12 @@ abstract contract GovernanceProperties is BeforeAfter {
                 governance.initiativeStates(deployedInitiatives[i]);
             uint240 initiativeWeight =
                 governance.lqtyToVotes(initiativeVoteLQTY, block.timestamp, initiativeAverageStakingTimestampVoteLQTY);
-            eq(
-                initiativeWeight,
-                userWeightAccumulatorForInitiative,
-                "initiative voting weights and user's allocated weight differs for initiative"
-            );
+            
+            acc[i].userSum = userWeightAccumulatorForInitiative;
+            acc[i].initiativeWeight = initiativeWeight;
         }
+
+        return acc;
     }
 
     function property_allocations_are_never_dangerously_high() public {
@@ -223,6 +248,12 @@ abstract contract GovernanceProperties is BeforeAfter {
     function property_sum_of_initatives_matches_total_votes() public {
         // Sum up all initiatives
         // Compare to total votes
+        (uint256 initiativeVotesSum, uint256 snapshotVotes) = _getInitiativesSnapshotsAndGlobalState();
+
+        eq(initiativeVotesSum, snapshotVotes, "Sum of votes matches");
+    }
+
+    function _getInitiativesSnapshotsAndGlobalState() internal returns (uint256, uint256) {
         (IGovernance.VoteSnapshot memory snapshot,,) = governance.getTotalVotesAndState();
 
         uint256 initiativeVotesSum;
@@ -237,7 +268,7 @@ abstract contract GovernanceProperties is BeforeAfter {
             }
         }
 
-        eq(initiativeVotesSum, snapshot.votes, "Sum of votes matches");
+        return (initiativeVotesSum, snapshot.votes);
     }
 
     /// NOTE: This property can break in some specific combinations of:
