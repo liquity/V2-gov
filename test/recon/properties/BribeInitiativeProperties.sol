@@ -181,8 +181,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
             uint88 sumLqtyAllocated;
             for (uint8 j; j < users.length; j++) {
-                address user = users[j];
-                (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
+                (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
                 sumLqtyAllocated += lqtyAllocated;
             }
             (uint88 totalLQTYAllocated,) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
