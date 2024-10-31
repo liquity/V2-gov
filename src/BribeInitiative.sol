@@ -99,13 +99,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         );
 
         (uint88 totalLQTY, uint32 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
-        // WHAT HAPPENS IF WE ENFORCE EPOCH AT END?
-        // THEN WE LINEARLY TRANSLATE TO EPOCH END?
-        // EPOCH_START + epoch * EPOCH_DURATION is the time to claim (I think)
 
-        // Since epoch 1 starts at Epoch Start, epoch * Duration goes to the end of 
-        // But is this safe vs last second of the epoch?
-        // I recall having a similar issue already with Velodrome
         uint32 epochEnd = uint32(governance.EPOCH_START()) + uint32(_epoch) * uint32(governance.EPOCH_DURATION());
 
         /// @audit User Invariant
