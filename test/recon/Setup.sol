@@ -22,7 +22,7 @@ abstract contract Setup is BaseSetup {
     address internal user2 = address(0x537C8f3d3E18dF5517a58B3fB9D9143697996802); // derived using makeAddrAndKey
     address internal stakingV1;
     address internal userProxy;
-    address[] internal users = new address[](2);
+    address[] internal users;
     address[] internal deployedInitiatives;
     uint256 internal user2Pk = 23868421370328131711506074113045611601786642648093516849953535378706721142721; // derived using makeAddrAndKey
     bool internal claimedTwice;

@@ -159,9 +159,12 @@ contract BribeInitiativeAllocateTest is Test {
 
     function test_onAfterAllocateLQTY_newEpoch_NoVetoToVeto() public {
         governance.setEpoch(1);
+        vm.warp(governance.EPOCH_DURATION()); // warp to end of first epoch
 
         vm.startPrank(address(governance));
 
+        // set user2 allocations like governance would using onAfterAllocateLQTY at epoch 1 
+        // sets avgTimestamp to current block.timestamp
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
@@ -184,6 +187,8 @@ contract BribeInitiativeAllocateTest is Test {
             assertEq(userAverageTimestamp, uint32(block.timestamp));
         }
 
+        // set user2 allocations like governance would using onAfterAllocateLQTY at epoch 1
+        // sets avgTimestamp to current block.timestamp 
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
@@ -196,6 +201,7 @@ contract BribeInitiativeAllocateTest is Test {
                 lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
+            
             (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1001e18);
@@ -206,6 +212,7 @@ contract BribeInitiativeAllocateTest is Test {
             assertEq(userAverageTimestamp, uint32(block.timestamp));
         }
 
+        // lusdHolder deposits bribes into the initiative
         vm.startPrank(lusdHolder);
         lqty.approve(address(bribeInitiative), 1000e18);
         lusd.approve(address(bribeInitiative), 1000e18);
@@ -213,9 +220,12 @@ contract BribeInitiativeAllocateTest is Test {
         vm.stopPrank();
 
         governance.setEpoch(2);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to second epoch ts
 
         vm.startPrank(address(governance));
 
+        // set allocation in initiative for user in epoch 1 
+        // sets avgTimestamp to current block.timestamp 
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
@@ -238,6 +248,8 @@ contract BribeInitiativeAllocateTest is Test {
             assertEq(userAverageTimestamp, uint32(block.timestamp));
         }
 
+        // set allocation in initiative for user2 in epoch 1
+        // sets avgTimestamp to current block.timestamp 
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
@@ -260,7 +272,8 @@ contract BribeInitiativeAllocateTest is Test {
             assertEq(userAverageTimestamp, uint32(block.timestamp));
         }
 
-        governance.setEpoch(3);
+        governance.setEpoch(3); 
+        vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to third epoch ts
 
         vm.startPrank(address(user));
 
@@ -269,12 +282,13 @@ contract BribeInitiativeAllocateTest is Test {
         claimData[0].prevLQTYAllocationEpoch = 2;
         claimData[0].prevTotalLQTYAllocationEpoch = 2;
         (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(claimData);
-        assertEq(boldAmount, 0);
-        assertEq(bribeTokenAmount, 0);
+        assertEq(boldAmount, 0, "boldAmount nonzero");
+        assertEq(bribeTokenAmount, 0, "bribeTokenAmount nonzero");
     }
 
     function test_onAfterAllocateLQTY_newEpoch_VetoToNoVeto() public {
         governance.setEpoch(1);
+        vm.warp(governance.EPOCH_DURATION()); // warp to end of first epoch
 
         vm.startPrank(address(governance));
 
@@ -325,6 +339,7 @@ contract BribeInitiativeAllocateTest is Test {
         assertEq(userAverageTimestampAfterVeto, uint32(block.timestamp));
 
         governance.setEpoch(2);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to second epoch ts
 
         IGovernance.UserState memory userStateNewEpoch =
             IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint32(block.timestamp)});
@@ -359,6 +374,7 @@ contract BribeInitiativeAllocateTest is Test {
         vm.startPrank(address(governance));
 
         governance.setEpoch(3);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to third epoch ts
 
         IGovernance.UserState memory userStateNewEpoch3 =
             IGovernance.UserState({allocatedLQTY: 2000e18, averageStakingTimestamp: uint32(block.timestamp)});
@@ -385,6 +401,7 @@ contract BribeInitiativeAllocateTest is Test {
         assertEq(userAverageTimestampNewEpoch3, uint32(block.timestamp));
 
         governance.setEpoch(4);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to fourth epoch ts
 
         vm.startPrank(address(user));
 
@@ -509,6 +526,7 @@ contract BribeInitiativeAllocateTest is Test {
         vm.stopPrank();
 
         governance.setEpoch(1);
+        vm.warp(governance.EPOCH_DURATION()); // warp to end of first epoch
 
         vm.startPrank(address(governance));
 
@@ -585,6 +603,7 @@ contract BribeInitiativeAllocateTest is Test {
         }
 
         governance.setEpoch(2);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to second epoch ts
 
         vm.startPrank(address(user));
 
@@ -603,6 +622,7 @@ contract BribeInitiativeAllocateTest is Test {
         vm.stopPrank();
 
         governance.setEpoch(1);
+        vm.warp(governance.EPOCH_DURATION()); // warp to end of first epoch
 
         vm.startPrank(address(governance));
 
@@ -679,6 +699,7 @@ contract BribeInitiativeAllocateTest is Test {
         }
 
         governance.setEpoch(2);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to second epoch ts
 
         vm.startPrank(address(user));
 
@@ -699,6 +720,7 @@ contract BribeInitiativeAllocateTest is Test {
         vm.stopPrank();
 
         governance.setEpoch(1);
+        vm.warp(governance.EPOCH_DURATION()); // warp to end of first epoch
 
         vm.startPrank(address(governance));
 
@@ -799,6 +821,7 @@ contract BribeInitiativeAllocateTest is Test {
         }
 
         governance.setEpoch(2);
+        vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to second epoch ts
 
         vm.startPrank(address(user));
 

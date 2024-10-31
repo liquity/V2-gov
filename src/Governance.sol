@@ -843,10 +843,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function claimForInitiative(address _initiative) external nonReentrant returns (uint256) {
+        // Accrue and update state
         (VoteSnapshot memory votesSnapshot_,) = _snapshotVotes();
         (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
             _snapshotVotesForInitiative(_initiative);
 
+        // Compute values on accrued state
         (InitiativeStatus status,, uint256 claimableAmount) =
             getInitiativeState(_initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
 
@@ -861,6 +863,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         /// Invariant `lastEpochClaim` is < epoch() - 1; |
         /// If `lastEpochClaim` is older than epoch() - 1 it means the initiative couldn't claim any rewards this epoch
         initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
+
+        // @audit INVARIANT, because of rounding errors the system can overpay
+        /// We upscale the timestamp to reduce the impact of the loss
+        /// However this is still possible
+        uint256 available = bold.balanceOf(address(this));
+        if(claimableAmount > available) {
+            claimableAmount = available;
+        }
 
         bold.safeTransfer(_initiative, claimableAmount);
 

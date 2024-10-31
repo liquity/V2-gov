@@ -99,10 +99,27 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         );
 
         (uint88 totalLQTY, uint32 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
-        uint240 totalVotes = governance.lqtyToVotes(totalLQTY, block.timestamp, totalAverageTimestamp);
+        // WHAT HAPPENS IF WE ENFORCE EPOCH AT END?
+        // THEN WE LINEARLY TRANSLATE TO EPOCH END?
+        // EPOCH_START + epoch * EPOCH_DURATION is the time to claim (I think)
+
+        // Since epoch 1 starts at Epoch Start, epoch * Duration goes to the end of 
+        // But is this safe vs last second of the epoch?
+        // I recall having a similar issue already with Velodrome
+        uint32 epochEnd = uint32(governance.EPOCH_START()) + uint32(_epoch) * uint32(governance.EPOCH_DURATION());
+
+        /// @audit User Invariant
+        assert(totalAverageTimestamp <= epochEnd); /// NOTE: Tests break because they are not realistic
+        
+
+        uint240 totalVotes = governance.lqtyToVotes(totalLQTY, epochEnd, totalAverageTimestamp);
         if (totalVotes != 0) {
             (uint88 lqty, uint32 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
-            uint240 votes = governance.lqtyToVotes(lqty, block.timestamp, averageTimestamp);
+
+            /// @audit Governance Invariant
+            assert(averageTimestamp <= epochEnd); /// NOTE: Tests break because they are not realistic
+
+            uint240 votes = governance.lqtyToVotes(lqty, epochEnd, averageTimestamp);
             boldAmount = uint256(bribe.boldAmount) * uint256(votes) / uint256(totalVotes);
             bribeTokenAmount = uint256(bribe.bribeTokenAmount) * uint256(votes) / uint256(totalVotes);
         }
