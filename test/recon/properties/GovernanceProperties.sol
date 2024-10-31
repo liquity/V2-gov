@@ -112,7 +112,7 @@ abstract contract GovernanceProperties is BeforeAfter {
         uint256 totalUserCountedLQTY;
         for (uint256 i; i < users.length; i++) {
             // Only sum up user votes
-            (uint88 user_voteLQTY,) = _getAllUserAllocations(users[i]);
+            (uint88 user_voteLQTY,) = _getAllUserAllocations(users[i], true);
             totalUserCountedLQTY += user_voteLQTY;
         }
 
@@ -125,7 +125,7 @@ abstract contract GovernanceProperties is BeforeAfter {
     function property_ensure_user_alloc_cannot_dos() public {
         for (uint256 i; i < users.length; i++) {
             // Only sum up user votes
-            (uint88 user_voteLQTY,) = _getAllUserAllocations(users[i]);
+            (uint88 user_voteLQTY,) = _getAllUserAllocations(users[i], false);
 
             lte(user_voteLQTY, uint88(type(int88).max), "User can never allocate more than int88");
         }
@@ -327,12 +327,24 @@ abstract contract GovernanceProperties is BeforeAfter {
         (votes, vetos,) = governance.lqtyAllocatedByUserToInitiative(theUser, initiative);
     }
 
-    function _getAllUserAllocations(address theUser) internal view returns (uint88 votes, uint88 vetos) {
+    function _getAllUserAllocations(address theUser, bool skipDisabled) internal returns (uint88 votes, uint88 vetos) {
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (uint88 allocVotes, uint88 allocVetos,) =
                 governance.lqtyAllocatedByUserToInitiative(theUser, deployedInitiatives[i]);
-            votes += allocVotes;
-            vetos += allocVetos;
+            if(skipDisabled) {
+                (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+
+                // Conditionally add based on state
+                if (status != Governance.InitiativeStatus.DISABLED) {
+                    votes += allocVotes;
+                    vetos += allocVetos;
+                }
+            } else {
+                // Always add
+                votes += allocVotes;
+                vetos += allocVetos;
+            }
+
         }
     }
 
