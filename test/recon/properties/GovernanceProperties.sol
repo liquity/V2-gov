@@ -116,7 +116,7 @@ abstract contract GovernanceProperties is BeforeAfter {
             totalUserCountedLQTY += user_voteLQTY;
         }
 
-        eq(totalCountedLQTY, totalUserCountedLQTY, "Global vs SUM(Users_lqty) must match");
+        eq(totalUserCountedLQTY, totalCountedLQTY, "Global vs SUM(Users_lqty) must match");
     }
 
 
@@ -237,7 +237,7 @@ abstract contract GovernanceProperties is BeforeAfter {
             }
         }
 
-        eq(snapshot.votes, initiativeVotesSum, "Sum of votes matches");
+        eq(initiativeVotesSum, snapshot.votes, "Sum of votes matches");
     }
 
     /// NOTE: This property can break in some specific combinations of:

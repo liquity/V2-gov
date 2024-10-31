@@ -5,5 +5,6 @@ import {BeforeAfter} from "./BeforeAfter.sol";
 import {GovernanceProperties} from "./properties/GovernanceProperties.sol";
 import {BribeInitiativeProperties} from "./properties/BribeInitiativeProperties.sol";
 import {SynchProperties} from "./properties/SynchProperties.sol";
+import {SolvencyProperties} from "./properties/SolvencyProperties.sol";
 
-abstract contract Properties is GovernanceProperties, BribeInitiativeProperties, SynchProperties {}
+abstract contract Properties is GovernanceProperties, BribeInitiativeProperties, SynchProperties, SolvencyProperties {}
