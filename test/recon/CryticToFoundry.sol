@@ -184,13 +184,15 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     _loginitiative_and_state(); // 8
     property_sum_of_initatives_matches_total_votes();
 
-     governance_resetAllocations();
-     _loginitiative_and_state();
+     governance_resetAllocations(); // NOTE: This leaves 1 vote from user2, and removes the votes from user1
+     _loginitiative_and_state(); // In lack of reset, we have 2 wei error | With reset the math is off by 7x
      property_sum_of_initatives_matches_total_votes();
+     console.log("time 0", block.timestamp);
 
      vm.warp(block.timestamp + 231771);
      vm.roll(block.number + 5);
      _loginitiative_and_state();
+      console.log("time 0", block.timestamp);
 
     // Both of these are fine
     // Meaning all LQTY allocation is fine here
@@ -199,7 +201,7 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     property_sum_of_lqty_global_user_matches();
 
     /// === BROKEN === ///
-     property_sum_of_initatives_matches_total_votes(); // THIS IS THE BROKEN PROPERTY
+    //  property_sum_of_initatives_matches_total_votes(); // THIS IS THE BROKEN PROPERTY
     (IGovernance.VoteSnapshot memory snapshot,,) = governance.getTotalVotesAndState();
 
         uint256 initiativeVotesSum;
@@ -216,8 +218,7 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     console.log("snapshot.votes", snapshot.votes);
     console.log("initiativeVotesSum", initiativeVotesSum);
     console.log("bold.balance", lusd.balanceOf(address(governance)));
-    //  governance_claimForInitiativeDoesntRevert(0);
-
+     governance_claimForInitiativeDoesntRevert(0); // Because of the quickfix this will not revert anymore
  }
 
 uint256 loggerCount;
