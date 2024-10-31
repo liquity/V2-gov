@@ -241,4 +241,33 @@ uint256 loggerCount;
          console.log("initiativeSnapshot.votes", initiativeSnapshot.votes);
     }
  }
+
+ // forge test --match-test test_property_BI07_4 -vv 
+ function test_property_BI07_4() public {
+
+     vm.warp(block.timestamp + 562841);
+
+     vm.roll(block.number + 1);
+
+     governance_depositLQTY_2(2);
+
+     vm.warp(block.timestamp + 243877);
+
+     vm.roll(block.number + 1);
+
+     governance_allocateLQTY_clamped_single_initiative_2nd_user(0,1,0);
+
+     vm.warp(block.timestamp + 403427);
+
+     vm.roll(block.number + 1);
+
+    // SHIFTS the week
+    // Doesn't check latest alloc for each user
+    // Property is broken due to wrong spec
+    // For each user you need to grab the latest via the Governance.allocatedByUser
+     property_resetting_never_reverts();
+
+     property_BI07();
+
+ }
 }
