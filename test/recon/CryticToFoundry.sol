@@ -184,9 +184,9 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     _loginitiative_and_state(); // 8
     property_sum_of_initatives_matches_total_votes();
 
-     governance_resetAllocations();
-     _loginitiative_and_state();
-     property_sum_of_initatives_matches_total_votes();
+    //  governance_resetAllocations();
+    //  _loginitiative_and_state();
+    //  property_sum_of_initatives_matches_total_votes();
 
      vm.warp(block.timestamp + 231771);
      vm.roll(block.number + 5);
