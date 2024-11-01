@@ -40,7 +40,11 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         (Governance.InitiativeStatus status, ,) = governance.getInitiativeState(initiatives[0]);
 
 
-        governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
+        try governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray) {
+
+        } catch {
+            // t(false, "Clamped allocated should not revert"); // TODO: Consider adding overflow check here
+        }
 
         // The test here should be:
         // If initiative was DISABLED
@@ -154,7 +158,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     // For every initiative, make ghost values and ensure they match
     // For all operations, you also need to add the VESTED AMT?
 
-    function governance_allocateLQTY(int88[] calldata _deltaLQTYVotes, int88[] calldata _deltaLQTYVetos)
+    function governance_allocateLQTY(int88[] memory _deltaLQTYVotes, int88[] memory _deltaLQTYVetos)
         public
         withChecks
     {
@@ -261,5 +265,20 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
     function governance_withdrawLQTY(uint88 _lqtyAmount) public withChecks {
         governance.withdrawLQTY(_lqtyAmount);
+    }
+
+    function governance_withdrawLQTY_shouldRevertWhenClamped(uint88 _lqtyAmount) public withChecks {
+        uint88 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
+        
+        // Ensure we have 0 votes
+        try governance.resetAllocations(deployedInitiatives, true) {} catch {
+            t(false, "Should not revert cause OOG is unlikely");
+        }
+
+        _lqtyAmount %= stakedAmount + 1;
+        try governance.withdrawLQTY(_lqtyAmount) {
+        } catch {
+            t(false, "Clamped withdraw should not revert");
+        }
     }
 }

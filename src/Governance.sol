@@ -478,7 +478,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             upscaledInitiativeVotes > votingTheshold
                 && !(upscaledInitiativeVetos >= upscaledInitiativeVotes)
         ) {
-            assert(upscaledInitiativeVotes * WAD / VOTING_THRESHOLD_FACTOR > upscaledTotalVotes);
+            /// @audit 2^208 means we only have 2^48 left
+            /// Therefore we need to scale the value down by 4 orders of magnitude to make it fit
+            assert(upscaledInitiativeVotes * 1e14 / (VOTING_THRESHOLD_FACTOR / 1e4) > upscaledTotalVotes);
 
             // 34 times when using 0.03e18 -> 33.3 + 1-> 33 + 1 = 34
             uint256 CUSTOM_PRECISION = WAD / VOTING_THRESHOLD_FACTOR + 1;
