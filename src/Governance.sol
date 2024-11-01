@@ -478,6 +478,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             upscaledInitiativeVotes > votingTheshold
                 && !(upscaledInitiativeVetos >= upscaledInitiativeVotes)
         ) {
+            assert(upscaledInitiativeVotes * WAD / VOTING_THRESHOLD_FACTOR > upscaledTotalVotes);
+
+            uint256 CUSTOM_PRECISION = WAD / VOTING_THRESHOLD_FACTOR;
+
             /// @audit TODO: We need even more precision
             /// NOTE: Maybe we truncate this on purpose to increae likelihood that the 
             // truncation is in favour of system, making insolvency less likely
@@ -487,7 +491,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // NOTE: This MAY help in causing truncation that prevents an edge case
             // That causes the redistribution of an excessive amount of rewards
             // TODO: I think we can do a test to prove the precision required here
-            uint256 claim = upscaledInitiativeVotes * 1e10 / upscaledTotalVotes * boldAccrued / 1e10 ;
+            // TODO: Because of voting theshold being 3%
+            // I believe that you should be able to upscaled this by just 100
+            uint256 claim = upscaledInitiativeVotes * CUSTOM_PRECISION / upscaledTotalVotes * boldAccrued / CUSTOM_PRECISION;
             return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
 
