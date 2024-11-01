@@ -171,7 +171,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
                                 STAKING
     //////////////////////////////////////////////////////////////*/
 
-    function _updateUserStakes(uint88 _lqtyAmount) private returns (UserProxy) {
+    function _updateUserTimestamp(uint88 _lqtyAmount) private returns (UserProxy) {
         require(_lqtyAmount > 0, "Governance: zero-lqty-amount");
 
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
@@ -205,13 +205,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function depositLQTY(uint88 _lqtyAmount) external nonReentrant {
-        UserProxy userProxy = _updateUserStakes(_lqtyAmount);
+        UserProxy userProxy = _updateUserTimestamp(_lqtyAmount);
         userProxy.stake(_lqtyAmount, msg.sender);
     }
 
     /// @inheritdoc IGovernance
     function depositLQTYViaPermit(uint88 _lqtyAmount, PermitParams calldata _permitParams) external nonReentrant {
-        UserProxy userProxy = _updateUserStakes(_lqtyAmount);
+        UserProxy userProxy = _updateUserTimestamp(_lqtyAmount);
         userProxy.stakeViaPermit(_lqtyAmount, msg.sender, _permitParams);
     }
 
