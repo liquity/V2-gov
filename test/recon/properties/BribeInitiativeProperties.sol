@@ -173,12 +173,12 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
     }
 
     function property_BI07() public {
-        uint16 currentEpoch = governance.epoch();
-
         // sum user allocations for an epoch
         // check that this matches the total allocation for the epoch
         for (uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
+            uint16 currentEpoch = initiative.getMostRecentTotalEpoch();
+            
             uint88 sumLqtyAllocated;
             for (uint8 j; j < users.length; j++) {
                 // NOTE: We need to grab user latest
@@ -186,6 +186,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
                 (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(users[j], userEpoch);
                 sumLqtyAllocated += lqtyAllocated;
             }
+
             (uint88 totalLQTYAllocated,) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
             eq(
                 sumLqtyAllocated,
