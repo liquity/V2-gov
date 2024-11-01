@@ -116,7 +116,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
             // assert that user TS is now * WAD
             (, uint120 ts) = governance.userStates(user);
-            eq(ts, block.timestamp * 1e18, "User TS is scaled by WAD");
+            eq(ts, block.timestamp * 1e26, "User TS is scaled by WAD");
         }
     }
     function depositMustFailOnNonZeroAlloc(uint88 lqtyAmount) public withChecks {

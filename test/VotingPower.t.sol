@@ -318,7 +318,7 @@ contract VotingPowerTest is Test {
 
         console.log("0?");
 
-        uint256 currentMagnifiedTs = uint120(block.timestamp) * uint120(1e18);
+        uint256 currentMagnifiedTs = uint120(block.timestamp) * uint120(1e26);
 
         vm.startPrank(user2);
         _allocate(address(baseInitiative1), 15, 0);

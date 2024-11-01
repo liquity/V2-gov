@@ -86,7 +86,7 @@ contract GovernanceTest is Test {
         (uint88 allocatedLQTY, uint120 averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         // first deposit should have an averageStakingTimestamp if block.timestamp
-        assertEq(averageStakingTimestamp, block.timestamp * 1e18); // TODO: Normalize
+        assertEq(averageStakingTimestamp, block.timestamp * 1e26); // TODO: Normalize
         vm.stopPrank();
 
         vm.startPrank(lusdHolder);
