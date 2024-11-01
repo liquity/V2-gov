@@ -10,7 +10,8 @@ import {IUserProxy} from "src/interfaces/IUserProxy.sol";
 
 abstract contract GovernanceProperties is BeforeAfter {
 
-    uint256 constant TOLLERANCE = 1e6;
+    uint256 constant TOLLERANCE = 1e19; // NOTE: 1e18 is 1 second due to upscaling
+    /// So we accept at most 10 seconds of errors
 
     /// A Initiative cannot change in status
     /// Except for being unregistered
@@ -217,6 +218,7 @@ abstract contract GovernanceProperties is BeforeAfter {
         VotesSumAndInitiativeSum[] memory votesSumAndInitiativeValues = _getUserVotesSumAndInitiativesVotes();
 
         for(uint256 i; i < votesSumAndInitiativeValues.length; i++) {
+            eq(votesSumAndInitiativeValues[i].userSum, votesSumAndInitiativeValues[i].initiativeWeight, "Matching");
             t( 
                 votesSumAndInitiativeValues[i].userSum == votesSumAndInitiativeValues[i].initiativeWeight ||
                 (
