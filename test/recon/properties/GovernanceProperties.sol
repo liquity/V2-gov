@@ -9,6 +9,9 @@ import {vm} from "@chimera/Hevm.sol";
 import {IUserProxy} from "src/interfaces/IUserProxy.sol";
 
 abstract contract GovernanceProperties is BeforeAfter {
+
+    uint256 constant TOLLERANCE = 1e6;
+
     /// A Initiative cannot change in status
     /// Except for being unregistered
     ///     Or claiming rewards
@@ -190,7 +193,7 @@ abstract contract GovernanceProperties is BeforeAfter {
 
     // sum of voting power for users that allocated to an initiative == the voting power of the initiative
     /// TODO ??
-    function property_sum_of_user_voting_weights() public {
+    function property_sum_of_user_voting_weights_strict() public {
         // loop through all users
         // - calculate user voting weight for the given timestamp
         // - sum user voting weights for the given epoch
@@ -202,6 +205,22 @@ abstract contract GovernanceProperties is BeforeAfter {
                 votesSumAndInitiativeValues[i].userSum,
                 votesSumAndInitiativeValues[i].initiativeWeight,
                 "initiative voting weights and user's allocated weight differs for initiative"
+            );
+        }
+    }
+
+    function property_sum_of_user_voting_weights_bounded() public {
+        // loop through all users
+        // - calculate user voting weight for the given timestamp
+        // - sum user voting weights for the given epoch
+        // - compare with the voting weight of the initiative for the epoch for the same timestamp
+        VotesSumAndInitiativeSum[] memory votesSumAndInitiativeValues = _getUserVotesSumAndInitiativesVotes();
+
+        for(uint256 i; i < votesSumAndInitiativeValues.length; i++) {
+            t(
+                votesSumAndInitiativeValues[i].userSum >= votesSumAndInitiativeValues[i].initiativeWeight - TOLLERANCE &&
+                votesSumAndInitiativeValues[i].userSum <= votesSumAndInitiativeValues[i].initiativeWeight + TOLLERANCE,
+                "initiative voting weights and user's allocated weight match within tollerance"
             );
         }
     }

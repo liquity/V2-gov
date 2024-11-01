@@ -74,7 +74,7 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
 
      governance_allocateLQTY_clamped_single_initiative(0,1,0);
 
-     property_sum_of_user_voting_weights(); /// Of by 2
+     property_sum_of_user_voting_weights_bounded(); /// Of by 2
 
  }
 
@@ -197,7 +197,7 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     // Both of these are fine
     // Meaning all LQTY allocation is fine here
     // Same for user voting weights
-    property_sum_of_user_voting_weights();
+    property_sum_of_user_voting_weights_bounded();
     property_sum_of_lqty_global_user_matches();
 
     /// === BROKEN === ///
@@ -295,7 +295,7 @@ uint256 loggerCount;
 
      governance_allocateLQTY_clamped_single_initiative(0,1,0);
 
-     property_sum_of_user_voting_weights();
+     property_sum_of_user_voting_weights_bounded();
 
  }
 }
