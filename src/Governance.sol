@@ -480,19 +480,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         ) {
             assert(upscaledInitiativeVotes * WAD / VOTING_THRESHOLD_FACTOR > upscaledTotalVotes);
 
-            uint256 CUSTOM_PRECISION = WAD / VOTING_THRESHOLD_FACTOR;
+            // 34 times when using 0.03e18 -> 33.3 + 1-> 33 + 1 = 34
+            uint256 CUSTOM_PRECISION = WAD / VOTING_THRESHOLD_FACTOR + 1;
 
-            /// @audit TODO: We need even more precision
-            /// NOTE: Maybe we truncate this on purpose to increae likelihood that the 
-            // truncation is in favour of system, making insolvency less likely
-            // TODO: Technically we can use the voting threshold here to make this work
-            /// With sufficient precision
-            /// Alternatively, we need to use fullMath on 512
-            // NOTE: This MAY help in causing truncation that prevents an edge case
-            // That causes the redistribution of an excessive amount of rewards
-            // TODO: I think we can do a test to prove the precision required here
-            // TODO: Because of voting theshold being 3%
-            // I believe that you should be able to upscaled this by just 100
+            /// @audit Because of the updated timestamp, we can run into overflows if we multiply by `boldAccrued`
+            ///     We use `CUSTOM_PRECISION` for this reason, a smaller multiplicative value
+            ///     The change SHOULD be safe because we already check for `threshold` before getting into these lines
             uint256 claim = upscaledInitiativeVotes * CUSTOM_PRECISION / upscaledTotalVotes * boldAccrued / CUSTOM_PRECISION;
             return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
