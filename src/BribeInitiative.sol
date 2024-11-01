@@ -103,21 +103,20 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
         (uint88 totalLQTY, uint120 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
 
-        // TODO: SCALING!!!
-        uint120 epochEnd = (uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())) * uint120(TIMESTAMP_PRECISION);
+        // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
+        uint120 scaledEpochEnd = (uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())) * uint120(TIMESTAMP_PRECISION);
 
         /// @audit User Invariant
-        assert(totalAverageTimestamp <= epochEnd);
-        
+        assert(totalAverageTimestamp <= scaledEpochEnd);
 
-        uint240 totalVotes = governance.lqtyToVotes(totalLQTY, epochEnd, totalAverageTimestamp);
+        uint240 totalVotes = governance.lqtyToVotes(totalLQTY, scaledEpochEnd, totalAverageTimestamp);
         if (totalVotes != 0) {
             (uint88 lqty, uint120 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
 
             /// @audit Governance Invariant
-            assert(averageTimestamp <= epochEnd);
+            assert(averageTimestamp <= scaledEpochEnd);
 
-            uint240 votes = governance.lqtyToVotes(lqty, epochEnd, averageTimestamp);
+            uint240 votes = governance.lqtyToVotes(lqty, scaledEpochEnd, averageTimestamp);
             boldAmount = uint256(bribe.boldAmount) * uint256(votes) / uint256(totalVotes);
             bribeTokenAmount = uint256(bribe.bribeTokenAmount) * uint256(votes) / uint256(totalVotes);
         }
@@ -141,6 +140,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             bribeTokenAmount += bribeTokenAmount_;
         }
 
+        // NOTE: Due to rounding errors in the `averageTimestamp` bribes may slightly overpay compared to what they have allocated
+        // We cap to the available amount for this reason
+        // The error should be below 10 LQTY per annum, in the worst case
         if (boldAmount != 0) {
             uint256 max = bold.balanceOf(address(this));
             if (boldAmount > max) {
@@ -148,6 +150,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             }
             bold.safeTransfer(msg.sender, boldAmount);
         }
+
         if (bribeTokenAmount != 0) {
             uint256 max = bribeToken.balanceOf(address(this));
             if (bribeTokenAmount > max) {
