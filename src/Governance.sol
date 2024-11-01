@@ -118,39 +118,47 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
     }
 
-    function _averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) internal pure returns (uint32) {
+    function _averageAge(uint120 _currentTimestamp, uint120 _averageTimestamp) internal pure returns (uint120) {
         if (_averageTimestamp == 0 || _currentTimestamp < _averageTimestamp) return 0;
         return _currentTimestamp - _averageTimestamp;
     }
 
     function _calculateAverageTimestamp(
-        uint32 _prevOuterAverageTimestamp,
-        uint32 _newInnerAverageTimestamp,
+        uint120 _prevOuterAverageTimestamp,
+        uint120 _newInnerAverageTimestamp,
         uint88 _prevLQTYBalance,
         uint88 _newLQTYBalance
-    ) internal view returns (uint32) {
+    ) internal view returns (uint120) {
         if (_newLQTYBalance == 0) return 0;
 
-        uint32 prevOuterAverageAge = _averageAge(uint32(block.timestamp), _prevOuterAverageTimestamp);
-        uint32 newInnerAverageAge = _averageAge(uint32(block.timestamp), _newInnerAverageTimestamp);
+        // NOTE: Truncation
+        // NOTE: u32 -> u120
+        /// @audit Investigate this
+        uint120 currentTime = uint120(uint32(block.timestamp)) * uint120(WAD);
 
-        uint88 newOuterAverageAge;
+        uint120 prevOuterAverageAge = _averageAge(currentTime, _prevOuterAverageTimestamp);
+        uint120 newInnerAverageAge = _averageAge(currentTime, _newInnerAverageTimestamp);
+
+        // 120 for timestamps
+        // 208 for voting power
+
+        uint120 newOuterAverageAge;
         if (_prevLQTYBalance <= _newLQTYBalance) {
             uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
-            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
-            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
-            uint240 votes = prevVotes + newVotes;
-            newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
+            uint208 prevVotes = uint208(_prevLQTYBalance) * uint208(prevOuterAverageAge);
+            uint208 newVotes = uint208(deltaLQTY) * uint208(newInnerAverageAge);
+            uint208 votes = prevVotes + newVotes;
+            newOuterAverageAge = uint120(votes / uint208(_newLQTYBalance));
         } else {
             uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
-            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
-            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
-            uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
-            newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
+            uint208 prevVotes = uint208(_prevLQTYBalance) * uint208(prevOuterAverageAge);
+            uint208 newVotes = uint208(deltaLQTY) * uint208(newInnerAverageAge);
+            uint208 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
+            newOuterAverageAge = uint120(votes / uint208(_newLQTYBalance));
         }
 
-        if (newOuterAverageAge > block.timestamp) return 0;
-        return uint32(block.timestamp - newOuterAverageAge);
+        if (newOuterAverageAge > currentTime) return 0;
+        return uint120(currentTime - newOuterAverageAge);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -176,8 +184,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // update the average staked timestamp for LQTY staked by the user
         
+        /// @audit TODO: u32 -> u120
+        // IMO: Define a shutdown time at which all math is ignored
+        // if TS > u32 -> Just withdraw and don't check
         userState.averageStakingTimestamp = _calculateAverageTimestamp(
-            userState.averageStakingTimestamp, uint32(block.timestamp), lqtyStaked, lqtyStaked + _lqtyAmount
+            userState.averageStakingTimestamp, uint120(block.timestamp * WAD), lqtyStaked, lqtyStaked + _lqtyAmount
         );
         userStates[msg.sender] = userState;
 
@@ -248,12 +259,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     }
 
     /// @inheritdoc IGovernance
-    function lqtyToVotes(uint88 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp)
+    function lqtyToVotes(uint88 _lqtyAmount, uint120 _currentTimestamp, uint120 _averageTimestamp)
         public
         pure
-        returns (uint240)
+        returns (uint208)
     {
-        return uint240(_lqtyAmount) * _averageAge(uint32(_currentTimestamp), _averageTimestamp);
+        return uint208(_lqtyAmount) * uint208(_averageAge(_currentTimestamp, _averageTimestamp));
     }
 
     /*//////////////////////////////////////////////////////////////
