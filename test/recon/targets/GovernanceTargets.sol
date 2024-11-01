@@ -116,6 +116,15 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
             // assert that user TS is now * WAD
             (, uint120 ts) = governance.userStates(user);
             eq(ts, block.timestamp * 1e26, "User TS is scaled by WAD");
+        } else {
+            // Make sure the TS can never bo before itself
+            (, uint120 ts_b4) = governance.userStates(user);
+            lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
+            governance.depositLQTY(lqtyAmount);
+
+            (, uint120 ts_after) = governance.userStates(user);
+
+            gte(ts_after, ts_b4, "User TS must always increase");
         }
     }
     function depositMustFailOnNonZeroAlloc(uint88 lqtyAmount) public withChecks {
