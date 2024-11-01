@@ -107,10 +107,10 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     }
 
     function depositTsIsRational(uint88 lqtyAmount) public withChecks {
-        (uint88 user_allocatedLQTY,) = governance.userStates(user);
+        uint88 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
 
         // Deposit on zero
-        if(user_allocatedLQTY == 0) {
+        if(stakedAmount == 0) {
             lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
             governance.depositLQTY(lqtyAmount);
 
