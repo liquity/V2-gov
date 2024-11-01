@@ -488,6 +488,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             /// @audit Because of the updated timestamp, we can run into overflows if we multiply by `boldAccrued`
             ///     We use `CUSTOM_PRECISION` for this reason, a smaller multiplicative value
             ///     The change SHOULD be safe because we already check for `threshold` before getting into these lines
+            /// As an alternative, this line could be replaced by https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/FullMath.sol
             uint256 claim = upscaledInitiativeVotes * CUSTOM_PRECISION / upscaledTotalVotes * boldAccrued / CUSTOM_PRECISION;
             return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
