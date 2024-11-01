@@ -217,16 +217,16 @@ abstract contract GovernanceProperties is BeforeAfter {
             for (uint256 j; j < users.length; j++) {
                 (uint88 userVoteLQTY,,) = governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
                 // TODO: double check that okay to use this average timestamp
-                (, uint32 averageStakingTimestamp) = governance.userStates(users[j]);
+                (, uint120 averageStakingTimestamp) = governance.userStates(users[j]);
                 // add the weight calculated for each user's allocation to the accumulator
                 userWeightAccumulatorForInitiative +=
-                    governance.lqtyToVotes(userVoteLQTY, block.timestamp, averageStakingTimestamp);
+                    governance.lqtyToVotes(userVoteLQTY, uint120(block.timestamp) * uint120(1e18), averageStakingTimestamp);
             }
 
-            (uint88 initiativeVoteLQTY,, uint32 initiativeAverageStakingTimestampVoteLQTY,,) =
+            (uint88 initiativeVoteLQTY,, uint120 initiativeAverageStakingTimestampVoteLQTY,,) =
                 governance.initiativeStates(deployedInitiatives[i]);
             uint240 initiativeWeight =
-                governance.lqtyToVotes(initiativeVoteLQTY, block.timestamp, initiativeAverageStakingTimestampVoteLQTY);
+                governance.lqtyToVotes(initiativeVoteLQTY, uint120(block.timestamp) * uint120(1e18), initiativeAverageStakingTimestampVoteLQTY);
             
             acc[i].userSum = userWeightAccumulatorForInitiative;
             acc[i].initiativeWeight = initiativeWeight;
@@ -400,13 +400,13 @@ abstract contract GovernanceProperties is BeforeAfter {
         // GET state and initiative data before allocation
         (   
             uint88 totalCountedLQTY,
-            uint32 user_countedVoteLQTYAverageTimestamp 
+            uint120 user_countedVoteLQTYAverageTimestamp 
         ) = governance.globalState();
         (
             uint88 voteLQTY,
             uint88 vetoLQTY,
-            uint32 averageStakingTimestampVoteLQTY,
-            uint32 averageStakingTimestampVetoLQTY,
+            uint120 averageStakingTimestampVoteLQTY,
+            uint120 averageStakingTimestampVetoLQTY,
 
         ) = governance.initiativeStates(targetInitiative);
         
@@ -427,11 +427,11 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         // Deposit (Changes total LQTY an hopefully also changes ts)
         {
-            (, uint32 averageStakingTimestamp1) = governance.userStates(user);
+            (, uint120 averageStakingTimestamp1) = governance.userStates(user);
 
             lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
             governance.depositLQTY(lqtyAmount);
-            (, uint32 averageStakingTimestamp2) = governance.userStates(user);
+            (, uint120 averageStakingTimestamp2) = governance.userStates(user);
             
             require(averageStakingTimestamp2 > averageStakingTimestamp1, "Must have changed");
         }
@@ -446,13 +446,13 @@ abstract contract GovernanceProperties is BeforeAfter {
         {
             (   
                 uint88 after_totalCountedLQTY,
-                uint32 after_user_countedVoteLQTYAverageTimestamp 
+                uint120 after_user_countedVoteLQTYAverageTimestamp 
             ) = governance.globalState();
             (
                 uint88 after_voteLQTY,
                 uint88 after_vetoLQTY,
-                uint32 after_averageStakingTimestampVoteLQTY,
-                uint32 after_averageStakingTimestampVetoLQTY,
+                uint120 after_averageStakingTimestampVoteLQTY,
+                uint120 after_averageStakingTimestampVetoLQTY,
 
             ) = governance.initiativeStates(targetInitiative);
 

@@ -66,7 +66,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
 
             (uint88 voteLQTY,, uint16 epoch) = governance.lqtyAllocatedByUserToInitiative(user, deployedInitiatives[i]);
 
-            try initiative.lqtyAllocatedByUserAtEpoch(user, epoch) returns (uint88 amt, uint32) {
+            try initiative.lqtyAllocatedByUserAtEpoch(user, epoch) returns (uint88 amt, uint120) {
                 eq(voteLQTY, amt, "Allocation must match");
             } catch {
                 t(false, "Allocation doesn't match governance");
@@ -202,10 +202,10 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
             uint256 sumOfPower;
             for (uint8 j; j < users.length; j++) {
-                (uint88 lqtyAllocated, uint32 userTS) = initiative.lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
+                (uint88 lqtyAllocated, uint120 userTS) = initiative.lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
                 sumOfPower += governance.lqtyToVotes(lqtyAllocated, userTS, uint32(block.timestamp));
             }
-            (uint88 totalLQTYAllocated, uint32 totalTS) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
+            (uint88 totalLQTYAllocated, uint120 totalTS) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
 
             uint256 totalRecordedPower = governance.lqtyToVotes(totalLQTYAllocated, totalTS, uint32(block.timestamp));
 

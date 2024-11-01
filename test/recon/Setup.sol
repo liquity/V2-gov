@@ -43,6 +43,8 @@ abstract contract Setup is BaseSetup {
     uint32 internal constant EPOCH_DURATION = 604800;
     uint32 internal constant EPOCH_VOTING_CUTOFF = 518400;
 
+    uint120 magnifiedStartTS;
+
     function setup() internal virtual override {
         vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back after the constructor
         // Random TS that is realistic
@@ -91,6 +93,8 @@ abstract contract Setup is BaseSetup {
         deployedInitiatives.push(address(initiative1));
 
         governance.registerInitiative(address(initiative1));
+
+        magnifiedStartTS = uint120(block.timestamp) * uint120(1e18);
     }
 
     function _getDeployedInitiative(uint8 index) internal view returns (address initiative) {

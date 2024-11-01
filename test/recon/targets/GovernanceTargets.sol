@@ -106,6 +106,19 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         eq(user_allocatedLQTY, 0, "User has 0 allocated on a reset");
     }
 
+    function depositTsIsRational(uint88 lqtyAmount) public withChecks {
+        (uint88 user_allocatedLQTY,) = governance.userStates(user);
+
+        // Deposit on zero
+        if(user_allocatedLQTY == 0) {
+            lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
+            governance.depositLQTY(lqtyAmount);
+
+            // assert that user TS is now * WAD
+            (, uint120 ts) = governance.userStates(user);
+            eq(ts, block.timestamp * 1e18, "User TS is scaled by WAD");
+        }
+    }
     function depositMustFailOnNonZeroAlloc(uint88 lqtyAmount) public withChecks {
         (uint88 user_allocatedLQTY,) = governance.userStates(user);
 
