@@ -316,27 +316,35 @@ contract VotingPowerTest is Test {
         console.log("griefed_avg", griefed_avg);
         console.log("block.timestamp", block.timestamp);
 
+        console.log("0?");
+
+        uint256 currentMagnifiedTs = uint120(block.timestamp) * uint120(1e18);
+
         vm.startPrank(user2);
         _allocate(address(baseInitiative1), 15, 0);
         _allocate(address(baseInitiative1), 0, 0);
 
         uint256 ts = _getAverageTS(baseInitiative1);
-        uint256 delta = block.timestamp - ts;
+        uint256 delta = currentMagnifiedTs - ts;
         console.log("griefed_avg", ts);
         console.log("delta", delta);
-        console.log("block.timestamp", block.timestamp);
+        console.log("currentMagnifiedTs", currentMagnifiedTs);
 
+        console.log("0?");
         uint256 i;
         while (i++ < 122) {
+            console.log("i", i);
             _allocate(address(baseInitiative1), 15, 0);
             _allocate(address(baseInitiative1), 0, 0);
         }
 
+        console.log("1?");
+
         ts = _getAverageTS(baseInitiative1);
-        delta = block.timestamp - ts;
+        delta = currentMagnifiedTs - ts;
         console.log("griefed_avg", ts);
         console.log("delta", delta);
-        console.log("block.timestamp", block.timestamp);
+        console.log("currentMagnifiedTs", currentMagnifiedTs);
 
         // One more time
         _allocate(address(baseInitiative1), 15, 0);
