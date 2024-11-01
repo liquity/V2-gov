@@ -70,7 +70,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
     }
 
-    uint256 constant WAD = 1e18;
+    uint256 constant TIMESTAMP_PRECISION = 1e26;
 
 
     function _claimBribe(
@@ -104,7 +104,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         (uint88 totalLQTY, uint120 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
 
         // TODO: SCALING!!!
-        uint120 epochEnd = (uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())) * uint120(WAD);
+        uint120 epochEnd = (uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())) * uint120(TIMESTAMP_PRECISION);
 
         /// @audit User Invariant
         assert(totalAverageTimestamp <= epochEnd);
