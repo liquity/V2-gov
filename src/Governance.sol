@@ -77,6 +77,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     uint16 constant UNREGISTERED_INITIATIVE = type(uint16).max;
 
+    // 100 Million LQTY will be necessary to make the rounding error cause 1 second of loss per operation
+    uint120 constant TIMESTAMP_PRECISION = 1e26;
+
     constructor(
         address _lqty,
         address _lusd,
@@ -119,8 +122,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
     }
 
-    uint120 TIMESTAMP_PRECISION = 1e26; // 1e18 * 100_000
-
     function _averageAge(uint120 _currentTimestamp, uint120 _averageTimestamp) internal pure returns (uint120) {
         if (_averageTimestamp == 0 || _currentTimestamp < _averageTimestamp) return 0;
         return _currentTimestamp - _averageTimestamp;
@@ -136,7 +137,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // NOTE: Truncation
         // NOTE: u32 -> u120
-        /// @audit Investigate this
+        // While we upscale the Timestamp, the system will stop working at type(uint32).max
+        // Because the rest of the type is used for precision
         uint120 currentTime = uint120(uint32(block.timestamp)) * uint120(TIMESTAMP_PRECISION);
 
         uint120 prevOuterAverageAge = _averageAge(currentTime, _prevOuterAverageTimestamp);
@@ -144,20 +146,19 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // 120 for timestamps = 2^32 * 1e18 | 2^32 * 1e26
         // 208 for voting power = 2^120 * 2^88
-
-        uint120 newOuterAverageAge;
+        uint256 newOuterAverageAge;
         if (_prevLQTYBalance <= _newLQTYBalance) {
             uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
             uint208 prevVotes = uint208(_prevLQTYBalance) * uint208(prevOuterAverageAge);
             uint208 newVotes = uint208(deltaLQTY) * uint208(newInnerAverageAge);
             uint208 votes = prevVotes + newVotes;
-            newOuterAverageAge = uint120(votes / uint208(_newLQTYBalance));
+            newOuterAverageAge = votes / _newLQTYBalance;
         } else {
             uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
             uint208 prevVotes = uint208(_prevLQTYBalance) * uint208(prevOuterAverageAge);
             uint208 newVotes = uint208(deltaLQTY) * uint208(newInnerAverageAge);
             uint208 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
-            newOuterAverageAge = uint120(votes / uint208(_newLQTYBalance));
+            newOuterAverageAge = votes / _newLQTYBalance;
         }
 
         if (newOuterAverageAge > currentTime) return 0;
