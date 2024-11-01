@@ -426,7 +426,7 @@ contract VotingPowerTest is Test {
     // The weights are the avg time * the number
 
     function _getAverageTS(address initiative) internal view returns (uint256) {
-        (,, uint32 averageStakingTimestampVoteLQTY,,) = governance.initiativeStates(initiative);
+        (,, uint120 averageStakingTimestampVoteLQTY,,) = governance.initiativeStates(initiative);
 
         return averageStakingTimestampVoteLQTY;
     }
