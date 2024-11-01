@@ -180,13 +180,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             deployUserProxy();
         }
 
-        UserProxy userProxy = UserProxy(payable(userProxyAddress));
-
-        uint88 lqtyStaked = uint88(stakingV1.stakes(userProxyAddress));
-
         UserState memory userState = userStates[msg.sender];
         // Assert that we have resetted here
         require(userState.allocatedLQTY == 0, "Governance: must-be-zero-allocation");
+
+        UserProxy userProxy = UserProxy(payable(userProxyAddress));
+
+        uint88 lqtyStaked = uint88(stakingV1.stakes(userProxyAddress));
 
         // update the average staked timestamp for LQTY staked by the user
         
