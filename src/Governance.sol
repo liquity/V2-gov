@@ -119,6 +119,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
     }
 
+    uint120 TIMESTAMP_PRECISION = 1e26; // 1e18 * 100_000
+
     function _averageAge(uint120 _currentTimestamp, uint120 _averageTimestamp) internal pure returns (uint120) {
         if (_averageTimestamp == 0 || _currentTimestamp < _averageTimestamp) return 0;
         return _currentTimestamp - _averageTimestamp;
@@ -135,13 +137,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // NOTE: Truncation
         // NOTE: u32 -> u120
         /// @audit Investigate this
-        uint120 currentTime = uint120(uint32(block.timestamp)) * uint120(WAD);
+        uint120 currentTime = uint120(uint32(block.timestamp)) * uint120(TIMESTAMP_PRECISION);
 
         uint120 prevOuterAverageAge = _averageAge(currentTime, _prevOuterAverageTimestamp);
         uint120 newInnerAverageAge = _averageAge(currentTime, _newInnerAverageTimestamp);
 
-        // 120 for timestamps
-        // 208 for voting power
+        // 120 for timestamps = 2^32 * 1e18 | 2^32 * 1e26
+        // 208 for voting power = 2^120 * 2^88
 
         uint120 newOuterAverageAge;
         if (_prevLQTYBalance <= _newLQTYBalance) {
@@ -189,7 +191,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // IMO: Define a shutdown time at which all math is ignored
         // if TS > u32 -> Just withdraw and don't check
         userState.averageStakingTimestamp = _calculateAverageTimestamp(
-            userState.averageStakingTimestamp, uint120(block.timestamp * WAD), lqtyStaked, lqtyStaked + _lqtyAmount
+            userState.averageStakingTimestamp, uint120(block.timestamp) * uint120(TIMESTAMP_PRECISION), lqtyStaked, lqtyStaked + _lqtyAmount
         );
         userStates[msg.sender] = userState;
 
@@ -329,7 +331,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         if (snapshot.forEpoch < currentEpoch - 1) {
             shouldUpdate = true;
 
-            snapshot.votes = lqtyToVotes(state.countedVoteLQTY, uint120(epochStart()) * uint120(1e18), state.countedVoteLQTYAverageTimestamp);
+            snapshot.votes = lqtyToVotes(state.countedVoteLQTY, uint120(epochStart()) * uint120(TIMESTAMP_PRECISION), state.countedVoteLQTYAverageTimestamp);
             snapshot.forEpoch = currentEpoch - 1;
         }
     }
@@ -368,7 +370,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         if (initiativeSnapshot.forEpoch < currentEpoch - 1) {
             shouldUpdate = true;
 
-            uint120 start = uint120(epochStart()) * uint120(1e18);
+            uint120 start = uint120(epochStart()) * uint120(TIMESTAMP_PRECISION);
             uint240 votes =
                 lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.averageStakingTimestampVoteLQTY);
             uint240 vetos =
@@ -518,7 +520,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         uint256 upscaledSnapshotVotes = snapshot.votes;
         require(
-            lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), uint120(epochStart()) * uint120(1e18), userState.averageStakingTimestamp)
+            lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), uint120(epochStart()) * uint120(TIMESTAMP_PRECISION), userState.averageStakingTimestamp)
                 >= upscaledSnapshotVotes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );
