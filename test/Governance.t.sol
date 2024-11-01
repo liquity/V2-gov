@@ -1917,7 +1917,7 @@ contract GovernanceTest is Test {
         // get initiative voting power at start of epoch
         (uint88 voteLQTY0,, uint120 averageStakingTimestampVoteLQTY0,,) = governance.initiativeStates(baseInitiative1);
         uint240 currentInitiativePower0 =
-            governance.lqtyToVotes(voteLQTY0, uint120(block.timestamp), averageStakingTimestampVoteLQTY0);
+            governance.lqtyToVotes(voteLQTY0, uint120(block.timestamp) * uint120(1e18), averageStakingTimestampVoteLQTY0);
         assertEq(currentInitiativePower0, 0, "initiative voting power is > 0");
 
         _allocateLQTY(user, lqtyAmount);
@@ -1930,7 +1930,7 @@ contract GovernanceTest is Test {
         // get initiative voting power at time of snapshot
         (uint88 voteLQTY1,, uint120 averageStakingTimestampVoteLQTY1,,) = governance.initiativeStates(baseInitiative1);
         uint240 currentInitiativePower1 =
-            governance.lqtyToVotes(voteLQTY1, uint120(block.timestamp), averageStakingTimestampVoteLQTY1);
+            governance.lqtyToVotes(voteLQTY1, uint120(block.timestamp) * uint120(1e18), averageStakingTimestampVoteLQTY1);
         assertGt(currentInitiativePower1, 0, "initiative voting power is 0");
 
         uint240 deltaInitiativeVotingPower = currentInitiativePower1 - currentInitiativePower0;

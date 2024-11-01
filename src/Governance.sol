@@ -328,7 +328,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         if (snapshot.forEpoch < currentEpoch - 1) {
             shouldUpdate = true;
 
-            snapshot.votes = lqtyToVotes(state.countedVoteLQTY, epochStart(), state.countedVoteLQTYAverageTimestamp);
+            snapshot.votes = lqtyToVotes(state.countedVoteLQTY, uint120(epochStart()) * uint120(1e18), state.countedVoteLQTYAverageTimestamp);
             snapshot.forEpoch = currentEpoch - 1;
         }
     }
@@ -367,7 +367,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         if (initiativeSnapshot.forEpoch < currentEpoch - 1) {
             shouldUpdate = true;
 
-            uint32 start = epochStart();
+            uint120 start = uint120(epochStart()) * uint120(1e18);
             uint240 votes =
                 lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.averageStakingTimestampVoteLQTY);
             uint240 vetos =
@@ -502,7 +502,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
         // than the registration threshold derived from the previous epoch's total global votes
         require(
-            lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), epochStart(), userState.averageStakingTimestamp)
+            lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), uint120(epochStart()) * uint120(1e18), userState.averageStakingTimestamp)
                 >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );

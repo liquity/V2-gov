@@ -28,6 +28,9 @@ abstract contract TsProperties is BeforeAfter {
             gte(globalTs, magnifiedStartTS, "Global ts must always be GTE than start");
         } 
     }
+
+
+    // TODO: Waiting 1 second should give 1 an extra second * WAD power
     
 
 
