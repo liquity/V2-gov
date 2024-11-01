@@ -147,6 +147,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // 120 for timestamps = 2^32 * 1e18 | 2^32 * 1e26
         // 208 for voting power = 2^120 * 2^88
         // NOTE: 208 / X can go past u120!
+        // Therefore we keep `newOuterAverageAge` as u208
         uint208 newOuterAverageAge;
         if (_prevLQTYBalance <= _newLQTYBalance) {
             uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
