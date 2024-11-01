@@ -174,15 +174,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     function _updateUserTimestamp(uint88 _lqtyAmount) private returns (UserProxy) {
         require(_lqtyAmount > 0, "Governance: zero-lqty-amount");
 
+        // Assert that we have resetted here
+        UserState memory userState = userStates[msg.sender];
+        require(userState.allocatedLQTY == 0, "Governance: must-be-zero-allocation");
+
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
         if (userProxyAddress.code.length == 0) {
             deployUserProxy();
         }
-
-        UserState memory userState = userStates[msg.sender];
-        // Assert that we have resetted here
-        require(userState.allocatedLQTY == 0, "Governance: must-be-zero-allocation");
 
         UserProxy userProxy = UserProxy(payable(userProxyAddress));
 
@@ -190,9 +190,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // update the average staked timestamp for LQTY staked by the user
         
-        /// @audit TODO: u32 -> u120
-        // IMO: Define a shutdown time at which all math is ignored
-        // if TS > u32 -> Just withdraw and don't check
+        // NOTE: Upscale user TS by `TIMESTAMP_PRECISION`
         userState.averageStakingTimestamp = _calculateAverageTimestamp(
             userState.averageStakingTimestamp, uint120(block.timestamp) * uint120(TIMESTAMP_PRECISION), lqtyStaked, lqtyStaked + _lqtyAmount
         );
@@ -217,15 +215,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
     /// @inheritdoc IGovernance
     function withdrawLQTY(uint88 _lqtyAmount) external nonReentrant {
+        // check that user has reset before changing lqty balance
+        UserState storage userState = userStates[msg.sender];
+        require(userState.allocatedLQTY == 0, "Governance: must-allocate-zero");
+
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         require(address(userProxy).code.length != 0, "Governance: user-proxy-not-deployed");
 
         uint88 lqtyStaked = uint88(stakingV1.stakes(address(userProxy)));
-
-        UserState storage userState = userStates[msg.sender];
-
-        // check if user has enough unallocated lqty
-        require(userState.allocatedLQTY == 0, "Governance: must-allocate-zero");
 
         (uint256 accruedLUSD, uint256 accruedETH) = userProxy.unstake(_lqtyAmount, msg.sender);
 
