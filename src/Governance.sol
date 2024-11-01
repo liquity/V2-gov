@@ -371,12 +371,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             shouldUpdate = true;
 
             uint120 start = uint120(epochStart()) * uint120(TIMESTAMP_PRECISION);
-            uint240 votes =
+            uint208 votes =
                 lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.averageStakingTimestampVoteLQTY);
-            uint240 vetos =
+            uint208 vetos =
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
-            initiativeSnapshot.votes = uint224(votes);
-            initiativeSnapshot.vetos = uint224(vetos);
+            // NOTE: Upscaling to u224 is safe
+            initiativeSnapshot.votes = votes;
+            initiativeSnapshot.vetos = vetos;
 
             initiativeSnapshot.forEpoch = currentEpoch - 1;
         }
@@ -477,7 +478,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             upscaledInitiativeVotes > votingTheshold
                 && !(upscaledInitiativeVetos >= upscaledInitiativeVotes)
         ) {
-            /// @audit TODO: We need even more precision, damn
+            /// @audit TODO: We need even more precision
             /// NOTE: Maybe we truncate this on purpose to increae likelihood that the 
             // truncation is in favour of system, making insolvency less likely
             // TODO: Technically we can use the voting threshold here to make this work
@@ -485,6 +486,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             /// Alternatively, we need to use fullMath on 512
             // NOTE: This MAY help in causing truncation that prevents an edge case
             // That causes the redistribution of an excessive amount of rewards
+            // TODO: I think we can do a test to prove the precision required here
             uint256 claim = upscaledInitiativeVotes * 1e10 / upscaledTotalVotes * boldAccrued / 1e10 ;
             return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
@@ -518,7 +520,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
         // than the registration threshold derived from the previous epoch's total global votes
 
-        uint256 upscaledSnapshotVotes = snapshot.votes;
+        uint256 upscaledSnapshotVotes = uint256(snapshot.votes);
         require(
             lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), uint120(epochStart()) * uint120(TIMESTAMP_PRECISION), userState.averageStakingTimestamp)
                 >= upscaledSnapshotVotes * REGISTRATION_THRESHOLD_FACTOR / WAD,
