@@ -217,9 +217,12 @@ abstract contract GovernanceProperties is BeforeAfter {
         VotesSumAndInitiativeSum[] memory votesSumAndInitiativeValues = _getUserVotesSumAndInitiativesVotes();
 
         for(uint256 i; i < votesSumAndInitiativeValues.length; i++) {
-            t(
+            t( 
+                votesSumAndInitiativeValues[i].userSum == votesSumAndInitiativeValues[i].initiativeWeight ||
+                (
                 votesSumAndInitiativeValues[i].userSum >= votesSumAndInitiativeValues[i].initiativeWeight - TOLLERANCE &&
-                votesSumAndInitiativeValues[i].userSum <= votesSumAndInitiativeValues[i].initiativeWeight + TOLLERANCE,
+                votesSumAndInitiativeValues[i].userSum <= votesSumAndInitiativeValues[i].initiativeWeight + TOLLERANCE
+                ),
                 "initiative voting weights and user's allocated weight match within tollerance"
             );
         }
