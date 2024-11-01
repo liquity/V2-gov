@@ -199,7 +199,7 @@ contract GovernanceTest is Test {
         (uint88 allocatedLQTY, uint120 averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         // first deposit should have an averageStakingTimestamp if block.timestamp
-        assertEq(averageStakingTimestamp, block.timestamp);
+        assertEq(averageStakingTimestamp, block.timestamp * 1e18);
 
         vm.warp(block.timestamp + timeIncrease);
 
@@ -209,7 +209,7 @@ contract GovernanceTest is Test {
         (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         // subsequent deposits should have a stake weighted average
-        assertEq(averageStakingTimestamp, block.timestamp - timeIncrease / 2);
+        assertEq(averageStakingTimestamp, (block.timestamp - timeIncrease / 2) * 1e18, "Avg ts");
 
         // withdraw 0.5 half of LQTY
         vm.warp(block.timestamp + timeIncrease);
@@ -225,14 +225,14 @@ contract GovernanceTest is Test {
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
         (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
-        assertEq(averageStakingTimestamp, (block.timestamp - timeIncrease) - timeIncrease / 2);
+        assertEq(averageStakingTimestamp, ((block.timestamp - timeIncrease) - timeIncrease / 2) * 1e18, "avg ts2");
 
         // withdraw remaining LQTY
         governance.withdrawLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 0);
         (allocatedLQTY, averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
-        assertEq(averageStakingTimestamp, (block.timestamp - timeIncrease) - timeIncrease / 2);
+        assertEq(averageStakingTimestamp, ((block.timestamp - timeIncrease) - timeIncrease / 2) * 1e18, "avg ts3");
 
         vm.stopPrank();
     }
@@ -303,7 +303,7 @@ contract GovernanceTest is Test {
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
         (uint88 allocatedLQTY, uint120 averageStakingTimestamp) = governance.userStates(wallet.addr);
         assertEq(allocatedLQTY, 0);
-        assertEq(averageStakingTimestamp, block.timestamp);
+        assertEq(averageStakingTimestamp, block.timestamp * 1e18);
     }
 
     function test_claimFromStakingV1() public {
@@ -1057,7 +1057,7 @@ contract GovernanceTest is Test {
         assertEq(vetoLQTY, 0);
         // should update the average staking timestamp for the initiative based on the average staking timestamp of the user's
         // voting and vetoing LQTY
-        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - governance.EPOCH_DURATION());
+        assertEq(averageStakingTimestampVoteLQTY, (block.timestamp - governance.EPOCH_DURATION()) * 1e18);
         assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
         // should remove or add the initiatives voting LQTY from the counter
@@ -1110,7 +1110,7 @@ contract GovernanceTest is Test {
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 2e18);
         assertEq(vetoLQTY, 0);
-        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - governance.EPOCH_DURATION());
+        assertEq(averageStakingTimestampVoteLQTY, (block.timestamp - governance.EPOCH_DURATION()) * 1e18);
         assertGt(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
 
@@ -1181,7 +1181,7 @@ contract GovernanceTest is Test {
         assertEq(vetoLQTY, 0);
         // should update the average staking timestamp for the initiative based on the average staking timestamp of the user's
         // voting and vetoing LQTY
-        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - governance.EPOCH_DURATION(), "TS");
+        assertEq(averageStakingTimestampVoteLQTY, (block.timestamp - governance.EPOCH_DURATION()) * 1e18, "TS");
         assertEq(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
         // should remove or add the initiatives voting LQTY from the counter
@@ -1234,7 +1234,7 @@ contract GovernanceTest is Test {
             governance.initiativeStates(baseInitiative1);
         assertEq(voteLQTY, 2e18);
         assertEq(vetoLQTY, 0);
-        assertEq(averageStakingTimestampVoteLQTY, block.timestamp - governance.EPOCH_DURATION(), "TS 2");
+        assertEq(averageStakingTimestampVoteLQTY, (block.timestamp - governance.EPOCH_DURATION()) * 1e18, "TS 2");
         assertGt(averageStakingTimestampVoteLQTY, averageStakingTimestampUser);
         assertEq(averageStakingTimestampVetoLQTY, 0);
 
