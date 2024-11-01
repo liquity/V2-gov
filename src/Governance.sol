@@ -18,6 +18,7 @@ import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
 
+
 /// @title Governance: Modular Initiative based Governance
 contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
     using SafeERC20 for IERC20;
@@ -465,11 +466,24 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // == Rewards Conditions (votes can be zero, logic is the same) == //
 
         // By definition if _votesForInitiativeSnapshot.votes > 0 then _votesSnapshot.votes > 0
+
+        uint256 upscaledInitiativeVotes = uint256(_votesForInitiativeSnapshot.votes);
+        uint256 upscaledInitiativeVetos = uint256(_votesForInitiativeSnapshot.vetos);
+        uint256 upscaledTotalVotes = uint256(_votesSnapshot.votes);
+        
         if (
-            _votesForInitiativeSnapshot.votes > votingTheshold
-                && !(_votesForInitiativeSnapshot.vetos >= _votesForInitiativeSnapshot.votes)
+            upscaledInitiativeVotes > votingTheshold
+                && !(upscaledInitiativeVetos >= upscaledInitiativeVotes)
         ) {
-            uint256 claim = _votesForInitiativeSnapshot.votes * boldAccrued / _votesSnapshot.votes;
+            /// @audit TODO: We need even more precision, damn
+            /// NOTE: Maybe we truncate this on purpose to increae likelihood that the 
+            // truncation is in favour of system, making insolvency less likely
+            // TODO: Technically we can use the voting threshold here to make this work
+            /// With sufficient precision
+            /// Alternatively, we need to use fullMath on 512
+            // NOTE: This MAY help in causing truncation that prevents an edge case
+            // That causes the redistribution of an excessive amount of rewards
+            uint256 claim = upscaledInitiativeVotes * 1e10 / upscaledTotalVotes * boldAccrued / 1e10 ;
             return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
 
@@ -477,8 +491,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the 4th epoch flip that would result in SKIP, will result in the initiative being `UNREGISTERABLE`
         if (
             (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
-                || _votesForInitiativeSnapshot.vetos > _votesForInitiativeSnapshot.votes
-                    && _votesForInitiativeSnapshot.vetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
+                || upscaledInitiativeVetos > upscaledInitiativeVotes
+                    && upscaledInitiativeVetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
             return (InitiativeStatus.UNREGISTERABLE, lastEpochClaim, 0);
         }
@@ -501,9 +515,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
         // than the registration threshold derived from the previous epoch's total global votes
+
+        uint256 upscaledSnapshotVotes = snapshot.votes;
         require(
             lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), uint120(epochStart()) * uint120(1e18), userState.averageStakingTimestamp)
-                >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
+                >= upscaledSnapshotVotes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );
 

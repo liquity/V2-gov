@@ -267,12 +267,23 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
     }
 
-    function property_sum_of_initatives_matches_total_votes() public {
+    function property_sum_of_initatives_matches_total_votes_strict() public {
         // Sum up all initiatives
         // Compare to total votes
         (uint256 initiativeVotesSum, uint256 snapshotVotes) = _getInitiativesSnapshotsAndGlobalState();
 
-        eq(initiativeVotesSum, snapshotVotes, "Sum of votes matches");
+        eq(initiativeVotesSum, snapshotVotes, "Sum of votes matches Strict");
+    }
+    function property_sum_of_initatives_matches_total_votes_bounded() public {
+        // Sum up all initiatives
+        // Compare to total votes
+        (uint256 initiativeVotesSum, uint256 snapshotVotes) = _getInitiativesSnapshotsAndGlobalState();
+        t(
+            initiativeVotesSum == snapshotVotes || (
+                initiativeVotesSum >= snapshotVotes - TOLLERANCE &&
+                initiativeVotesSum <= snapshotVotes + TOLLERANCE
+            ),
+        "Sum of votes matches within tollerance");
     }
 
     function _getInitiativesSnapshotsAndGlobalState() internal returns (uint256, uint256) {

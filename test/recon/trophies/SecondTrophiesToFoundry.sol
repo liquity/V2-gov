@@ -15,8 +15,8 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
         setup();
     }
 
- // forge test --match-test test_property_sum_of_initatives_matches_total_votes_2 -vv 
- function test_property_sum_of_initatives_matches_total_votes_2() public {
+ // forge test --match-test test_property_sum_of_initatives_matches_total_votes_strict_2 -vv 
+ function test_property_sum_of_initatives_matches_total_votes_strict_2() public {
 
      governance_depositLQTY_2(2);
 
@@ -44,7 +44,7 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
 
      vm.roll(block.number + 1);
      vm.warp(block.timestamp + 436994);
-     property_sum_of_initatives_matches_total_votes();
+     property_sum_of_initatives_matches_total_votes_strict();
      // Of by 1
      // I think this should be off by a bit more than 1
      // But ultimately always less
@@ -176,17 +176,17 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
 
      governance_registerInitiative(1);
      _loginitiative_and_state(); // 7
-     property_sum_of_initatives_matches_total_votes();
+     property_sum_of_initatives_matches_total_votes_strict();
 
      vm.roll(block.number + 3);
      vm.warp(block.timestamp + 449572);
      governance_allocateLQTY_clamped_single_initiative(1,330671315851182842292,0);
     _loginitiative_and_state(); // 8
-    property_sum_of_initatives_matches_total_votes();
+    property_sum_of_initatives_matches_total_votes_strict();
 
      governance_resetAllocations(); // NOTE: This leaves 1 vote from user2, and removes the votes from user1
      _loginitiative_and_state(); // In lack of reset, we have 2 wei error | With reset the math is off by 7x
-     property_sum_of_initatives_matches_total_votes();
+     property_sum_of_initatives_matches_total_votes_strict();
      console.log("time 0", block.timestamp);
 
      vm.warp(block.timestamp + 231771);
@@ -201,7 +201,7 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
     property_sum_of_lqty_global_user_matches();
 
     /// === BROKEN === ///
-    //  property_sum_of_initatives_matches_total_votes(); // THIS IS THE BROKEN PROPERTY
+    //  property_sum_of_initatives_matches_total_votes_strict(); // THIS IS THE BROKEN PROPERTY
     (IGovernance.VoteSnapshot memory snapshot,,) = governance.getTotalVotesAndState();
 
         uint256 initiativeVotesSum;
