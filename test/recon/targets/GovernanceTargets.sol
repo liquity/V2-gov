@@ -55,9 +55,8 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         (uint88 after_global_allocatedLQTY,) = governance.globalState();
 
         if(status == Governance.InitiativeStatus.DISABLED) {
-            // State allocation must never change
-            // Whereas for the user it could | TODO
-            eq(after_global_allocatedLQTY, b4_global_allocatedLQTY, "Same alloc");
+            // NOTE: It could be 0
+            lte(after_global_allocatedLQTY, b4_global_allocatedLQTY, "Alloc can only be strictly decreasing");
         }
     }
 

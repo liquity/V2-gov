@@ -179,4 +179,64 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
      property_sum_of_initatives_matches_total_votes_strict();
 
  }
+ // forge test --match-test test_governance_allocateLQTY_clamped_single_initiative_0 -vv 
+ function test_governance_allocateLQTY_clamped_single_initiative_0() public {
+
+     vm.warp(block.timestamp + 944858);
+
+     vm.roll(block.number + 5374);
+
+     vm.roll(block.number + 1);
+     vm.warp(block.timestamp + 1803);
+     property_sum_of_user_voting_weights_bounded();
+
+     vm.roll(block.number + 335);
+     vm.warp(block.timestamp + 359031);
+     property_BI08();
+
+     vm.warp(block.timestamp + 586916);
+
+     vm.roll(block.number + 16871);
+
+     vm.roll(block.number + 3);
+     vm.warp(block.timestamp + 427175);
+     property_sum_of_lqty_initiative_user_matches();
+
+     vm.roll(block.number + 1);
+     vm.warp(block.timestamp + 132521);
+     property_BI11();
+
+     vm.warp(block.timestamp + 19680);
+
+     vm.roll(block.number + 3);
+
+     vm.roll(block.number + 8278);
+     vm.warp(block.timestamp + 322253);
+     property_shouldNeverRevertgetInitiativeSnapshotAndState(0);
+
+     vm.warp(block.timestamp + 230528);
+
+     vm.roll(block.number + 3414);
+
+     governance_unregisterInitiative(0);
+
+     vm.warp(block.timestamp + 383213);
+
+     vm.roll(block.number + 1);
+
+     helper_deployInitiative();
+
+     depositTsIsRational(3);
+
+     governance_registerInitiative(1);
+
+     vm.warp(block.timestamp + 221024);
+
+     vm.roll(block.number + 2535);
+
+     governance_allocateLQTY_clamped_single_initiative(1,1164962138833407039120303983,1500);
+
+     governance_allocateLQTY_clamped_single_initiative(0,21,32455529079152273943377283375);
+
+ }
 }

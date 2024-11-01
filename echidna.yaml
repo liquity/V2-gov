@@ -1,4 +1,4 @@
-testMode: "optimization"
+testMode: "overflow"
 prefix: "optimize_"
 coverage: true
 corpusDir: "echidna"
