@@ -25,12 +25,29 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
         boldAmount = uint128(boldAmount % lusd.balanceOf(user));
         bribeTokenAmount = uint128(bribeTokenAmount % lqty.balanceOf(user));
 
+        lusd.approve(address(initiative), boldAmount);
+        lqty.approve(address(initiative), bribeTokenAmount);
+
         initiative.depositBribe(boldAmount, bribeTokenAmount, epoch);
 
         // tracking to check that bribe accounting is always correct
         uint16 currentEpoch = governance.epoch();
         ghostBribeByEpoch[address(initiative)][currentEpoch].boldAmount += boldAmount;
         ghostBribeByEpoch[address(initiative)][currentEpoch].bribeTokenAmount += bribeTokenAmount;
+    }
+
+    function canary_bribeWasThere(uint8 initiativeIndex) public {
+        uint16 epoch = governance.epoch();
+        IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
+
+
+        (uint128 boldAmount, uint128 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
+        t(boldAmount == 0 && bribeTokenAmount == 0, "A bribe was found");
+    }
+
+    bool hasClaimedBribes;
+    function canary_has_claimed() public {
+        t(!hasClaimedBribes, "has claimed");
     }
 
     function initiative_claimBribes(
@@ -55,7 +72,9 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
         bool alreadyClaimed = initiative.claimedBribeAtEpoch(user, epoch);
 
-        try initiative.claimBribes(claimData) {}
+        try initiative.claimBribes(claimData) {
+            hasClaimedBribes = true;
+        }
         catch {
             // check if user had a claimable allocation
             (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, prevAllocationEpoch);
