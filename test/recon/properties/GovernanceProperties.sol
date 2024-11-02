@@ -297,6 +297,8 @@ abstract contract GovernanceProperties is BeforeAfter {
                 governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
             (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
 
+            // TODO: This property is broken, because if a snapshot was taken before the initiative was unregistered
+            /// Then the votes would still be part of the total state
             if (status != Governance.InitiativeStatus.DISABLED) {
                 // FIX: Only count total if initiative is not disabled
                 initiativeVotesSum += initiativeSnapshot.votes;

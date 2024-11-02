@@ -40,19 +40,20 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
     }
 
-    function canary_bribeWasThere(uint8 initiativeIndex) public {
-        uint16 epoch = governance.epoch();
-        IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
+    // Canaries are no longer necessary
+    // function canary_bribeWasThere(uint8 initiativeIndex) public {
+    //     uint16 epoch = governance.epoch();
+    //     IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
 
 
-        (uint128 boldAmount, uint128 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
-        t(boldAmount == 0 && bribeTokenAmount == 0, "A bribe was found");
-    }
+    //     (uint128 boldAmount, uint128 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
+    //     t(boldAmount == 0 && bribeTokenAmount == 0, "A bribe was found");
+    // }
 
-    bool hasClaimedBribes;
-    function canary_has_claimed() public {
-        t(!hasClaimedBribes, "has claimed");
-    }
+    // bool hasClaimedBribes;
+    // function canary_has_claimed() public {
+    //     t(!hasClaimedBribes, "has claimed");
+    // }
 
     function clamped_claimBribes(uint8 initiativeIndex) public {
         IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
@@ -90,7 +91,6 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
         bool alreadyClaimed = initiative.claimedBribeAtEpoch(user, epoch);
 
         try initiative.claimBribes(claimData) {
-            hasClaimedBribes = true;
 
             // Claiming at the same epoch is an issue
             if (alreadyClaimed) {
