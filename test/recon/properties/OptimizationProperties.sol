@@ -27,6 +27,7 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         return max;
     }
+
     function optimize_max_sum_of_user_voting_weights_underpaying() public returns (int256) {
         VotesSumAndInitiativeSum[] memory results = _getUserVotesSumAndInitiativesVotes();
 
@@ -37,6 +38,45 @@ abstract contract OptimizationProperties is GovernanceProperties {
             if(results[i].initiativeWeight > results[i].userSum) {
                 max = int256(results[i].initiativeWeight) - int256(results[i].userSum);
             }
+        }
+
+        return max;
+    }
+
+    function optimize_max_claim_insolvent() public returns (int256) {
+        uint256 claimableSum;
+        for (uint256 i; i < deployedInitiatives.length; i++) {
+            // NOTE: Non view so it accrues state
+            (Governance.InitiativeStatus status,, uint256 claimableAmount) = governance.getInitiativeState(deployedInitiatives[i]);
+
+            claimableSum += claimableAmount;
+        }
+
+        // Grab accrued
+        uint256 boldAccrued = governance.boldAccrued();
+
+        int256 max;
+        if(claimableSum > boldAccrued) {
+            max = int256(claimableSum) - int256(boldAccrued);
+        }
+
+        return max;
+    }
+    function optimize_max_claim_underpay() public returns (int256) {
+        uint256 claimableSum;
+        for (uint256 i; i < deployedInitiatives.length; i++) {
+            // NOTE: Non view so it accrues state
+            (Governance.InitiativeStatus status,, uint256 claimableAmount) = governance.getInitiativeState(deployedInitiatives[i]);
+
+            claimableSum += claimableAmount;
+        }
+
+        // Grab accrued
+        uint256 boldAccrued = governance.boldAccrued();
+
+        int256 max;
+        if(boldAccrued > claimableSum) {
+            max = int256(boldAccrued) - int256(claimableSum);
         }
 
         return max;
