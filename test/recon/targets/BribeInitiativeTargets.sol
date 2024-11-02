@@ -50,6 +50,19 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
         t(!hasClaimedBribes, "has claimed");
     }
 
+    function clamped_claimBribes(uint8 initiativeIndex) public {
+        IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
+
+        uint16 userEpoch = initiative.getMostRecentUserEpoch(user);
+        uint16 stateEpoch = initiative.getMostRecentTotalEpoch();
+        initiative_claimBribes(
+            governance.epoch() - 1,
+            userEpoch,
+            stateEpoch,
+            initiativeIndex
+        );
+    }
+
     function initiative_claimBribes(
         uint16 epoch,
         uint16 prevAllocationEpoch,
