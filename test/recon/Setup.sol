@@ -28,10 +28,6 @@ abstract contract Setup is BaseSetup {
     bool internal claimedTwice;
     bool internal unableToClaim;
 
-
-    // initiative => epoch => bribe
-    mapping(address => mapping(uint16 => IBribeInitiative.Bribe)) internal ghostBribeByEpoch;
-
     uint128 internal constant REGISTRATION_FEE = 1e18;
     uint128 internal constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
     uint128 internal constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;

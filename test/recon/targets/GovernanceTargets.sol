@@ -28,9 +28,9 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         address[] memory initiatives = new address[](1);
         initiatives[0] = _getDeployedInitiative(initiativesIndex);
         int88[] memory deltaLQTYVotesArray = new int88[](1);
-        deltaLQTYVotesArray[0] = int88(uint88(deltaLQTYVotes % stakedAmount));
+        deltaLQTYVotesArray[0] = int88(uint88(deltaLQTYVotes % (stakedAmount + 1)));
         int88[] memory deltaLQTYVetosArray = new int88[](1);
-        deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % stakedAmount));
+        deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % (stakedAmount + 1)));
 
         // User B4
         // (uint88 b4_user_allocatedLQTY,) = governance.userStates(user); // TODO
@@ -41,7 +41,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
 
         try governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray) {
-
+            t(deltaLQTYVotesArray[0] == 0 || deltaLQTYVetosArray[0] == 0, "One alloc must be zero");
         } catch {
             // t(false, "Clamped allocated should not revert"); // TODO: Consider adding overflow check here
         }

@@ -28,12 +28,16 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
         lusd.approve(address(initiative), boldAmount);
         lqty.approve(address(initiative), bribeTokenAmount);
 
+        (uint128 boldAmountB4, uint128 bribeTokenAmountB4) = IBribeInitiative(initiative).bribeByEpoch(epoch);
+
         initiative.depositBribe(boldAmount, bribeTokenAmount, epoch);
 
-        // tracking to check that bribe accounting is always correct
-        uint16 currentEpoch = governance.epoch();
-        ghostBribeByEpoch[address(initiative)][currentEpoch].boldAmount += boldAmount;
-        ghostBribeByEpoch[address(initiative)][currentEpoch].bribeTokenAmount += bribeTokenAmount;
+        (uint128 boldAmountAfter, uint128 bribeTokenAmountAfter) = IBribeInitiative(initiative).bribeByEpoch(epoch);
+
+        eq(boldAmountB4 + boldAmount, boldAmountAfter, "Bold amount tracking is sound");
+        eq(bribeTokenAmountB4 + bribeTokenAmount, bribeTokenAmountAfter, "Bribe amount tracking is sound");
+
+
     }
 
     function canary_bribeWasThere(uint8 initiativeIndex) public {

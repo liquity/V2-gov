@@ -102,6 +102,12 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         return totalLQTYAllocatedAtEpoch;
     }
 
+    // TODO: Looks pretty wrong and inaccurate
+    // Loop over the initiative
+    // Have all users claim all
+    // See what the result is
+    // See the dust
+    // Dust cap check
     function property_BI05() public {
         // users can't claim for current epoch so checking for previous
         uint16 checkEpoch = governance.epoch() - 1;
@@ -147,27 +153,6 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
                 lqtyDelta - initiativeLqtyBalance,
                 1e8,
                 "BI-05: Bribe token dust amount remaining after claiming should be less than 100 million wei"
-            );
-        }
-    }
-
-    function property_BI06() public {
-        // using ghost tracking for successful bribe deposits
-        uint16 currentEpoch = governance.epoch();
-
-        for (uint8 i; i < deployedInitiatives.length; i++) {
-            address initiative = deployedInitiatives[i];
-            IBribeInitiative.Bribe memory bribe = ghostBribeByEpoch[initiative][currentEpoch];
-            (uint128 boldAmount, uint128 bribeTokenAmount) = IBribeInitiative(initiative).bribeByEpoch(currentEpoch);
-            eq(
-                bribe.boldAmount,
-                boldAmount,
-                "BI-06: Accounting for bold amount in bribe for an epoch is always correct"
-            );
-            eq(
-                bribe.bribeTokenAmount,
-                bribeTokenAmount,
-                "BI-06: Accounting for bold amount in bribe for an epoch is always correct"
             );
         }
     }
