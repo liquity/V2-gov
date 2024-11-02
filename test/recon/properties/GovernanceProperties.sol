@@ -385,6 +385,46 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
     }
 
+    // TODO: Optimization property to show max loss
+    // TODO: Same identical optimization property for Bribes claiming
+    /// Should prob change the math to view it in bribes for easier debug
+    function check_claimable_solvency() public {
+        // Accrue all initiatives
+        // Get bold amount
+        // Sum up the initiatives claimable vs the bold
+
+        // Check if initiative is claimable
+        // If it is assert the check
+        uint256 claimableSum;
+        for (uint256 i; i < deployedInitiatives.length; i++) {
+            // NOTE: Non view so it accrues state
+            (Governance.InitiativeStatus status,, uint256 claimableAmount) = governance.getInitiativeState(deployedInitiatives[i]);
+
+            claimableSum += claimableAmount;
+        }
+
+        // Grab accrued
+        uint256 boldAccrued = governance.boldAccrued();
+
+        lte(claimableSum, boldAccrued, "Total Claims are always LT all bold");
+    }
+
+    function check_realized_claiming_solvency() public {
+        uint256 claimableSum;
+        for (uint256 i; i < deployedInitiatives.length; i++) {
+            uint256 claimed = governance.claimForInitiative(deployedInitiatives[i]);
+
+            claimableSum += claimed;
+        }
+
+        // Grab accrued
+        uint256 boldAccrued = governance.boldAccrued();
+
+        lte(claimableSum, boldAccrued, "Total Claims are always LT all bold");
+    }
+
+    // TODO: Optimization of this to determine max damage, and max insolvency
+
     function _getUserAllocation(address theUser, address initiative)
         internal
         view

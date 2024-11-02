@@ -91,11 +91,22 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
         try initiative.claimBribes(claimData) {
             hasClaimedBribes = true;
+
+            // Claiming at the same epoch is an issue
+            if (alreadyClaimed) {
+                // toggle canary that breaks the BI-02 property
+                claimedTwice = true;
+            }
         }
         catch {
-            // check if user had a claimable allocation
-            (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, prevAllocationEpoch);
-            bool claimedBribe = initiative.claimedBribeAtEpoch(user, prevAllocationEpoch);
+            // NOTE: This is not a full check, but a sufficient check for some cases
+            /// Specifically we may have to look at the user last epoch
+            /// And see if we need to port over that balance from then
+            (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, epoch);
+            bool claimedBribe = initiative.claimedBribeAtEpoch(user, epoch);
+            if(initiative.getMostRecentTotalEpoch() != prevTotalAllocationEpoch) {
+                return; // We are in a edge case
+            }
 
             // Check if there are bribes
             (uint128 boldAmount, uint128 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
@@ -110,10 +121,6 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
             }
         }
 
-        // check if the bribe was already claimed at the given epoch
-        if (alreadyClaimed) {
-            // toggle canary that breaks the BI-02 property
-            claimedTwice = true;
-        }
+
     }
 }
