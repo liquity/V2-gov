@@ -45,12 +45,12 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IBribeInitiative
-    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint88, uint32) {
+    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint88, uint120) {
         return _loadTotalLQTYAllocation(_epoch);
     }
 
     /// @inheritdoc IBribeInitiative
-    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint88, uint32) {
+    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint88, uint120) {
         return _loadLQTYAllocation(_user, _epoch);
     }
 
@@ -69,6 +69,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
         bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
     }
+
+    uint256 constant TIMESTAMP_PRECISION = 1e26;
+
 
     function _claimBribe(
         address _user,
@@ -98,28 +101,22 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             "BribeInitiative: invalid-prev-total-lqty-allocation-epoch"
         );
 
-        (uint88 totalLQTY, uint32 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
-        // WHAT HAPPENS IF WE ENFORCE EPOCH AT END?
-        // THEN WE LINEARLY TRANSLATE TO EPOCH END?
-        // EPOCH_START + epoch * EPOCH_DURATION is the time to claim (I think)
+        (uint88 totalLQTY, uint120 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
 
-        // Since epoch 1 starts at Epoch Start, epoch * Duration goes to the end of 
-        // But is this safe vs last second of the epoch?
-        // I recall having a similar issue already with Velodrome
-        uint32 epochEnd = uint32(governance.EPOCH_START()) + uint32(_epoch) * uint32(governance.EPOCH_DURATION());
+        // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
+        uint120 scaledEpochEnd = (uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())) * uint120(TIMESTAMP_PRECISION);
 
         /// @audit User Invariant
-        assert(totalAverageTimestamp <= epochEnd); /// NOTE: Tests break because they are not realistic
-        
+        assert(totalAverageTimestamp <= scaledEpochEnd);
 
-        uint240 totalVotes = governance.lqtyToVotes(totalLQTY, epochEnd, totalAverageTimestamp);
+        uint240 totalVotes = governance.lqtyToVotes(totalLQTY, scaledEpochEnd, totalAverageTimestamp);
         if (totalVotes != 0) {
-            (uint88 lqty, uint32 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
+            (uint88 lqty, uint120 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
 
             /// @audit Governance Invariant
-            assert(averageTimestamp <= epochEnd); /// NOTE: Tests break because they are not realistic
+            assert(averageTimestamp <= scaledEpochEnd);
 
-            uint240 votes = governance.lqtyToVotes(lqty, epochEnd, averageTimestamp);
+            uint240 votes = governance.lqtyToVotes(lqty, scaledEpochEnd, averageTimestamp);
             boldAmount = uint256(bribe.boldAmount) * uint256(votes) / uint256(totalVotes);
             bribeTokenAmount = uint256(bribe.bribeTokenAmount) * uint256(votes) / uint256(totalVotes);
         }
@@ -143,6 +140,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             bribeTokenAmount += bribeTokenAmount_;
         }
 
+        // NOTE: Due to rounding errors in the `averageTimestamp` bribes may slightly overpay compared to what they have allocated
+        // We cap to the available amount for this reason
+        // The error should be below 10 LQTY per annum, in the worst case
         if (boldAmount != 0) {
             uint256 max = bold.balanceOf(address(this));
             if (boldAmount > max) {
@@ -150,6 +150,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             }
             bold.safeTransfer(msg.sender, boldAmount);
         }
+
         if (bribeTokenAmount != 0) {
             uint256 max = bribeToken.balanceOf(address(this));
             if (bribeTokenAmount > max) {
@@ -165,7 +166,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     /// @inheritdoc IInitiative
     function onUnregisterInitiative(uint16) external virtual override onlyGovernance {}
 
-    function _setTotalLQTYAllocationByEpoch(uint16 _epoch, uint88 _lqty, uint32 _averageTimestamp, bool _insert)
+    function _setTotalLQTYAllocationByEpoch(uint16 _epoch, uint88 _lqty, uint120 _averageTimestamp, bool _insert)
         private
     {
         uint224 value = _encodeLQTYAllocation(_lqty, _averageTimestamp);
@@ -181,7 +182,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         address _user,
         uint16 _epoch,
         uint88 _lqty,
-        uint32 _averageTimestamp,
+        uint120 _averageTimestamp,
         bool _insert
     ) private {
         uint224 value = _encodeLQTYAllocation(_lqty, _averageTimestamp);
@@ -193,20 +194,20 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         emit ModifyLQTYAllocation(_user, _epoch, _lqty, _averageTimestamp);
     }
 
-    function _encodeLQTYAllocation(uint88 _lqty, uint32 _averageTimestamp) private pure returns (uint224) {
+    function _encodeLQTYAllocation(uint88 _lqty, uint120 _averageTimestamp) private pure returns (uint224) {
         return EncodingDecodingLib.encodeLQTYAllocation(_lqty, _averageTimestamp);
     }
 
-    function _decodeLQTYAllocation(uint224 _value) private pure returns (uint88, uint32) {
+    function _decodeLQTYAllocation(uint224 _value) private pure returns (uint88, uint120) {
         return EncodingDecodingLib.decodeLQTYAllocation(_value);
     }
 
-    function _loadTotalLQTYAllocation(uint16 _epoch) private view returns (uint88, uint32) {
+    function _loadTotalLQTYAllocation(uint16 _epoch) private view returns (uint88, uint120) {
         require(_epoch <= governance.epoch(), "No future Lookup");
         return _decodeLQTYAllocation(totalLQTYAllocationByEpoch.items[_epoch].value);
     }
 
-    function _loadLQTYAllocation(address _user, uint16 _epoch) private view returns (uint88, uint32) {
+    function _loadLQTYAllocation(address _user, uint16 _epoch) private view returns (uint88, uint120) {
         require(_epoch <= governance.epoch(), "No future Lookup");
         return _decodeLQTYAllocation(lqtyAllocationByUserAtEpoch[_user].items[_epoch].value);
     }

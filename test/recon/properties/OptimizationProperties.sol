@@ -9,9 +9,10 @@ import {vm} from "@chimera/Hevm.sol";
 import {IUserProxy} from "src/interfaces/IUserProxy.sol";
 import {GovernanceProperties} from "./GovernanceProperties.sol";
 
+// NOTE: These run only if you use `optimization` mode and set the correct prefix
+// See echidna.yaml
 abstract contract OptimizationProperties is GovernanceProperties {
 
-    // TODO: Add Optimization for property_sum_of_user_voting_weights
     function optimize_max_sum_of_user_voting_weights_insolvent() public returns (int256) {
         VotesSumAndInitiativeSum[] memory results = _getUserVotesSumAndInitiativesVotes();
 
@@ -26,6 +27,7 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         return max;
     }
+
     function optimize_max_sum_of_user_voting_weights_underpaying() public returns (int256) {
         VotesSumAndInitiativeSum[] memory results = _getUserVotesSumAndInitiativesVotes();
 
@@ -40,10 +42,47 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         return max;
     }
+
+    function optimize_max_claim_insolvent() public returns (int256) {
+        uint256 claimableSum;
+        for (uint256 i; i < deployedInitiatives.length; i++) {
+            // NOTE: Non view so it accrues state
+            (Governance.InitiativeStatus status,, uint256 claimableAmount) = governance.getInitiativeState(deployedInitiatives[i]);
+
+            claimableSum += claimableAmount;
+        }
+
+        // Grab accrued
+        uint256 boldAccrued = governance.boldAccrued();
+
+        int256 max;
+        if(claimableSum > boldAccrued) {
+            max = int256(claimableSum) - int256(boldAccrued);
+        }
+
+        return max;
+    }
+    function optimize_max_claim_underpay() public returns (int256) {
+        uint256 claimableSum;
+        for (uint256 i; i < deployedInitiatives.length; i++) {
+            // NOTE: Non view so it accrues state
+            (Governance.InitiativeStatus status,, uint256 claimableAmount) = governance.getInitiativeState(deployedInitiatives[i]);
+
+            claimableSum += claimableAmount;
+        }
+
+        // Grab accrued
+        uint256 boldAccrued = governance.boldAccrued();
+
+        int256 max;
+        if(boldAccrued > claimableSum) {
+            max = int256(boldAccrued) - int256(claimableSum);
+        }
+
+        return max;
+    }
     
 
-
-    // TODO: Add Optimization for property_sum_of_lqty_global_user_matches
     function optimize_property_sum_of_lqty_global_user_matches_insolvency() public returns (int256) {
 
         int256 max = 0;
@@ -69,16 +108,15 @@ abstract contract OptimizationProperties is GovernanceProperties {
         return max;
     }
 
-        // TODO: Add Optimization for property_sum_of_initatives_matches_total_votes
-
     function optimize_property_sum_of_initatives_matches_total_votes_insolvency() public returns (int256) {
 
         int256 max = 0;
 
-        (uint256 sumVotes, uint256 totalVotes) = _getInitiativesSnapshotsAndGlobalState();
+        (, , uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
 
-        if(sumVotes > totalVotes) {
-            max = int256(sumVotes) - int256(totalVotes);
+
+        if(votedPowerSum > govPower) {
+            max = int256(votedPowerSum) - int256(govPower);
         }
 
         return max;
@@ -87,13 +125,14 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         int256 max = 0;
 
-        (uint256 sumVotes, uint256 totalVotes) = _getInitiativesSnapshotsAndGlobalState();
+        (, , uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
 
-        if(totalVotes > sumVotes) {
-            max = int256(totalVotes) - int256(sumVotes);
+
+        if(govPower > votedPowerSum) {
+            max = int256(govPower) - int256(votedPowerSum);
         }
 
-        return max;
+        return max; // 177155848800000000000000000000000000 (2^117)
     }
 
 

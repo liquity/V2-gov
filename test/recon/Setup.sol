@@ -28,10 +28,6 @@ abstract contract Setup is BaseSetup {
     bool internal claimedTwice;
     bool internal unableToClaim;
 
-
-    // initiative => epoch => bribe
-    mapping(address => mapping(uint16 => IBribeInitiative.Bribe)) internal ghostBribeByEpoch;
-
     uint128 internal constant REGISTRATION_FEE = 1e18;
     uint128 internal constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
     uint128 internal constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
@@ -42,6 +38,8 @@ abstract contract Setup is BaseSetup {
     uint88 internal constant MIN_ACCRUAL = 1000e18;
     uint32 internal constant EPOCH_DURATION = 604800;
     uint32 internal constant EPOCH_VOTING_CUTOFF = 518400;
+
+    uint120 magnifiedStartTS;
 
     function setup() internal virtual override {
         vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back after the constructor
@@ -91,6 +89,8 @@ abstract contract Setup is BaseSetup {
         deployedInitiatives.push(address(initiative1));
 
         governance.registerInitiative(address(initiative1));
+
+        magnifiedStartTS = uint120(block.timestamp) * uint120(1e18);
     }
 
     function _getDeployedInitiative(uint8 index) internal view returns (address initiative) {

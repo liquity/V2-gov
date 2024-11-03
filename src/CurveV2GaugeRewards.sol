@@ -38,6 +38,11 @@ contract CurveV2GaugeRewards is BribeInitiative {
 
         remainder = 0;
 
+        uint256 available = bold.balanceOf(address(this));
+        if(available < total) {
+            total = available; // Cap due to rounding error causing a bit more bold being given away
+        }
+
         bold.approve(address(gauge), total); 
         gauge.deposit_reward_token(address(bold), total, duration);
 

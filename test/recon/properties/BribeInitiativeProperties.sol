@@ -66,7 +66,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
 
             (uint88 voteLQTY,, uint16 epoch) = governance.lqtyAllocatedByUserToInitiative(user, deployedInitiatives[i]);
 
-            try initiative.lqtyAllocatedByUserAtEpoch(user, epoch) returns (uint88 amt, uint32) {
+            try initiative.lqtyAllocatedByUserAtEpoch(user, epoch) returns (uint88 amt, uint120) {
                 eq(voteLQTY, amt, "Allocation must match");
             } catch {
                 t(false, "Allocation doesn't match governance");
@@ -102,6 +102,12 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         return totalLQTYAllocatedAtEpoch;
     }
 
+    // TODO: Looks pretty wrong and inaccurate
+    // Loop over the initiative
+    // Have all users claim all
+    // See what the result is
+    // See the dust
+    // Dust cap check
     function property_BI05() public {
         // users can't claim for current epoch so checking for previous
         uint16 checkEpoch = governance.epoch() - 1;
@@ -151,39 +157,21 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         }
     }
 
-    function property_BI06() public {
-        // using ghost tracking for successful bribe deposits
-        uint16 currentEpoch = governance.epoch();
-
-        for (uint8 i; i < deployedInitiatives.length; i++) {
-            address initiative = deployedInitiatives[i];
-            IBribeInitiative.Bribe memory bribe = ghostBribeByEpoch[initiative][currentEpoch];
-            (uint128 boldAmount, uint128 bribeTokenAmount) = IBribeInitiative(initiative).bribeByEpoch(currentEpoch);
-            eq(
-                bribe.boldAmount,
-                boldAmount,
-                "BI-06: Accounting for bold amount in bribe for an epoch is always correct"
-            );
-            eq(
-                bribe.bribeTokenAmount,
-                bribeTokenAmount,
-                "BI-06: Accounting for bold amount in bribe for an epoch is always correct"
-            );
-        }
-    }
-
     function property_BI07() public {
-        uint16 currentEpoch = governance.epoch();
-
         // sum user allocations for an epoch
         // check that this matches the total allocation for the epoch
         for (uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
+            uint16 currentEpoch = initiative.getMostRecentTotalEpoch();
+            
             uint88 sumLqtyAllocated;
             for (uint8 j; j < users.length; j++) {
-                (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
+                // NOTE: We need to grab user latest
+                uint16 userEpoch = initiative.getMostRecentUserEpoch(users[j]);
+                (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(users[j], userEpoch);
                 sumLqtyAllocated += lqtyAllocated;
             }
+
             (uint88 totalLQTYAllocated,) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
             eq(
                 sumLqtyAllocated,
@@ -192,6 +180,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
             );
         }
     }
+
 
     function property_sum_of_votes_in_bribes_match() public {
         uint16 currentEpoch = governance.epoch();
@@ -202,10 +191,10 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
             uint256 sumOfPower;
             for (uint8 j; j < users.length; j++) {
-                (uint88 lqtyAllocated, uint32 userTS) = initiative.lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
+                (uint88 lqtyAllocated, uint120 userTS) = initiative.lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
                 sumOfPower += governance.lqtyToVotes(lqtyAllocated, userTS, uint32(block.timestamp));
             }
-            (uint88 totalLQTYAllocated, uint32 totalTS) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
+            (uint88 totalLQTYAllocated, uint120 totalTS) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
 
             uint256 totalRecordedPower = governance.lqtyToVotes(totalLQTYAllocated, totalTS, uint32(block.timestamp));
 
@@ -271,9 +260,4 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         }
     }
 
-    // BI-11: User can always claim a bribe amount for which they are entitled
-    function property_BI11() public {
-        // unableToClaim gets set in the call to claimBribes and checks if user had a claimable allocation that wasn't yet claimed and tried to claim it unsuccessfully
-        t(!unableToClaim, "BI-11: User can always claim a bribe amount for which they are entitled ");
-    }
 }

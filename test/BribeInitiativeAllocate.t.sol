@@ -80,14 +80,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
         }
-        (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+        (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocated, 1e18);
-        assertEq(totalAverageTimestamp, uint32(block.timestamp));
-        (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+        assertEq(totalAverageTimestamp, uint120(block.timestamp));
+        (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
             bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
         assertEq(userLQTYAllocated, 1e18);
-        assertEq(userAverageTimestamp, uint32(block.timestamp));
+        assertEq(userAverageTimestamp, uint120(block.timestamp));
 
         {
             IGovernance.UserState memory userState2 =
@@ -104,11 +104,11 @@ contract BribeInitiativeAllocateTest is Test {
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState2, allocation2, initiativeState2);
         }
 
-        (uint88 totalLQTYAllocated2, uint32 totalAverageTimestamp2) =
+        (uint88 totalLQTYAllocated2, uint120 totalAverageTimestamp2) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocated2, 1001e18);
         assertEq(totalAverageTimestamp2, block.timestamp);
-        (uint88 userLQTYAllocated2, uint32 userAverageTimestamp2) =
+        (uint88 userLQTYAllocated2, uint120 userAverageTimestamp2) =
             bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
         assertEq(userLQTYAllocated2, 1000e18);
         assertEq(userAverageTimestamp2, block.timestamp);
@@ -177,14 +177,14 @@ contract BribeInitiativeAllocateTest is Test {
                 lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
             assertEq(userLQTYAllocated, 1e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         // set user2 allocations like governance would using onAfterAllocateLQTY at epoch 1
@@ -202,14 +202,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
             
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1001e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
             assertEq(userLQTYAllocated, 1e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         // lusdHolder deposits bribes into the initiative
@@ -238,14 +238,14 @@ contract BribeInitiativeAllocateTest is Test {
                 lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 0);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 0);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         // set allocation in initiative for user2 in epoch 1
@@ -262,14 +262,14 @@ contract BribeInitiativeAllocateTest is Test {
                 lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 0);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
             assertEq(userLQTYAllocated, 0);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         governance.setEpoch(3); 
@@ -305,14 +305,14 @@ contract BribeInitiativeAllocateTest is Test {
         });
         bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
-        (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+        (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocated, 1e18);
-        assertEq(totalAverageTimestamp, uint32(block.timestamp));
-        (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+        assertEq(totalAverageTimestamp, uint120(block.timestamp));
+        (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
             bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
         assertEq(userLQTYAllocated, 1e18);
-        assertEq(userAverageTimestamp, uint32(block.timestamp));
+        assertEq(userAverageTimestamp, uint120(block.timestamp));
 
         IGovernance.UserState memory userStateVeto =
             IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
@@ -329,14 +329,14 @@ contract BribeInitiativeAllocateTest is Test {
             governance.epoch(), user, userStateVeto, allocationVeto, initiativeStateVeto
         );
 
-        (uint88 totalLQTYAllocatedAfterVeto, uint32 totalAverageTimestampAfterVeto) =
+        (uint88 totalLQTYAllocatedAfterVeto, uint120 totalAverageTimestampAfterVeto) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocatedAfterVeto, 1e18);
-        assertEq(totalAverageTimestampAfterVeto, uint32(block.timestamp));
-        (uint88 userLQTYAllocatedAfterVeto, uint32 userAverageTimestampAfterVeto) =
+        assertEq(totalAverageTimestampAfterVeto, uint120(block.timestamp));
+        (uint88 userLQTYAllocatedAfterVeto, uint120 userAverageTimestampAfterVeto) =
             bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
         assertEq(userLQTYAllocatedAfterVeto, 0);
-        assertEq(userAverageTimestampAfterVeto, uint32(block.timestamp));
+        assertEq(userAverageTimestampAfterVeto, uint120(block.timestamp));
 
         governance.setEpoch(2);
         vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to second epoch ts
@@ -356,14 +356,14 @@ contract BribeInitiativeAllocateTest is Test {
             governance.epoch(), user, userStateNewEpoch, allocationNewEpoch, initiativeStateNewEpoch
         );
 
-        (uint88 totalLQTYAllocatedNewEpoch, uint32 totalAverageTimestampNewEpoch) =
+        (uint88 totalLQTYAllocatedNewEpoch, uint120 totalAverageTimestampNewEpoch) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocatedNewEpoch, 1e18);
-        assertEq(totalAverageTimestampNewEpoch, uint32(block.timestamp));
-        (uint88 userLQTYAllocatedNewEpoch, uint32 userAverageTimestampNewEpoch) =
+        assertEq(totalAverageTimestampNewEpoch, uint120(block.timestamp));
+        (uint88 userLQTYAllocatedNewEpoch, uint120 userAverageTimestampNewEpoch) =
             bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
         assertEq(userLQTYAllocatedNewEpoch, 0);
-        assertEq(userAverageTimestampNewEpoch, uint32(block.timestamp));
+        assertEq(userAverageTimestampNewEpoch, uint120(block.timestamp));
 
         vm.startPrank(lusdHolder);
         lqty.approve(address(bribeInitiative), 1000e18);
@@ -391,14 +391,14 @@ contract BribeInitiativeAllocateTest is Test {
             governance.epoch(), user, userStateNewEpoch3, allocationNewEpoch3, initiativeStateNewEpoch3
         );
 
-        (uint88 totalLQTYAllocatedNewEpoch3, uint32 totalAverageTimestampNewEpoch3) =
+        (uint88 totalLQTYAllocatedNewEpoch3, uint120 totalAverageTimestampNewEpoch3) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocatedNewEpoch3, 2001e18);
-        assertEq(totalAverageTimestampNewEpoch3, uint32(block.timestamp));
-        (uint88 userLQTYAllocatedNewEpoch3, uint32 userAverageTimestampNewEpoch3) =
+        assertEq(totalAverageTimestampNewEpoch3, uint120(block.timestamp));
+        (uint88 userLQTYAllocatedNewEpoch3, uint120 userAverageTimestampNewEpoch3) =
             bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
         assertEq(userLQTYAllocatedNewEpoch3, 2000e18);
-        assertEq(userAverageTimestampNewEpoch3, uint32(block.timestamp));
+        assertEq(userAverageTimestampNewEpoch3, uint120(block.timestamp));
 
         governance.setEpoch(4);
         vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to fourth epoch ts
@@ -431,14 +431,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
             assertEq(userLQTYAllocated, 1e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
@@ -455,14 +455,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1001e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 1000e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         governance.setEpoch(2);
@@ -481,14 +481,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 0);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         governance.setEpoch(3);
@@ -507,14 +507,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 0);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
     }
 
@@ -544,14 +544,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
             assertEq(userLQTYAllocated, 1e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
@@ -568,14 +568,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1001e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 1000e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
@@ -592,14 +592,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 2001e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 2000e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         governance.setEpoch(2);
@@ -640,14 +640,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
             assertEq(userLQTYAllocated, 1e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
@@ -664,14 +664,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1001e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 1000e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
@@ -688,14 +688,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 0);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         governance.setEpoch(2);
@@ -738,14 +738,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
             assertEq(userLQTYAllocated, 1e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
@@ -762,14 +762,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1001e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 1000e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
@@ -786,14 +786,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 0);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
@@ -810,14 +810,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 2001e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 2000e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         governance.setEpoch(2);
@@ -851,14 +851,14 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
             assertEq(userLQTYAllocated, 1e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
@@ -875,59 +875,59 @@ contract BribeInitiativeAllocateTest is Test {
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1001e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 1000e18);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
             IGovernance.UserState memory userState =
-                IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint32(block.timestamp)});
+                IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint120(block.timestamp)});
             IGovernance.Allocation memory allocation =
                 IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: uint16(governance.epoch())});
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
-                averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+                averageStakingTimestampVoteLQTY: uint120(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
                 lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 0);
-            assertEq(userAverageTimestamp, uint32(block.timestamp));
+            assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
         {
             IGovernance.UserState memory userState =
-                IGovernance.UserState({allocatedLQTY: 2, averageStakingTimestamp: uint32(block.timestamp)});
+                IGovernance.UserState({allocatedLQTY: 2, averageStakingTimestamp: uint120(block.timestamp)});
             IGovernance.Allocation memory allocation =
                 IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 2, atEpoch: uint16(governance.epoch())});
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
-                averageStakingTimestampVoteLQTY: uint32(block.timestamp),
+                averageStakingTimestampVoteLQTY: uint120(block.timestamp),
                 averageStakingTimestampVetoLQTY: 0,
                 lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user, userState, allocation, initiativeState);
 
-            (uint88 totalLQTYAllocated, uint32 totalAverageTimestamp) =
+            (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1e18);
-            assertEq(totalAverageTimestamp, uint32(block.timestamp));
-            (uint88 userLQTYAllocated, uint32 userAverageTimestamp) =
+            assertEq(totalAverageTimestamp, uint120(block.timestamp));
+            (uint88 userLQTYAllocated, uint120 userAverageTimestamp) =
                 bribeInitiative.lqtyAllocatedByUserAtEpoch(user, governance.epoch());
             assertEq(userLQTYAllocated, 0);
             assertEq(userAverageTimestamp, uint32(block.timestamp));

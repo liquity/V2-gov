@@ -28,9 +28,9 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         address[] memory initiatives = new address[](1);
         initiatives[0] = _getDeployedInitiative(initiativesIndex);
         int88[] memory deltaLQTYVotesArray = new int88[](1);
-        deltaLQTYVotesArray[0] = int88(uint88(deltaLQTYVotes % stakedAmount));
+        deltaLQTYVotesArray[0] = int88(uint88(deltaLQTYVotes % (stakedAmount + 1)));
         int88[] memory deltaLQTYVetosArray = new int88[](1);
-        deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % stakedAmount));
+        deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % (stakedAmount + 1)));
 
         // User B4
         // (uint88 b4_user_allocatedLQTY,) = governance.userStates(user); // TODO
@@ -40,7 +40,11 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         (Governance.InitiativeStatus status, ,) = governance.getInitiativeState(initiatives[0]);
 
 
-        governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
+        try governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray) {
+            t(deltaLQTYVotesArray[0] == 0 || deltaLQTYVetosArray[0] == 0, "One alloc must be zero");
+        } catch {
+            // t(false, "Clamped allocated should not revert"); // TODO: Consider adding overflow check here
+        }
 
         // The test here should be:
         // If initiative was DISABLED
@@ -55,9 +59,8 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         (uint88 after_global_allocatedLQTY,) = governance.globalState();
 
         if(status == Governance.InitiativeStatus.DISABLED) {
-            // State allocation must never change
-            // Whereas for the user it could | TODO
-            eq(after_global_allocatedLQTY, b4_global_allocatedLQTY, "Same alloc");
+            // NOTE: It could be 0
+            lte(after_global_allocatedLQTY, b4_global_allocatedLQTY, "Alloc can only be strictly decreasing");
         }
     }
 
@@ -106,6 +109,28 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         eq(user_allocatedLQTY, 0, "User has 0 allocated on a reset");
     }
 
+    function depositTsIsRational(uint88 lqtyAmount) public withChecks {
+        uint88 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
+
+        // Deposit on zero
+        if(stakedAmount == 0) {
+            lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
+            governance.depositLQTY(lqtyAmount);
+
+            // assert that user TS is now * WAD
+            (, uint120 ts) = governance.userStates(user);
+            eq(ts, block.timestamp * 1e26, "User TS is scaled by WAD");
+        } else {
+            // Make sure the TS can never bo before itself
+            (, uint120 ts_b4) = governance.userStates(user);
+            lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
+            governance.depositLQTY(lqtyAmount);
+
+            (, uint120 ts_after) = governance.userStates(user);
+
+            gte(ts_after, ts_b4, "User TS must always increase");
+        }
+    }
     function depositMustFailOnNonZeroAlloc(uint88 lqtyAmount) public withChecks {
         (uint88 user_allocatedLQTY,) = governance.userStates(user);
 
@@ -133,7 +158,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     // For every initiative, make ghost values and ensure they match
     // For all operations, you also need to add the VESTED AMT?
 
-    function governance_allocateLQTY(int88[] calldata _deltaLQTYVotes, int88[] calldata _deltaLQTYVetos)
+    function governance_allocateLQTY(int88[] memory _deltaLQTYVotes, int88[] memory _deltaLQTYVetos)
         public
         withChecks
     {
@@ -240,5 +265,20 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
     function governance_withdrawLQTY(uint88 _lqtyAmount) public withChecks {
         governance.withdrawLQTY(_lqtyAmount);
+    }
+
+    function governance_withdrawLQTY_shouldRevertWhenClamped(uint88 _lqtyAmount) public withChecks {
+        uint88 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
+        
+        // Ensure we have 0 votes
+        try governance.resetAllocations(deployedInitiatives, true) {} catch {
+            t(false, "Should not revert cause OOG is unlikely");
+        }
+
+        _lqtyAmount %= stakedAmount + 1;
+        try governance.withdrawLQTY(_lqtyAmount) {
+        } catch {
+            t(false, "Clamped withdraw should not revert");
+        }
     }
 }

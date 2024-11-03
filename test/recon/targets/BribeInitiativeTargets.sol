@@ -25,12 +25,47 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
         boldAmount = uint128(boldAmount % lusd.balanceOf(user));
         bribeTokenAmount = uint128(bribeTokenAmount % lqty.balanceOf(user));
 
+        lusd.approve(address(initiative), boldAmount);
+        lqty.approve(address(initiative), bribeTokenAmount);
+
+        (uint128 boldAmountB4, uint128 bribeTokenAmountB4) = IBribeInitiative(initiative).bribeByEpoch(epoch);
+
         initiative.depositBribe(boldAmount, bribeTokenAmount, epoch);
 
-        // tracking to check that bribe accounting is always correct
-        uint16 currentEpoch = governance.epoch();
-        ghostBribeByEpoch[address(initiative)][currentEpoch].boldAmount += boldAmount;
-        ghostBribeByEpoch[address(initiative)][currentEpoch].bribeTokenAmount += bribeTokenAmount;
+        (uint128 boldAmountAfter, uint128 bribeTokenAmountAfter) = IBribeInitiative(initiative).bribeByEpoch(epoch);
+
+        eq(boldAmountB4 + boldAmount, boldAmountAfter, "Bold amount tracking is sound");
+        eq(bribeTokenAmountB4 + bribeTokenAmount, bribeTokenAmountAfter, "Bribe amount tracking is sound");
+
+
+    }
+
+    // Canaries are no longer necessary
+    // function canary_bribeWasThere(uint8 initiativeIndex) public {
+    //     uint16 epoch = governance.epoch();
+    //     IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
+
+
+    //     (uint128 boldAmount, uint128 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
+    //     t(boldAmount == 0 && bribeTokenAmount == 0, "A bribe was found");
+    // }
+
+    // bool hasClaimedBribes;
+    // function canary_has_claimed() public {
+    //     t(!hasClaimedBribes, "has claimed");
+    // }
+
+    function clamped_claimBribes(uint8 initiativeIndex) public {
+        IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
+
+        uint16 userEpoch = initiative.getMostRecentUserEpoch(user);
+        uint16 stateEpoch = initiative.getMostRecentTotalEpoch();
+        initiative_claimBribes(
+            governance.epoch() - 1,
+            userEpoch,
+            stateEpoch,
+            initiativeIndex
+        );
     }
 
     function initiative_claimBribes(
@@ -55,11 +90,23 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
         bool alreadyClaimed = initiative.claimedBribeAtEpoch(user, epoch);
 
-        try initiative.claimBribes(claimData) {}
+        try initiative.claimBribes(claimData) {
+
+            // Claiming at the same epoch is an issue
+            if (alreadyClaimed) {
+                // toggle canary that breaks the BI-02 property
+                claimedTwice = true;
+            }
+        }
         catch {
-            // check if user had a claimable allocation
-            (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, prevAllocationEpoch);
-            bool claimedBribe = initiative.claimedBribeAtEpoch(user, prevAllocationEpoch);
+            // NOTE: This is not a full check, but a sufficient check for some cases
+            /// Specifically we may have to look at the user last epoch
+            /// And see if we need to port over that balance from then
+            (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, epoch);
+            bool claimedBribe = initiative.claimedBribeAtEpoch(user, epoch);
+            if(initiative.getMostRecentTotalEpoch() != prevTotalAllocationEpoch) {
+                return; // We are in a edge case
+            }
 
             // Check if there are bribes
             (uint128 boldAmount, uint128 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
@@ -70,14 +117,10 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
             if (lqtyAllocated > 0 && !claimedBribe && bribeWasThere) {
                 // user wasn't able to claim a bribe they were entitled to
-                unableToClaim = true;
+                unableToClaim = true; /// @audit Consider adding this as a test once claiming is simplified
             }
         }
 
-        // check if the bribe was already claimed at the given epoch
-        if (alreadyClaimed) {
-            // toggle canary that breaks the BI-02 property
-            claimedTwice = true;
-        }
+
     }
 }
