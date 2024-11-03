@@ -112,10 +112,11 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         int256 max = 0;
 
-        (uint256 sumVotes, uint256 totalVotes) = _getInitiativesSnapshotsAndGlobalState();
+        (, , uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
 
-        if(sumVotes > totalVotes) {
-            max = int256(sumVotes) - int256(totalVotes);
+
+        if(votedPowerSum > govPower) {
+            max = int256(votedPowerSum) - int256(govPower);
         }
 
         return max;
@@ -124,13 +125,14 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         int256 max = 0;
 
-        (uint256 sumVotes, uint256 totalVotes) = _getInitiativesSnapshotsAndGlobalState();
+        (, , uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
 
-        if(totalVotes > sumVotes) {
-            max = int256(totalVotes) - int256(sumVotes);
+
+        if(govPower > votedPowerSum) {
+            max = int256(govPower) - int256(votedPowerSum);
         }
 
-        return max;
+        return max; // 177155848800000000000000000000000000 (2^117)
     }
 
 
