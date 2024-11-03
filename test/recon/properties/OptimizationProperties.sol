@@ -81,6 +81,28 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         return max;
     }
+
+    function optimize_max_claim_underpay_assertion() public returns (int256) {
+        uint256 claimableSum;
+        for (uint256 i; i < deployedInitiatives.length; i++) {
+            // NOTE: Non view so it accrues state
+            (Governance.InitiativeStatus status,, uint256 claimableAmount) = governance.getInitiativeState(deployedInitiatives[i]);
+
+            claimableSum += claimableAmount;
+        }
+
+        // Grab accrued
+        uint256 boldAccrued = governance.boldAccrued();
+
+        int256 delta;
+        if(boldAccrued > claimableSum) {
+            delta = int256(boldAccrued) - int256(claimableSum);
+        }
+
+        t(delta < 1e20, "Delta is too big, over 100 LQTY");
+
+        return delta;
+    }
     
 
     function optimize_property_sum_of_lqty_global_user_matches_insolvency() public returns (int256) {
@@ -121,6 +143,23 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         return max;
     }
+
+    function optimize_property_sum_of_initatives_matches_total_votes_insolvency_assertion() public returns (int256) {
+
+        int256 delta = 0;
+
+        (, , uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
+
+
+        if(votedPowerSum > govPower) {
+            delta = int256(votedPowerSum) - int256(govPower);
+        }
+
+        t(delta < 1e26, "Delta is too big");
+
+        return delta;
+    }
+
     function optimize_property_sum_of_initatives_matches_total_votes_underpaying() public returns (int256) {
 
         int256 max = 0;
