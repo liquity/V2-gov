@@ -15,4 +15,39 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
         setup();
         
     }
+
+// forge test --match-test test_property_sum_of_initatives_matches_total_votes_strict_0 -vv 
+ function test_property_sum_of_initatives_matches_total_votes_strict_0() public {
+
+     vm.warp(block.timestamp + 162964);
+
+     vm.roll(block.number + 1);
+
+     governance_depositLQTY(2);
+
+     vm.warp(block.timestamp + 471948);
+
+     vm.roll(block.number + 1);
+
+     governance_allocateLQTY_clamped_single_initiative(0,2,0);
+
+     vm.warp(block.timestamp + 344203);
+
+     vm.roll(block.number + 1);
+
+     governance_depositLQTY_2(2);
+
+     helper_deployInitiative();
+
+     governance_registerInitiative(1);
+
+     vm.warp(block.timestamp + 232088);
+
+     vm.roll(block.number + 1);
+
+     governance_allocateLQTY_clamped_single_initiative_2nd_user(1,268004076687567,0);
+
+     property_sum_of_initatives_matches_total_votes_strict();
+
+ }
 }
