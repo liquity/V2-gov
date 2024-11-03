@@ -78,7 +78,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     uint16 constant UNREGISTERED_INITIATIVE = type(uint16).max;
 
     // 100 Million LQTY will be necessary to make the rounding error cause 1 second of loss per operation
-    uint120 constant TIMESTAMP_PRECISION = 1e26;
+    uint120 constant public TIMESTAMP_PRECISION = 1e26;
 
     constructor(
         address _lqty,
