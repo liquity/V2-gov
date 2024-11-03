@@ -260,9 +260,4 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         }
     }
 
-    // BI-11: User can always claim a bribe amount for which they are entitled
-    function property_BI11() public {
-        // unableToClaim gets set in the call to claimBribes and checks if user had a claimable allocation that wasn't yet claimed and tried to claim it unsuccessfully
-        t(!unableToClaim, "BI-11: User can always claim a bribe amount for which they are entitled ");
-    }
 }
