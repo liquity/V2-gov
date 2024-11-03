@@ -57,7 +57,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     /// @inheritdoc IBribeInitiative
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external {
         uint16 epoch = governance.epoch();
-        require(_epoch >= epoch, "BribeInitiative: only-future-epochs");
+        require(_epoch >= epoch, "BribeInitiative: now-or-future-epochs");
 
         Bribe memory bribe = bribeByEpoch[_epoch];
         bribe.boldAmount += _boldAmount;
