@@ -272,40 +272,66 @@ abstract contract GovernanceProperties is BeforeAfter {
     function property_sum_of_initatives_matches_total_votes_strict() public {
         // Sum up all initiatives
         // Compare to total votes
-        (uint256 initiativeVotesSum, uint256 snapshotVotes) = _getInitiativesSnapshotsAndGlobalState();
+        (uint256 allocatedLQTYSum, uint256 totalCountedLQTY, uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
 
-        eq(initiativeVotesSum, snapshotVotes, "Sum of votes matches Strict");
+        eq(allocatedLQTYSum, totalCountedLQTY, "LQTY Sum of Initiative State matches Global State at all times");
+        eq(votedPowerSum, govPower, "Voting Power Sum of Initiative State matches Global State at all times");
     }
     function property_sum_of_initatives_matches_total_votes_bounded() public {
         // Sum up all initiatives
         // Compare to total votes
-        (uint256 initiativeVotesSum, uint256 snapshotVotes) = _getInitiativesSnapshotsAndGlobalState();
+        (uint256 allocatedLQTYSum, uint256 totalCountedLQTY, uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
+
         t(
-            initiativeVotesSum == snapshotVotes || (
-                initiativeVotesSum >= snapshotVotes - TOLLERANCE &&
-                initiativeVotesSum <= snapshotVotes + TOLLERANCE
+            allocatedLQTYSum == totalCountedLQTY || (
+                allocatedLQTYSum >= totalCountedLQTY - TOLLERANCE &&
+                allocatedLQTYSum <= totalCountedLQTY + TOLLERANCE
             ),
-        "Sum of votes matches within tollerance");
+        "Sum of Initiative LQTY And State matches within absolute tollerance");
+
+        t(
+            votedPowerSum == govPower || (
+                votedPowerSum >= govPower - TOLLERANCE &&
+                votedPowerSum <= govPower + TOLLERANCE
+            ),
+        "Sum of Initiative LQTY And State matches within absolute tollerance");
     }
 
-    function _getInitiativesSnapshotsAndGlobalState() internal returns (uint256, uint256) {
-        (IGovernance.VoteSnapshot memory snapshot,,) = governance.getTotalVotesAndState();
+    function _getInitiativeStateAndGlobalState() internal returns (uint256, uint256, uint256, uint256) {
+        (
+            uint88 totalCountedLQTY,
+            uint120 global_countedVoteLQTYAverageTimestamp 
+        ) = governance.globalState();
 
-        uint256 initiativeVotesSum;
+        // Can sum via projection I guess
+
+        // Global Acc
+        // Initiative Acc
+        uint256 allocatedLQTYSum;
+        uint256 votedPowerSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
-            (IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot,,) =
-                governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
-            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+            (
+                uint88 voteLQTY,
+                uint88 vetoLQTY,
+                uint120 averageStakingTimestampVoteLQTY,
+                uint120 averageStakingTimestampVetoLQTY,
 
-            // TODO: This property is broken, because if a snapshot was taken before the initiative was unregistered
-            /// Then the votes would still be part of the total state
+            ) = governance.initiativeStates(deployedInitiatives[i]);
+
+            // Conditional, only if not DISABLED
+            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+            // Conditionally add based on state
             if (status != Governance.InitiativeStatus.DISABLED) {
-                // FIX: Only count total if initiative is not disabled
-                initiativeVotesSum += initiativeSnapshot.votes;
+                allocatedLQTYSum += voteLQTY;
+                // Sum via projection
+                votedPowerSum += governance.lqtyToVotes(voteLQTY, uint120(block.timestamp) * uint120(governance.TIMESTAMP_PRECISION()), averageStakingTimestampVoteLQTY);
             }
+
         }
 
-        return (initiativeVotesSum, snapshot.votes);
+        uint256 govPower = governance.lqtyToVotes(totalCountedLQTY, uint120(block.timestamp) * uint120(governance.TIMESTAMP_PRECISION()), global_countedVoteLQTYAverageTimestamp);
+
+        return (allocatedLQTYSum, totalCountedLQTY, votedPowerSum, govPower);
     }
 
     /// NOTE: This property can break in some specific combinations of:
