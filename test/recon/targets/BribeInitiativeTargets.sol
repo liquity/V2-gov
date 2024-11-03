@@ -117,7 +117,7 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
             if (lqtyAllocated > 0 && !claimedBribe && bribeWasThere) {
                 // user wasn't able to claim a bribe they were entitled to
-                unableToClaim = true;
+                unableToClaim = true; /// @audit Consider adding this as a test once claiming is simplified
             }
         }
 
