@@ -135,9 +135,15 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         if(votedPowerSum > govPower) {
             delta = votedPowerSum - govPower;
+
+            console.log("votedPowerSum * 1e18 / govPower", votedPowerSum * 1e18 / govPower);
         }
 
-        t(delta < 1e26, "Delta is too big");
+        console.log("votedPowerSum", votedPowerSum);
+        console.log("govPower", govPower);
+        console.log("delta", delta);
+
+        t(delta < 3e25, "Delta is too big"); // Max found via optimization
     }
 
     function property_sum_of_initatives_matches_total_votes_insolvency_assertion_mid() public {
