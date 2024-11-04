@@ -1,5 +1,5 @@
-testMode: "overflow"
-prefix: "optimize_"
+testMode: "assertion"
+prefix: "crytic_"
 coverage: true
 corpusDir: "echidna"
 balanceAddr: 0x1043561a8829300000
