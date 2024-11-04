@@ -8,6 +8,7 @@ import {MockStakingV1} from "test/mocks/MockStakingV1.sol";
 import {vm} from "@chimera/Hevm.sol";
 import {IUserProxy} from "src/interfaces/IUserProxy.sol";
 import {GovernanceProperties} from "./GovernanceProperties.sol";
+import {console} from "forge-std/console.sol";
 
 // NOTE: These run only if you use `optimization` mode and set the correct prefix
 // See echidna.yaml
@@ -148,7 +149,14 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         if(votedPowerSum > govPower) {
             delta = votedPowerSum - govPower;
+
+            console.log("votedPowerSum * 1e18 / govPower", votedPowerSum * 1e18 / govPower);
         }
+
+        console.log("votedPowerSum", votedPowerSum);
+        console.log("govPower", govPower);
+        console.log("delta", delta);
+        
 
         t(delta < 1e18, "Delta is too big");
     }
