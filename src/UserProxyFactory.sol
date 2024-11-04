@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {Clones} from "openzeppelin-contracts/contracts/proxy/Clones.sol";
+import {Clones} from "openzeppelin/contracts/proxy/Clones.sol";
 
 import {IUserProxyFactory} from "./interfaces/IUserProxyFactory.sol";
 import {UserProxy} from "./UserProxy.sol";
