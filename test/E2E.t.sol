@@ -121,6 +121,36 @@ contract E2ETests is Test {
         _allocate(address(0x123123), 1e18, 0);
     }
 
+    function test_canYouVoteWith100MLNLQTY() public {
+        deal(address(lqty), user, 100_000_000e18);
+        vm.startPrank(user);
+        // Check that we can vote on the first epoch, right after deployment
+        _deposit(100_000_000e18);
+
+        console.log("epoch", governance.epoch());
+        _allocate(baseInitiative1, 100_000_000e18, 0);
+    }
+
+    function test_canYouVoteWith100MLNLQTY_after_10_years() public {
+        deal(address(lqty), user, 100_000_000e18);
+        deal(address(lusd), user, 1e18);
+
+        vm.startPrank(user);
+        lusd.approve(address(governance), 1e18);
+
+        // Check that we can vote on the first epoch, right after deployment
+        _deposit(100_000_000e18);
+
+        vm.warp(block.timestamp + 365 days * 10);
+        address newInitiative = address(0x123123);
+        governance.registerInitiative(newInitiative);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        console.log("epoch", governance.epoch());
+        _allocate(newInitiative, 100_000_000e18, 0);
+    }
+
     // forge test --match-test test_noVetoGriefAtEpochOne -vv
     function test_noVetoGriefAtEpochOne() public {
         /// @audit NOTE: In order for this to work, the constructor must set the start time a week behind
