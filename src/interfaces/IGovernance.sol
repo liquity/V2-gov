@@ -34,6 +34,8 @@ interface IGovernance {
         uint32 epochVotingCutoff;
     }
 
+    function registerInitialInitiatives(address[] memory _initiatives) external;
+
     /// @notice Address of the LQTY StakingV1 contract
     /// @return stakingV1 Address of the LQTY StakingV1 contract
     function stakingV1() external view returns (ILQTYStaking stakingV1);

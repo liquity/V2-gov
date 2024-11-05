@@ -73,6 +73,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     mapping(address => mapping(address => Allocation)) public lqtyAllocatedByUserToInitiative;
     /// @inheritdoc IGovernance
     mapping(address => uint16) public override registeredInitiatives;
+    bool private initialInitiativesRegistered;
 
     uint16 constant UNREGISTERED_INITIATIVE = type(uint16).max;
 
@@ -112,10 +113,23 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         EPOCH_DURATION = _config.epochDuration;
         require(_config.epochVotingCutoff < _config.epochDuration, "Gov: epoch-voting-cutoff-gt-epoch-duration");
         EPOCH_VOTING_CUTOFF = _config.epochVotingCutoff;
+
+        if (_initiatives.length > 0) {
+            registerInitialInitiatives(_initiatives);
+        }
+    }
+
+    function registerInitialInitiatives(address[] memory _initiatives) public {
+        require(!initialInitiativesRegistered, "Initial inintiatives already registered");
+
         for (uint256 i = 0; i < _initiatives.length; i++) {
             initiativeStates[_initiatives[i]] = InitiativeState(0, 0, 0, 0, 0);
             registeredInitiatives[_initiatives[i]] = 1;
+
+            emit RegisterInitiative(_initiatives[i], msg.sender, 1);
         }
+
+        initialInitiativesRegistered = true;
     }
 
     function _averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) internal pure returns (uint32) {
