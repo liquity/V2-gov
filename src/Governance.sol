@@ -17,9 +17,10 @@ import {_requireNoDuplicates} from "./utils/UniqueArray.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
+import {Ownable} from "./utils/Ownable.sol";
 
 /// @title Governance: Modular Initiative based Governance
-contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
+contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IGovernance {
     using SafeERC20 for IERC20;
 
     uint256 constant MIN_GAS_TO_HOOK = 350_000;
@@ -73,7 +74,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     mapping(address => mapping(address => Allocation)) public lqtyAllocatedByUserToInitiative;
     /// @inheritdoc IGovernance
     mapping(address => uint16) public override registeredInitiatives;
-    bool private initialInitiativesRegistered;
 
     uint16 constant UNREGISTERED_INITIATIVE = type(uint16).max;
 
@@ -84,7 +84,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         address _bold,
         Configuration memory _config,
         address[] memory _initiatives
-    ) UserProxyFactory(_lqty, _lusd, _stakingV1) {
+    ) UserProxyFactory(_lqty, _lusd, _stakingV1) Ownable(msg.sender) {
         stakingV1 = ILQTYStaking(_stakingV1);
         lqty = IERC20(_lqty);
         bold = IERC20(_bold);
@@ -119,17 +119,17 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         }
     }
 
-    function registerInitialInitiatives(address[] memory _initiatives) public {
-        require(!initialInitiativesRegistered, "Initial inintiatives already registered");
+    function registerInitialInitiatives(address[] memory _initiatives) public onlyOwner {
+        uint16 currentEpoch = epoch();
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
             initiativeStates[_initiatives[i]] = InitiativeState(0, 0, 0, 0, 0);
-            registeredInitiatives[_initiatives[i]] = 1;
+            registeredInitiatives[_initiatives[i]] = currentEpoch;
 
-            emit RegisterInitiative(_initiatives[i], msg.sender, 1);
+            emit RegisterInitiative(_initiatives[i], msg.sender, currentEpoch);
         }
 
-        initialInitiativesRegistered = true;
+        _renounceOwnership();
     }
 
     function _averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) internal pure returns (uint32) {
