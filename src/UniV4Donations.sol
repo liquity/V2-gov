@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.26;
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -116,7 +116,7 @@ contract UniV4Donations is BribeInitiative, BaseHook {
             manager.donate(key, amount, 0, bytes(""));
             manager.sync(key.currency0);
             IERC20(Currency.unwrap(key.currency0)).safeTransfer(address(manager), amount);
-            manager.settle(key.currency0);
+            manager.settle();
 
             vesting.released += amount;
 
@@ -159,7 +159,7 @@ contract UniV4Donations is BribeInitiative, BaseHook {
         });
     }
 
-    function afterInitialize(address, PoolKey calldata key, uint160, int24, bytes calldata)
+    function afterInitialize(address, PoolKey calldata key, uint160, int24)
         external
         view
         override
@@ -175,6 +175,7 @@ contract UniV4Donations is BribeInitiative, BaseHook {
         PoolKey calldata key,
         IPoolManager.ModifyLiquidityParams calldata,
         BalanceDelta delta,
+        BalanceDelta,
         bytes calldata
     ) external override onlyByManager returns (bytes4, BalanceDelta) {
         require(PoolId.unwrap(poolKey().toId()) == PoolId.unwrap(key.toId()), "UniV4Donations: invalid-pool-id");
