@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {ILQTYStaking} from "./ILQTYStaking.sol";
 
@@ -33,6 +33,8 @@ interface IGovernance {
         uint32 epochDuration;
         uint32 epochVotingCutoff;
     }
+
+    function registerInitialInitiatives(address[] memory _initiatives) external;
 
     /// @notice Address of the LQTY StakingV1 contract
     /// @return stakingV1 Address of the LQTY StakingV1 contract

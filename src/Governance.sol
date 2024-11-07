@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
+import {SafeERC20} from "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import {IGovernance} from "./interfaces/IGovernance.sol";
 import {IInitiative} from "./interfaces/IInitiative.sol";
@@ -17,9 +17,10 @@ import {_requireNoDuplicates} from "./utils/UniqueArray.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
+import {Ownable} from "./utils/Ownable.sol";
 
 /// @title Governance: Modular Initiative based Governance
-contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
+contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IGovernance {
     using SafeERC20 for IERC20;
 
     uint256 constant MIN_GAS_TO_HOOK = 350_000;
@@ -83,7 +84,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         address _bold,
         Configuration memory _config,
         address[] memory _initiatives
-    ) UserProxyFactory(_lqty, _lusd, _stakingV1) {
+    ) UserProxyFactory(_lqty, _lusd, _stakingV1) Ownable(msg.sender) {
         stakingV1 = ILQTYStaking(_stakingV1);
         lqty = IERC20(_lqty);
         bold = IERC20(_bold);
@@ -112,10 +113,23 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         EPOCH_DURATION = _config.epochDuration;
         require(_config.epochVotingCutoff < _config.epochDuration, "Gov: epoch-voting-cutoff-gt-epoch-duration");
         EPOCH_VOTING_CUTOFF = _config.epochVotingCutoff;
+
+        if (_initiatives.length > 0) {
+            registerInitialInitiatives(_initiatives);
+        }
+    }
+
+    function registerInitialInitiatives(address[] memory _initiatives) public onlyOwner {
+        uint16 currentEpoch = epoch();
+
         for (uint256 i = 0; i < _initiatives.length; i++) {
             initiativeStates[_initiatives[i]] = InitiativeState(0, 0, 0, 0, 0);
-            registeredInitiatives[_initiatives[i]] = 1;
+            registeredInitiatives[_initiatives[i]] = currentEpoch;
+
+            emit RegisterInitiative(_initiatives[i], msg.sender, currentEpoch);
         }
+
+        _renounceOwnership();
     }
 
     function _averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) internal pure returns (uint32) {
