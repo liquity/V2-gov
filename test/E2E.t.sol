@@ -93,6 +93,7 @@ contract E2ETests is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
     }

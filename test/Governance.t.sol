@@ -26,7 +26,7 @@ contract GovernanceInternal is Governance {
         address _bold,
         Configuration memory _config,
         address[] memory _initiatives
-    ) Governance(_lqty, _lusd, _stakingV1, _bold, _config, _initiatives) {}
+    ) Governance(_lqty, _lusd, _stakingV1, _bold, _config, msg.sender, _initiatives) {}
 
     function averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) external pure returns (uint32) {
         return _averageAge(_currentTimestamp, _averageTimestamp);
@@ -119,6 +119,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -407,6 +408,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -449,6 +451,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -497,6 +500,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -1639,6 +1643,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -1758,6 +1763,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -1841,6 +1847,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -1899,6 +1906,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -1948,6 +1956,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -1998,6 +2007,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -2048,6 +2058,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -2104,6 +2115,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -2177,6 +2189,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -2249,6 +2262,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -2311,6 +2325,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -2358,6 +2373,7 @@ contract GovernanceTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 

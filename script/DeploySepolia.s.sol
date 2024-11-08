@@ -97,6 +97,7 @@ contract DeploySepoliaScript is Script, Deployers {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            deployer,
             initialInitiatives
         );
         assert(governance == uniV4Donations.governance());
