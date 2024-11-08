@@ -83,8 +83,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         address _stakingV1,
         address _bold,
         Configuration memory _config,
+        address _owner,
         address[] memory _initiatives
-    ) UserProxyFactory(_lqty, _lusd, _stakingV1) Ownable(msg.sender) {
+    ) UserProxyFactory(_lqty, _lusd, _stakingV1) Ownable(_owner) {
         stakingV1 = ILQTYStaking(_stakingV1);
         lqty = IERC20(_lqty);
         bold = IERC20(_bold);

@@ -123,6 +123,7 @@ contract UniV4DonationsTest is Test, Deployers {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
     }

@@ -75,6 +75,7 @@ abstract contract Setup is BaseSetup {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             deployedInitiatives // no initial initiatives passed in because don't have cheatcodes for calculating address where gov will be deployed
         );
 
