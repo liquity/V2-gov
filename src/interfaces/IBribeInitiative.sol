@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "./IGovernance.sol";
 
 interface IBribeInitiative {
     event DepositBribe(address depositor, uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch);
-    event ModifyLQTYAllocation(address user, uint16 epoch, uint88 lqtyAllocated);
-    event ModifyTotalLQTYAllocation(uint16 epoch, uint88 totalLQTYAllocated);
+    event ModifyLQTYAllocation(address user, uint16 epoch, uint88 lqtyAllocated, uint120 averageTimestamp);
+    event ModifyTotalLQTYAllocation(uint16 epoch, uint88 totalLQTYAllocated, uint120 averageTimestamp);
     event ClaimBribe(address user, uint16 epoch, uint256 boldAmount, uint256 bribeTokenAmount);
 
     /// @notice Address of the governance contract
@@ -40,12 +40,18 @@ interface IBribeInitiative {
     /// @notice Total LQTY allocated to the initiative at a given epoch
     /// @param _epoch Epoch at which the LQTY was allocated
     /// @return totalLQTYAllocated Total LQTY allocated
-    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint88 totalLQTYAllocated);
+    function totalLQTYAllocatedByEpoch(uint16 _epoch)
+        external
+        view
+        returns (uint88 totalLQTYAllocated, uint120 averageTimestamp);
     /// @notice LQTY allocated by a user to the initiative at a given epoch
     /// @param _user Address of the user
     /// @param _epoch Epoch at which the LQTY was allocated by the user
     /// @return lqtyAllocated LQTY allocated by the user
-    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint88 lqtyAllocated);
+    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch)
+        external
+        view
+        returns (uint88 lqtyAllocated, uint120 averageTimestamp);
 
     /// @notice Deposit bribe tokens for a given epoch
     /// @dev The caller has to approve this contract to spend the BOLD and bribe tokens.
@@ -72,4 +78,10 @@ interface IBribeInitiative {
     function claimBribes(ClaimData[] calldata _claimData)
         external
         returns (uint256 boldAmount, uint256 bribeTokenAmount);
+
+    /// @notice Given a user address return the last recorded epoch for their allocation
+    function getMostRecentUserEpoch(address _user) external view returns (uint16);
+
+    /// @notice Return the last recorded epoch for the system
+    function getMostRecentTotalEpoch() external view returns (uint16);
 }

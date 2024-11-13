@@ -18,14 +18,34 @@ contract CurveV2GaugeRewards is BribeInitiative {
         duration = _duration;
     }
 
-    function depositIntoGauge() external returns (uint256) {
-        uint256 amount = governance.claimForInitiative(address(this));
+    uint256 public remainder;
 
-        bold.approve(address(gauge), amount);
-        gauge.deposit_reward_token(address(bold), amount, duration);
+    /// @notice Governance transfers Bold, and we deposit it into the gauge
+    /// @dev Doing this allows anyone to trigger the claim
+    function onClaimForInitiative(uint16, uint256 _bold) external override onlyGovernance {
+        _depositIntoGauge(_bold);
+    }
 
-        emit DepositIntoGauge(amount);
+    // TODO: If this is capped, we may need to donate here, so cap it here as well
+    function _depositIntoGauge(uint256 amount) internal {
+        uint256 total = amount + remainder;
 
-        return amount;
+        // For small donations queue them into the contract
+        if (total < duration * 1000) {
+            remainder += amount;
+            return;
+        }
+
+        remainder = 0;
+
+        uint256 available = bold.balanceOf(address(this));
+        if (available < total) {
+            total = available; // Cap due to rounding error causing a bit more bold being given away
+        }
+
+        bold.approve(address(gauge), total);
+        gauge.deposit_reward_token(address(bold), total, duration);
+
+        emit DepositIntoGauge(total);
     }
 }

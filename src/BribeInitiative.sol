@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
+import {SafeERC20} from "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IGovernance} from "./interfaces/IGovernance.sol";
 import {IInitiative} from "./interfaces/IInitiative.sol";
 import {IBribeInitiative} from "./interfaces/IBribeInitiative.sol";
 
 import {DoubleLinkedList} from "./utils/DoubleLinkedList.sol";
+
+import {EncodingDecodingLib} from "src/utils/EncodingDecodingLib.sol";
 
 contract BribeInitiative is IInitiative, IBribeInitiative {
     using SafeERC20 for IERC20;
@@ -43,22 +45,19 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IBribeInitiative
-    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint88) {
-        return totalLQTYAllocationByEpoch.getValue(_epoch);
+    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint88, uint120) {
+        return _loadTotalLQTYAllocation(_epoch);
     }
 
     /// @inheritdoc IBribeInitiative
-    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint88) {
-        return lqtyAllocationByUserAtEpoch[_user].getValue(_epoch);
+    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint88, uint120) {
+        return _loadLQTYAllocation(_user, _epoch);
     }
 
     /// @inheritdoc IBribeInitiative
     function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external {
-        bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
-        bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
-
         uint16 epoch = governance.epoch();
-        require(_epoch > epoch, "BribeInitiative: only-future-epochs");
+        require(_epoch >= epoch, "BribeInitiative: now-or-future-epochs");
 
         Bribe memory bribe = bribeByEpoch[_epoch];
         bribe.boldAmount += _boldAmount;
@@ -66,7 +65,12 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         bribeByEpoch[_epoch] = bribe;
 
         emit DepositBribe(msg.sender, _boldAmount, _bribeTokenAmount, _epoch);
+
+        bold.safeTransferFrom(msg.sender, address(this), _boldAmount);
+        bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
     }
+
+    uint256 constant TIMESTAMP_PRECISION = 1e26;
 
     function _claimBribe(
         address _user,
@@ -74,7 +78,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         uint16 _prevLQTYAllocationEpoch,
         uint16 _prevTotalLQTYAllocationEpoch
     ) internal returns (uint256 boldAmount, uint256 bribeTokenAmount) {
-        require(_epoch != governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
+        require(_epoch < governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
         require(!claimedBribeAtEpoch[_user][_epoch], "BribeInitiative: already-claimed");
 
         Bribe memory bribe = bribeByEpoch[_epoch];
@@ -96,9 +100,27 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             "BribeInitiative: invalid-prev-total-lqty-allocation-epoch"
         );
 
-        boldAmount = uint256(bribe.boldAmount) * uint256(lqtyAllocation.value) / uint256(totalLQTYAllocation.value);
-        bribeTokenAmount =
-            uint256(bribe.bribeTokenAmount) * uint256(lqtyAllocation.value) / uint256(totalLQTYAllocation.value);
+        (uint88 totalLQTY, uint120 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
+
+        // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
+        uint120 scaledEpochEnd = (
+            uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())
+        ) * uint120(TIMESTAMP_PRECISION);
+
+        /// @audit User Invariant
+        assert(totalAverageTimestamp <= scaledEpochEnd);
+
+        uint240 totalVotes = governance.lqtyToVotes(totalLQTY, scaledEpochEnd, totalAverageTimestamp);
+        if (totalVotes != 0) {
+            (uint88 lqty, uint120 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
+
+            /// @audit Governance Invariant
+            assert(averageTimestamp <= scaledEpochEnd);
+
+            uint240 votes = governance.lqtyToVotes(lqty, scaledEpochEnd, averageTimestamp);
+            boldAmount = uint256(bribe.boldAmount) * uint256(votes) / uint256(totalVotes);
+            bribeTokenAmount = uint256(bribe.bribeTokenAmount) * uint256(votes) / uint256(totalVotes);
+        }
 
         claimedBribeAtEpoch[_user][_epoch] = true;
 
@@ -119,8 +141,24 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             bribeTokenAmount += bribeTokenAmount_;
         }
 
-        if (boldAmount != 0) bold.safeTransfer(msg.sender, boldAmount);
-        if (bribeTokenAmount != 0) bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
+        // NOTE: Due to rounding errors in the `averageTimestamp` bribes may slightly overpay compared to what they have allocated
+        // We cap to the available amount for this reason
+        // The error should be below 10 LQTY per annum, in the worst case
+        if (boldAmount != 0) {
+            uint256 max = bold.balanceOf(address(this));
+            if (boldAmount > max) {
+                boldAmount = max;
+            }
+            bold.safeTransfer(msg.sender, boldAmount);
+        }
+
+        if (bribeTokenAmount != 0) {
+            uint256 max = bribeToken.balanceOf(address(this));
+            if (bribeTokenAmount > max) {
+                bribeTokenAmount = max;
+            }
+            bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
+        }
     }
 
     /// @inheritdoc IInitiative
@@ -129,93 +167,92 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     /// @inheritdoc IInitiative
     function onUnregisterInitiative(uint16) external virtual override onlyGovernance {}
 
-    function _setTotalLQTYAllocationByEpoch(uint16 _epoch, uint88 _value, bool _insert) private {
-        if (_insert) {
-            totalLQTYAllocationByEpoch.insert(_epoch, _value, 0);
-        } else {
-            totalLQTYAllocationByEpoch.items[_epoch].value = _value;
-        }
-        emit ModifyTotalLQTYAllocation(_epoch, _value);
-    }
-
-    function _setLQTYAllocationByUserAtEpoch(address _user, uint16 _epoch, uint88 _value, bool _insert) private {
-        if (_insert) {
-            lqtyAllocationByUserAtEpoch[_user].insert(_epoch, _value, 0);
-        } else {
-            lqtyAllocationByUserAtEpoch[_user].items[_epoch].value = _value;
-        }
-        emit ModifyLQTYAllocation(_user, _epoch, _value);
-    }
-
-    /// @inheritdoc IInitiative
-    function onAfterAllocateLQTY(uint16 _currentEpoch, address _user, uint88 _voteLQTY, uint88 _vetoLQTY)
-        external
-        virtual
-        onlyGovernance
+    function _setTotalLQTYAllocationByEpoch(uint16 _epoch, uint88 _lqty, uint120 _averageTimestamp, bool _insert)
+        private
     {
+        uint224 value = _encodeLQTYAllocation(_lqty, _averageTimestamp);
+        if (_insert) {
+            totalLQTYAllocationByEpoch.insert(_epoch, value, 0);
+        } else {
+            totalLQTYAllocationByEpoch.items[_epoch].value = value;
+        }
+        emit ModifyTotalLQTYAllocation(_epoch, _lqty, _averageTimestamp);
+    }
+
+    function _setLQTYAllocationByUserAtEpoch(
+        address _user,
+        uint16 _epoch,
+        uint88 _lqty,
+        uint120 _averageTimestamp,
+        bool _insert
+    ) private {
+        uint224 value = _encodeLQTYAllocation(_lqty, _averageTimestamp);
+        if (_insert) {
+            lqtyAllocationByUserAtEpoch[_user].insert(_epoch, value, 0);
+        } else {
+            lqtyAllocationByUserAtEpoch[_user].items[_epoch].value = value;
+        }
+        emit ModifyLQTYAllocation(_user, _epoch, _lqty, _averageTimestamp);
+    }
+
+    function _encodeLQTYAllocation(uint88 _lqty, uint120 _averageTimestamp) private pure returns (uint224) {
+        return EncodingDecodingLib.encodeLQTYAllocation(_lqty, _averageTimestamp);
+    }
+
+    function _decodeLQTYAllocation(uint224 _value) private pure returns (uint88, uint120) {
+        return EncodingDecodingLib.decodeLQTYAllocation(_value);
+    }
+
+    function _loadTotalLQTYAllocation(uint16 _epoch) private view returns (uint88, uint120) {
+        require(_epoch <= governance.epoch(), "No future Lookup");
+        return _decodeLQTYAllocation(totalLQTYAllocationByEpoch.items[_epoch].value);
+    }
+
+    function _loadLQTYAllocation(address _user, uint16 _epoch) private view returns (uint88, uint120) {
+        require(_epoch <= governance.epoch(), "No future Lookup");
+        return _decodeLQTYAllocation(lqtyAllocationByUserAtEpoch[_user].items[_epoch].value);
+    }
+
+    /// @inheritdoc IBribeInitiative
+    function getMostRecentUserEpoch(address _user) external view returns (uint16) {
         uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
 
+        return mostRecentUserEpoch;
+    }
+
+    /// @inheritdoc IBribeInitiative
+    function getMostRecentTotalEpoch() external view returns (uint16) {
+        uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
+
+        return mostRecentTotalEpoch;
+    }
+
+    function onAfterAllocateLQTY(
+        uint16 _currentEpoch,
+        address _user,
+        IGovernance.UserState calldata _userState,
+        IGovernance.Allocation calldata _allocation,
+        IGovernance.InitiativeState calldata _initiativeState
+    ) external virtual onlyGovernance {
         if (_currentEpoch == 0) return;
 
-        // if this is the first user allocation in the epoch, then insert a new item into the user allocation DLL
-        if (mostRecentUserEpoch != _currentEpoch) {
-            uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].items[mostRecentUserEpoch].value;
-            uint88 newVoteLQTY = (_vetoLQTY == 0) ? _voteLQTY : 0;
-            uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
-            // if this is the first allocation in the epoch, then insert a new item into the total allocation DLL
-            if (mostRecentTotalEpoch != _currentEpoch) {
-                uint88 prevTotalLQTYAllocation = totalLQTYAllocationByEpoch.items[mostRecentTotalEpoch].value;
-                if (_vetoLQTY == 0) {
-                    // no veto to no veto
-                    _setTotalLQTYAllocationByEpoch(
-                        _currentEpoch, prevTotalLQTYAllocation + newVoteLQTY - prevVoteLQTY, true
-                    );
-                } else {
-                    if (prevVoteLQTY != 0) {
-                        // if the prev user allocation was counted in, then remove the prev user allocation from the
-                        // total allocation (no veto to veto)
-                        _setTotalLQTYAllocationByEpoch(_currentEpoch, prevTotalLQTYAllocation - prevVoteLQTY, true);
-                    } else {
-                        // veto to veto
-                        _setTotalLQTYAllocationByEpoch(_currentEpoch, prevTotalLQTYAllocation, true);
-                    }
-                }
-            } else {
-                if (_vetoLQTY == 0) {
-                    // no veto to no veto
-                    _setTotalLQTYAllocationByEpoch(
-                        _currentEpoch,
-                        totalLQTYAllocationByEpoch.items[_currentEpoch].value + newVoteLQTY - prevVoteLQTY,
-                        false
-                    );
-                } else if (prevVoteLQTY != 0) {
-                    // no veto to veto
-                    _setTotalLQTYAllocationByEpoch(
-                        _currentEpoch, totalLQTYAllocationByEpoch.items[_currentEpoch].value - prevVoteLQTY, false
-                    );
-                }
-            }
-            // insert a new item into the user allocation DLL
-            _setLQTYAllocationByUserAtEpoch(_user, _currentEpoch, newVoteLQTY, true);
-        } else {
-            uint88 prevVoteLQTY = lqtyAllocationByUserAtEpoch[_user].getItem(_currentEpoch).value;
-            if (_vetoLQTY == 0) {
-                // update the allocation for the current epoch by adding the new allocation and subtracting
-                // the previous one (no veto to no veto)
-                _setTotalLQTYAllocationByEpoch(
-                    _currentEpoch,
-                    totalLQTYAllocationByEpoch.items[_currentEpoch].value + _voteLQTY - prevVoteLQTY,
-                    false
-                );
-                _setLQTYAllocationByUserAtEpoch(_user, _currentEpoch, _voteLQTY, false);
-            } else {
-                // if the user vetoed the initiative, subtract the allocation from the DLLs (no veto to veto)
-                _setTotalLQTYAllocationByEpoch(
-                    _currentEpoch, totalLQTYAllocationByEpoch.items[_currentEpoch].value - prevVoteLQTY, false
-                );
-                _setLQTYAllocationByUserAtEpoch(_user, _currentEpoch, 0, false);
-            }
-        }
+        uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
+        uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
+
+        _setTotalLQTYAllocationByEpoch(
+            _currentEpoch,
+            _initiativeState.voteLQTY,
+            _initiativeState.averageStakingTimestampVoteLQTY,
+            mostRecentTotalEpoch != _currentEpoch // Insert if current > recent
+        );
+
+        _setLQTYAllocationByUserAtEpoch(
+            _user,
+            _currentEpoch,
+            _allocation.voteLQTY,
+            _userState.averageStakingTimestamp,
+            mostRecentUserEpoch != _currentEpoch // Insert if user current > recent
+        );
     }
 
     /// @inheritdoc IInitiative

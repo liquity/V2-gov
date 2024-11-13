@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
+import {IERC20Permit} from "openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {SafeERC20} from "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IUserProxy} from "./interfaces/IUserProxy.sol";
 import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
@@ -36,7 +36,7 @@ contract UserProxy is IUserProxy {
 
     /// @inheritdoc IUserProxy
     function stake(uint256 _amount, address _lqtyFrom) public onlyStakingV2 {
-        lqty.transferFrom(_lqtyFrom, address(this), _amount);
+        lqty.safeTransferFrom(_lqtyFrom, address(this), _amount);
         lqty.approve(address(stakingV1), _amount);
         stakingV1.stake(_amount);
         emit Stake(_amount, _lqtyFrom);
@@ -61,7 +61,7 @@ contract UserProxy is IUserProxy {
     }
 
     /// @inheritdoc IUserProxy
-    function unstake(uint256 _amount, address _lqtyRecipient, address _lusdEthRecipient)
+    function unstake(uint256 _amount, address _recipient)
         public
         onlyStakingV2
         returns (uint256 lusdAmount, uint256 ethAmount)
@@ -69,21 +69,21 @@ contract UserProxy is IUserProxy {
         stakingV1.unstake(_amount);
 
         uint256 lqtyAmount = lqty.balanceOf(address(this));
-        if (lqtyAmount > 0) lqty.safeTransfer(_lqtyRecipient, lqtyAmount);
+        if (lqtyAmount > 0) lqty.safeTransfer(_recipient, lqtyAmount);
         lusdAmount = lusd.balanceOf(address(this));
-        if (lusdAmount > 0) lusd.safeTransfer(_lusdEthRecipient, lusdAmount);
+        if (lusdAmount > 0) lusd.safeTransfer(_recipient, lusdAmount);
         ethAmount = address(this).balance;
         if (ethAmount > 0) {
-            (bool success,) = payable(_lusdEthRecipient).call{value: ethAmount}("");
-            success;
+            (bool success,) = payable(_recipient).call{value: ethAmount}("");
+            require(success, "UserProxy: eth-fail");
         }
 
-        emit Unstake(_amount, _lqtyRecipient, _lusdEthRecipient, lusdAmount, ethAmount);
+        emit Unstake(_amount, _recipient, lusdAmount, ethAmount);
     }
 
     /// @inheritdoc IUserProxy
-    function staked() external view returns (uint96) {
-        return uint96(stakingV1.stakes(address(this)));
+    function staked() external view returns (uint88) {
+        return uint88(stakingV1.stakes(address(this)));
     }
 
     receive() external payable {}

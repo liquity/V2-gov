@@ -1,1 +1,4 @@
 v4-core/=lib/v4-core/
+forge-std/=lib/forge-std/src/
+@chimera/=lib/chimera/src/
+openzeppelin/=lib/openzeppelin-contracts/

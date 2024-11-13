@@ -22,11 +22,17 @@ contract MockInitiative is IInitiative {
     }
 
     /// @inheritdoc IInitiative
-    function onAfterAllocateLQTY(uint16, address, uint88, uint88) external virtual {
+    function onAfterAllocateLQTY(
+        uint16,
+        address,
+        IGovernance.UserState calldata,
+        IGovernance.Allocation calldata,
+        IGovernance.InitiativeState calldata
+    ) external virtual {
         address[] memory initiatives = new address[](0);
-        int176[] memory deltaLQTYVotes = new int176[](0);
-        int176[] memory deltaLQTYVetos = new int176[](0);
-        governance.allocateLQTY(initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        int88[] memory deltaLQTYVotes = new int88[](0);
+        int88[] memory deltaLQTYVetos = new int88[](0);
+        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 
     /// @inheritdoc IInitiative

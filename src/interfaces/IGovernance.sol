@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {ILQTYStaking} from "./ILQTYStaking.sol";
 
@@ -33,6 +33,8 @@ interface IGovernance {
         uint32 epochDuration;
         uint32 epochVotingCutoff;
     }
+
+    function registerInitialInitiatives(address[] memory _initiatives) external;
 
     /// @notice Address of the LQTY StakingV1 contract
     /// @return stakingV1 Address of the LQTY StakingV1 contract
@@ -92,6 +94,7 @@ interface IGovernance {
         uint224 votes; // Votes at epoch transition
         uint16 forEpoch; // Epoch for which the votes are counted
         uint16 lastCountedEpoch; // Epoch at which which the votes where counted last in the global snapshot
+        uint224 vetos; // Vetos at epoch transition
     }
 
     /// @notice Returns the vote count snapshot of the previous epoch
@@ -106,7 +109,7 @@ interface IGovernance {
     function votesForInitiativeSnapshot(address _initiative)
         external
         view
-        returns (uint224 votes, uint16 forEpoch, uint16 lastCountedEpoch);
+        returns (uint224 votes, uint16 forEpoch, uint16 lastCountedEpoch, uint224 vetos);
 
     struct Allocation {
         uint88 voteLQTY; // LQTY allocated vouching for the initiative
@@ -116,48 +119,49 @@ interface IGovernance {
 
     struct UserState {
         uint88 allocatedLQTY; // LQTY allocated by the user
-        uint32 averageStakingTimestamp; // Average timestamp at which LQTY was staked by the user
+        uint120 averageStakingTimestamp; // Average timestamp at which LQTY was staked by the user
     }
 
     struct InitiativeState {
         uint88 voteLQTY; // LQTY allocated vouching for the initiative
         uint88 vetoLQTY; // LQTY allocated vetoing the initiative
-        uint32 averageStakingTimestampVoteLQTY; // Average staking timestamp of the voting LQTY for the initiative
-        uint32 averageStakingTimestampVetoLQTY; // Average staking timestamp of the vetoing LQTY for the initiative
-        uint16 counted; // Whether votes should be counted in the next snapshot (in 'globalAllocation.countedLQTY')
+        uint120 averageStakingTimestampVoteLQTY; // Average staking timestamp of the voting LQTY for the initiative
+        uint120 averageStakingTimestampVetoLQTY; // Average staking timestamp of the vetoing LQTY for the initiative
+        uint16 lastEpochClaim;
     }
 
     struct GlobalState {
         uint88 countedVoteLQTY; // Total LQTY that is included in vote counting
-        uint32 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
+        uint120 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
     }
+    /// TODO: Bold balance? Prob cheaper
 
     /// @notice Returns the user's state
     /// @param _user Address of the user
     /// @return allocatedLQTY LQTY allocated by the user
     /// @return averageStakingTimestamp Average timestamp at which LQTY was staked (deposited) by the user
-    function userStates(address _user) external view returns (uint88 allocatedLQTY, uint32 averageStakingTimestamp);
+    function userStates(address _user) external view returns (uint88 allocatedLQTY, uint120 averageStakingTimestamp);
     /// @notice Returns the initiative's state
     /// @param _initiative Address of the initiative
     /// @return voteLQTY LQTY allocated vouching for the initiative
     /// @return vetoLQTY LQTY allocated vetoing the initiative
     /// @return averageStakingTimestampVoteLQTY // Average staking timestamp of the voting LQTY for the initiative
     /// @return averageStakingTimestampVetoLQTY // Average staking timestamp of the vetoing LQTY for the initiative
-    /// @return counted // Whether votes should be counted in the next snapshot (in 'globalAllocation.countedLQTY')
+    /// @return lastEpochClaim // Last epoch at which rewards were claimed
     function initiativeStates(address _initiative)
         external
         view
         returns (
             uint88 voteLQTY,
             uint88 vetoLQTY,
-            uint32 averageStakingTimestampVoteLQTY,
-            uint32 averageStakingTimestampVetoLQTY,
-            uint16 counted
+            uint120 averageStakingTimestampVoteLQTY,
+            uint120 averageStakingTimestampVetoLQTY,
+            uint16 lastEpochClaim
         );
     /// @notice Returns the global state
     /// @return countedVoteLQTY Total LQTY that is included in vote counting
     /// @return countedVoteLQTYAverageTimestamp Average timestamp: derived initiativeAllocation.averageTimestamp
-    function globalState() external view returns (uint88 countedVoteLQTY, uint32 countedVoteLQTYAverageTimestamp);
+    function globalState() external view returns (uint88 countedVoteLQTY, uint120 countedVoteLQTYAverageTimestamp);
     /// @notice Returns the amount of voting and vetoing LQTY a user allocated to an initiative
     /// @param _user Address of the user
     /// @param _initiative Address of the initiative
@@ -213,16 +217,17 @@ interface IGovernance {
     /// @param _currentTimestamp Current timestamp
     /// @param _averageTimestamp Average timestamp at which the LQTY was staked
     /// @return votes Number of votes
-    function lqtyToVotes(uint88 _lqtyAmount, uint256 _currentTimestamp, uint32 _averageTimestamp)
+    function lqtyToVotes(uint88 _lqtyAmount, uint120 _currentTimestamp, uint120 _averageTimestamp)
         external
         pure
-        returns (uint240);
+        returns (uint208);
 
     /// @notice Voting threshold is the max. of either:
     ///   - 4% of the total voting LQTY in the previous epoch
     ///   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
+    /// This value can be offsynch, use the non view `calculateVotingThreshold` to always retrieve the most up to date value
     /// @return votingThreshold Voting threshold
-    function calculateVotingThreshold() external view returns (uint256 votingThreshold);
+    function getLatestVotingThreshold() external view returns (uint256 votingThreshold);
 
     /// @notice Snapshots votes for the previous epoch and accrues funds for the current epoch
     /// @param _initiative Address of the initiative
@@ -242,14 +247,16 @@ interface IGovernance {
 
     /// @notice Allocates the user's LQTY to initiatives
     /// @dev The user can only allocate to active initiatives (older than 1 epoch) and has to have enough unallocated
-    /// LQTY available
-    /// @param _initiatives Addresses of the initiatives to allocate to
-    /// @param _deltaLQTYVotes Delta LQTY to allocate to the initiatives as votes
-    /// @param _deltaLQTYVetos Delta LQTY to allocate to the initiatives as vetos
+    /// LQTY available, the initiatives listed must be unique, and towards the end of the epoch a user can only maintain or reduce their votes
+    /// @param _resetInitiatives Addresses of the initiatives the caller was previously allocated to, must be reset to prevent desynch of voting power
+    /// @param _initiatives Addresses of the initiatives to allocate to, can match or be different from `_resetInitiatives`
+    /// @param _absoluteLQTYVotes Delta LQTY to allocate to the initiatives as votes
+    /// @param absoluteLQTYVetos Delta LQTY to allocate to the initiatives as vetos
     function allocateLQTY(
+        address[] calldata _resetInitiatives,
         address[] memory _initiatives,
-        int176[] memory _deltaLQTYVotes,
-        int176[] memory _deltaLQTYVetos
+        int88[] memory _absoluteLQTYVotes,
+        int88[] memory absoluteLQTYVetos
     ) external;
 
     /// @notice Splits accrued funds according to votes received between all initiatives

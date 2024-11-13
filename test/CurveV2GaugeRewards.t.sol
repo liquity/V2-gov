@@ -42,6 +42,8 @@ contract CurveV2GaugeRewardsTest is Test {
     ILiquidityGauge private gauge;
     CurveV2GaugeRewards private curveV2GaugeRewards;
 
+    address mockGovernance = address(0x123123);
+
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
 
@@ -68,7 +70,7 @@ contract CurveV2GaugeRewardsTest is Test {
 
         curveV2GaugeRewards = new CurveV2GaugeRewards(
             // address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
-            address(new MockGovernance()),
+            address(mockGovernance),
             address(lusd),
             address(lqty),
             address(gauge),
@@ -96,6 +98,7 @@ contract CurveV2GaugeRewardsTest is Test {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             initialInitiatives
         );
 
@@ -117,14 +120,47 @@ contract CurveV2GaugeRewardsTest is Test {
         vm.stopPrank();
     }
 
-    function test_depositIntoGauge() public {
-        vm.startPrank(lusdHolder);
-        lusd.transfer(address(curveV2GaugeRewards), 1000e18);
-        vm.stopPrank();
+    function test_claimAndDepositIntoGaugeFuzz(uint128 amt) public {
+        deal(address(lusd), mockGovernance, amt);
+        vm.assume(amt > 604800);
 
-        vm.mockCall(
-            address(governance), abi.encode(IGovernance.claimForInitiative.selector), abi.encode(uint256(1000e18))
-        );
-        curveV2GaugeRewards.depositIntoGauge();
+        // Pretend a Proposal has passed
+        vm.startPrank(address(mockGovernance));
+        lusd.transfer(address(curveV2GaugeRewards), amt);
+
+        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), amt);
+        curveV2GaugeRewards.onClaimForInitiative(0, amt);
+        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), curveV2GaugeRewards.remainder());
+    }
+
+    /// @dev If the amount rounds down below 1 per second it reverts
+    function test_claimAndDepositIntoGaugeGrief() public {
+        uint256 amt = 604800 - 1;
+        deal(address(lusd), mockGovernance, amt);
+
+        // Pretend a Proposal has passed
+        vm.startPrank(address(mockGovernance));
+        lusd.transfer(address(curveV2GaugeRewards), amt);
+
+        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), amt);
+        curveV2GaugeRewards.onClaimForInitiative(0, amt);
+        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), curveV2GaugeRewards.remainder());
+    }
+
+    /// @dev Fuzz test that shows that given a total = amt + dust, the dust is lost permanently
+    function test_noDustGriefFuzz(uint128 amt, uint128 dust) public {
+        uint256 total = uint256(amt) + uint256(dust);
+        deal(address(lusd), mockGovernance, total);
+
+        // Pretend a Proposal has passed
+        vm.startPrank(address(mockGovernance));
+        // Dust amount
+        lusd.transfer(address(curveV2GaugeRewards), amt);
+        // Rest
+        lusd.transfer(address(curveV2GaugeRewards), dust);
+
+        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), total);
+        curveV2GaugeRewards.onClaimForInitiative(0, amt);
+        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), curveV2GaugeRewards.remainder() + dust);
     }
 }
