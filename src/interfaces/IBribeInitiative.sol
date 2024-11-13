@@ -7,8 +7,8 @@ import {IGovernance} from "./IGovernance.sol";
 
 interface IBribeInitiative {
     event DepositBribe(address depositor, uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch);
-    event ModifyLQTYAllocation(address user, uint16 epoch, uint88 lqtyAllocated, uint120 averageTimestamp);
-    event ModifyTotalLQTYAllocation(uint16 epoch, uint88 totalLQTYAllocated, uint120 averageTimestamp);
+    event ModifyLQTYAllocation(address user, uint16 epoch, uint88 lqtyAllocated, uint32 averageTimestamp);
+    event ModifyTotalLQTYAllocation(uint16 epoch, uint88 totalLQTYAllocated, uint32 averageTimestamp);
     event ClaimBribe(address user, uint16 epoch, uint256 boldAmount, uint256 bribeTokenAmount);
 
     /// @notice Address of the governance contract
@@ -43,7 +43,7 @@ interface IBribeInitiative {
     function totalLQTYAllocatedByEpoch(uint16 _epoch)
         external
         view
-        returns (uint88 totalLQTYAllocated, uint120 averageTimestamp);
+        returns (uint88 totalLQTYAllocated, uint32 averageTimestamp);
     /// @notice LQTY allocated by a user to the initiative at a given epoch
     /// @param _user Address of the user
     /// @param _epoch Epoch at which the LQTY was allocated by the user
@@ -51,7 +51,7 @@ interface IBribeInitiative {
     function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch)
         external
         view
-        returns (uint88 lqtyAllocated, uint120 averageTimestamp);
+        returns (uint88 lqtyAllocated, uint32 averageTimestamp);
 
     /// @notice Deposit bribe tokens for a given epoch
     /// @dev The caller has to approve this contract to spend the BOLD and bribe tokens.

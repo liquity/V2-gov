@@ -77,9 +77,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
     uint16 constant UNREGISTERED_INITIATIVE = type(uint16).max;
 
-    // 100 Million LQTY will be necessary to make the rounding error cause 1 second of loss per operation
-    uint120 public constant TIMESTAMP_PRECISION = 1e26;
-
     constructor(
         address _lqty,
         address _lusd,
@@ -136,49 +133,39 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         _renounceOwnership();
     }
 
-    function _averageAge(uint120 _currentTimestamp, uint120 _averageTimestamp) internal pure returns (uint120) {
+    function _averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) internal pure returns (uint32) {
         if (_averageTimestamp == 0 || _currentTimestamp < _averageTimestamp) return 0;
         return _currentTimestamp - _averageTimestamp;
     }
 
     function _calculateAverageTimestamp(
-        uint120 _prevOuterAverageTimestamp,
-        uint120 _newInnerAverageTimestamp,
+        uint32 _prevOuterAverageTimestamp,
+        uint32 _newInnerAverageTimestamp,
         uint88 _prevLQTYBalance,
         uint88 _newLQTYBalance
-    ) internal view returns (uint120) {
+    ) internal view returns (uint32) {
         if (_newLQTYBalance == 0) return 0;
 
-        // NOTE: Truncation
-        // NOTE: u32 -> u120
-        // While we upscale the Timestamp, the system will stop working at type(uint32).max
-        // Because the rest of the type is used for precision
-        uint120 currentTime = uint120(uint32(block.timestamp)) * uint120(TIMESTAMP_PRECISION);
+        uint32 prevOuterAverageAge = _averageAge(block.timestamp, _prevOuterAverageTimestamp);
+        uint32 newInnerAverageAge = _averageAge(block.timestamp, _newInnerAverageTimestamp);
 
-        uint120 prevOuterAverageAge = _averageAge(currentTime, _prevOuterAverageTimestamp);
-        uint120 newInnerAverageAge = _averageAge(currentTime, _newInnerAverageTimestamp);
-
-        // 120 for timestamps = 2^32 * 1e18 | 2^32 * 1e26
-        // 208 for voting power = 2^120 * 2^88
-        // NOTE: 208 / X can go past u120!
-        // Therefore we keep `newOuterAverageAge` as u208
-        uint208 newOuterAverageAge;
+        uint240 newOuterAverageAge;
         if (_prevLQTYBalance <= _newLQTYBalance) {
             uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
-            uint208 prevVotes = uint208(_prevLQTYBalance) * uint208(prevOuterAverageAge);
-            uint208 newVotes = uint208(deltaLQTY) * uint208(newInnerAverageAge);
-            uint208 votes = prevVotes + newVotes;
+            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
+            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
+            uint240 votes = prevVotes + newVotes;
             newOuterAverageAge = votes / _newLQTYBalance;
         } else {
             uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
-            uint208 prevVotes = uint208(_prevLQTYBalance) * uint208(prevOuterAverageAge);
-            uint208 newVotes = uint208(deltaLQTY) * uint208(newInnerAverageAge);
-            uint208 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
+            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
+            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
+            uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
             newOuterAverageAge = votes / _newLQTYBalance;
         }
 
-        if (newOuterAverageAge > currentTime) return 0;
-        return uint120(currentTime - newOuterAverageAge);
+        if (newOuterAverageAge > block.timestamp) return 0;
+        return uint32(block.timestamp - newOuterAverageAge);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -202,10 +189,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         // update the average staked timestamp for LQTY staked by the user
 
-        // NOTE: Upscale user TS by `TIMESTAMP_PRECISION`
         userState.averageStakingTimestamp = _calculateAverageTimestamp(
             userState.averageStakingTimestamp,
-            uint120(block.timestamp) * uint120(TIMESTAMP_PRECISION),
+            uint32(block.timestamp),
             lqtyStaked,
             lqtyStaked + _lqtyAmount
         );
@@ -276,12 +262,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
     }
 
     /// @inheritdoc IGovernance
-    function lqtyToVotes(uint88 _lqtyAmount, uint120 _currentTimestamp, uint120 _averageTimestamp)
+    function lqtyToVotes(uint88 _lqtyAmount, uint32 _currentTimestamp, uint32 _averageTimestamp)
         public
         pure
-        returns (uint208)
+        returns (uint240)
     {
-        return uint208(_lqtyAmount) * uint208(_averageAge(_currentTimestamp, _averageTimestamp));
+        return uint240(_lqtyAmount) * uint240(_averageAge(_currentTimestamp, _averageTimestamp));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -347,7 +333,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
             snapshot.votes = lqtyToVotes(
                 state.countedVoteLQTY,
-                uint120(epochStart()) * uint120(TIMESTAMP_PRECISION),
+                uint32(epochStart()),
                 state.countedVoteLQTYAverageTimestamp
             );
             snapshot.forEpoch = currentEpoch - 1;
@@ -388,10 +374,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         if (initiativeSnapshot.forEpoch < currentEpoch - 1) {
             shouldUpdate = true;
 
-            uint120 start = uint120(epochStart()) * uint120(TIMESTAMP_PRECISION);
-            uint208 votes =
+            uint32 start = uint32(epochStart());
+            uint240 votes =
                 lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.averageStakingTimestampVoteLQTY);
-            uint208 vetos =
+            uint240 vetos =
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
             // NOTE: Upscaling to u224 is safe
             initiativeSnapshot.votes = votes;
@@ -488,24 +474,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         // By definition if _votesForInitiativeSnapshot.votes > 0 then _votesSnapshot.votes > 0
 
-        uint256 upscaledInitiativeVotes = uint256(_votesForInitiativeSnapshot.votes);
-        uint256 upscaledInitiativeVetos = uint256(_votesForInitiativeSnapshot.vetos);
-        uint256 upscaledTotalVotes = uint256(_votesSnapshot.votes);
-
-        if (upscaledInitiativeVotes > votingTheshold && !(upscaledInitiativeVetos >= upscaledInitiativeVotes)) {
-            /// @audit 2^208 means we only have 2^48 left
-            /// Therefore we need to scale the value down by 4 orders of magnitude to make it fit
-            assert(upscaledInitiativeVotes * 1e14 / (VOTING_THRESHOLD_FACTOR / 1e4) > upscaledTotalVotes);
-
-            // 34 times when using 0.03e18 -> 33.3 + 1-> 33 + 1 = 34
-            uint256 CUSTOM_PRECISION = WAD / VOTING_THRESHOLD_FACTOR + 1;
-
-            /// @audit Because of the updated timestamp, we can run into overflows if we multiply by `boldAccrued`
-            ///     We use `CUSTOM_PRECISION` for this reason, a smaller multiplicative value
-            ///     The change SHOULD be safe because we already check for `threshold` before getting into these lines
-            /// As an alternative, this line could be replaced by https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/FullMath.sol
-            uint256 claim =
-                upscaledInitiativeVotes * CUSTOM_PRECISION / upscaledTotalVotes * boldAccrued / CUSTOM_PRECISION;
+        if (_votesForInitiativeSnapshot.votes > votingTheshold
+            && !(_votesForInitiativeSnapshot.vetos >= _votesForInitiativeSnapshot.votes)
+        ) {
+            uint256 claim = _votesForInitiativeSnapshot.votes * boldAccrued / _votesSnapshot.votes;
             return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
 
@@ -513,8 +485,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the 4th epoch flip that would result in SKIP, will result in the initiative being `UNREGISTERABLE`
         if (
             (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
-                || upscaledInitiativeVetos > upscaledInitiativeVotes
-                    && upscaledInitiativeVetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
+            || _votesForInitiativeSnapshot.vetos > _votesForInitiativeSnapshot.votes
+            && _votesForInitiativeSnapshot.vetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
             return (InitiativeStatus.UNREGISTERABLE, lastEpochClaim, 0);
         }
@@ -537,14 +509,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
         // than the registration threshold derived from the previous epoch's total global votes
-
-        uint256 upscaledSnapshotVotes = uint256(snapshot.votes);
         require(
             lqtyToVotes(
                 uint88(stakingV1.stakes(userProxyAddress)),
-                uint120(epochStart()) * uint120(TIMESTAMP_PRECISION),
+                epochStart(),
                 userState.averageStakingTimestamp
-            ) >= upscaledSnapshotVotes * REGISTRATION_THRESHOLD_FACTOR / WAD,
+            ) >= snapshot.votes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );
 
