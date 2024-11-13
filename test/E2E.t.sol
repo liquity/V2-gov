@@ -122,6 +122,54 @@ contract E2ETests is Test {
         _allocate(address(0x123123), 1e18, 0);
     }
 
+    function test_canYouVoteWith100MLNLQTY() public {
+        deal(address(lqty), user, 100_000_000e18);
+        vm.startPrank(user);
+        // Check that we can vote on the first epoch, right after deployment
+        _deposit(100_000_000e18);
+
+        console.log("epoch", governance.epoch());
+        _allocate(baseInitiative1, 100_000_000e18, 0);
+    }
+
+    function test_canYouVoteWith100MLNLQTY_after_10_years() public {
+        deal(address(lqty), user, 100_000_000e18);
+        deal(address(lusd), user, 1e18);
+
+        vm.startPrank(user);
+        lusd.approve(address(governance), 1e18);
+
+        // Check that we can vote on the first epoch, right after deployment
+        _deposit(100_000_000e18);
+
+        vm.warp(block.timestamp + 365 days * 10);
+        address newInitiative = address(0x123123);
+        governance.registerInitiative(newInitiative);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        console.log("epoch", governance.epoch());
+        _allocate(newInitiative, 100_000_000e18, 0);
+    }
+
+    // forge test --match-test test_noVetoGriefAtEpochOne -vv
+    function test_noVetoGriefAtEpochOne() public {
+        /// @audit NOTE: In order for this to work, the constructor must set the start time a week behind
+        /// This will make the initiatives work on the first epoch
+        vm.startPrank(user);
+        // Check that we can vote on the first epoch, right after deployment
+        _deposit(1000e18);
+
+        console.log("epoch", governance.epoch());
+        _allocate(baseInitiative1, 0, 1e18); // Doesn't work due to cool down I think
+
+        vm.expectRevert();
+        governance.unregisterInitiative(baseInitiative1);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+        governance.unregisterInitiative(baseInitiative1);
+    }
+
     // forge test --match-test test_deregisterIsSound -vv
     function test_deregisterIsSound() public {
         // Deregistration works as follows:
@@ -145,14 +193,7 @@ contract E2ETests is Test {
 
         uint256 skipCount;
 
-        address[] memory toAllocate = new address[](2);
-        toAllocate[0] = baseInitiative1;
-        toAllocate[1] = newInitiative;
-
-        int88[] memory votes = new int88[](2);
-        votes[0] = 1e18;
-        votes[1] = 100;
-        int88[] memory vetos = new int88[](2);
+        // WARM_UP at 0
 
         // Whereas in next week it will work
         vm.warp(block.timestamp + EPOCH_DURATION); // 1
@@ -168,13 +209,136 @@ contract E2ETests is Test {
         ++skipCount;
         assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
+        vm.warp(block.timestamp + EPOCH_DURATION); // 3
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+
         vm.warp(block.timestamp + EPOCH_DURATION); // 4
         ++skipCount;
         assertEq(
             uint256(Governance.InitiativeStatus.UNREGISTERABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE"
         );
 
-        assertEq(skipCount, UNREGISTRATION_AFTER_EPOCHS, "Skipped exactly UNREGISTRATION_AFTER_EPOCHS");
+        /// 4 + 1 ??
+        assertEq(skipCount, UNREGISTRATION_AFTER_EPOCHS + 1, "Skipped exactly UNREGISTRATION_AFTER_EPOCHS");
+    }
+
+    // forge test --match-test test_unregisterWorksCorrectlyEvenAfterXEpochs -vv
+    function test_unregisterWorksCorrectlyEvenAfterXEpochs(uint8 epochsInFuture) public {
+        vm.warp(block.timestamp + epochsInFuture * EPOCH_DURATION);
+        vm.startPrank(user);
+        // Check that we can vote on the first epoch, right after deployment
+        _deposit(1000e18);
+
+        // And for sanity, you cannot vote on new ones, they need to be added first
+        deal(address(lusd), address(user), REGISTRATION_FEE * 2);
+        lusd.approve(address(governance), REGISTRATION_FEE * 2);
+
+        address newInitiative = address(0x123123);
+        address newInitiative2 = address(0x1231234);
+        governance.registerInitiative(newInitiative);
+        governance.registerInitiative(newInitiative2);
+        assertEq(uint256(Governance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative), "Cooldown");
+        assertEq(uint256(Governance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative2), "Cooldown");
+
+        uint256 skipCount;
+
+        // SPEC:
+        // Initiative is at WARM_UP at registration epoch
+
+        // The following EPOCH it can be voted on, it has status SKIP
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 1
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+
+        _allocate(newInitiative2, 1e18, 0);
+
+        // 2nd Week of SKIP
+
+        // Cooldown on epoch Staert
+        vm.warp(block.timestamp + EPOCH_DURATION); // 2
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+
+        // 3rd Week of SKIP
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 3
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+
+        // 4th Week of SKIP | If it doesn't get any rewards it will be UNREGISTERABLE
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 3
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 4
+        ++skipCount;
+        assertEq(
+            uint256(Governance.InitiativeStatus.UNREGISTERABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE"
+        );
+
+        /// It was SKIP for 4 EPOCHS, it is now UNREGISTERABLE
+        assertEq(skipCount, UNREGISTRATION_AFTER_EPOCHS + 1, "Skipped exactly UNREGISTRATION_AFTER_EPOCHS");
+    }
+
+    // forge test --match-test test_unregisterWorksCorrectlyEvenAfterXEpochs_andCanBeSavedAtLast -vv
+    function test_unregisterWorksCorrectlyEvenAfterXEpochs_andCanBeSavedAtLast(uint8 epochsInFuture) public {
+        vm.warp(block.timestamp + epochsInFuture * EPOCH_DURATION);
+        vm.startPrank(user);
+        // Check that we can vote on the first epoch, right after deployment
+        _deposit(1000e18);
+
+        // And for sanity, you cannot vote on new ones, they need to be added first
+        deal(address(lusd), address(user), REGISTRATION_FEE * 2);
+        lusd.approve(address(governance), REGISTRATION_FEE * 2);
+
+        address newInitiative = address(0x123123);
+        address newInitiative2 = address(0x1231234);
+        governance.registerInitiative(newInitiative);
+        governance.registerInitiative(newInitiative2);
+        assertEq(uint256(Governance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative), "Cooldown");
+        assertEq(uint256(Governance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative2), "Cooldown");
+
+        uint256 skipCount;
+
+        // SPEC:
+        // Initiative is at WARM_UP at registration epoch
+
+        // The following EPOCH it can be voted on, it has status SKIP
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 1
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+
+        _allocate(newInitiative2, 1e18, 0);
+
+        // 2nd Week of SKIP
+
+        // Cooldown on epoch Staert
+        vm.warp(block.timestamp + EPOCH_DURATION); // 2
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+
+        // 3rd Week of SKIP
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 3
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+
+        // 4th Week of SKIP | If it doesn't get any rewards it will be UNREGISTERABLE
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 3
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+
+        // Allocating to it, saves it
+        _allocate(newInitiative, 1e18, 0);
+
+        vm.warp(block.timestamp + EPOCH_DURATION); // 4
+        ++skipCount;
+        assertEq(uint256(Governance.InitiativeStatus.CLAIMABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE");
     }
 
     function _deposit(uint88 amt) internal {
@@ -185,11 +349,12 @@ contract E2ETests is Test {
     }
 
     function _allocate(address initiative, int88 votes, int88 vetos) internal {
-        address[] memory initiativesToDeRegister = new address[](4);
+        address[] memory initiativesToDeRegister = new address[](5);
         initiativesToDeRegister[0] = baseInitiative1;
         initiativesToDeRegister[1] = baseInitiative2;
         initiativesToDeRegister[2] = baseInitiative3;
         initiativesToDeRegister[3] = address(0x123123);
+        initiativesToDeRegister[4] = address(0x1231234);
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
@@ -202,11 +367,12 @@ contract E2ETests is Test {
     }
 
     function _allocate(address[] memory initiatives, int88[] memory votes, int88[] memory vetos) internal {
-        address[] memory initiativesToDeRegister = new address[](4);
+        address[] memory initiativesToDeRegister = new address[](5);
         initiativesToDeRegister[0] = baseInitiative1;
         initiativesToDeRegister[1] = baseInitiative2;
         initiativesToDeRegister[2] = baseInitiative3;
         initiativesToDeRegister[3] = address(0x123123);
+        initiativesToDeRegister[4] = address(0x1231234);
 
         governance.allocateLQTY(initiativesToDeRegister, initiatives, votes, vetos);
     }

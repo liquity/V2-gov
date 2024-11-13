@@ -26,15 +26,22 @@ contract CurveV2GaugeRewards is BribeInitiative {
         _depositIntoGauge(_bold);
     }
 
+    // TODO: If this is capped, we may need to donate here, so cap it here as well
     function _depositIntoGauge(uint256 amount) internal {
+        uint256 total = amount + remainder;
+
         // For small donations queue them into the contract
-        if (amount < duration * 1000) {
+        if (total < duration * 1000) {
             remainder += amount;
             return;
         }
 
-        uint256 total = amount + remainder;
         remainder = 0;
+
+        uint256 available = bold.balanceOf(address(this));
+        if (available < total) {
+            total = available; // Cap due to rounding error causing a bit more bold being given away
+        }
 
         bold.approve(address(gauge), total);
         gauge.deposit_reward_token(address(bold), total, duration);

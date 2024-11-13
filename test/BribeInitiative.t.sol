@@ -575,59 +575,6 @@ contract BribeInitiativeTest is Test {
         assertEq(bribeTokenAmount, 0, "vetoer receives bribe amount");
     }
 
-    // TODO: check favorability of splitting allocation between different initiative/epochs
-    // @audit doesn't seem like it makes it more favorable because user still withdraws full bribe amount
-    // forge test --match-test test_splitting_allocation -vv
-    function test_splitting_allocation() public {
-        // =========== epoch 1 ==================
-        // user stakes half in epoch 1
-        int88 lqtyAmount = 2e18;
-        _stakeLQTY(user1, uint88(lqtyAmount / 2));
-
-        // =========== epoch 2 ==================
-        vm.warp(block.timestamp + EPOCH_DURATION);
-        assertEq(2, governance.epoch(), "not in epoch 2");
-
-        // lusdHolder deposits lqty and lusd bribes claimable in epoch 4
-        _depositBribe(1e18, 1e18, governance.epoch() + 1);
-        uint16 epochToClaimFor = governance.epoch() + 1;
-
-        // user votes on bribeInitiative with half
-        _allocateLQTY(user1, lqtyAmount / 2, 0);
-        (, uint32 averageStakingTimestamp1) = governance.userStates(user1);
-
-        uint16 epochDepositedHalf = governance.epoch();
-
-        // =========== epoch 2 (end of cutoff) ==================
-        vm.warp(block.timestamp + EPOCH_DURATION - EPOCH_VOTING_CUTOFF);
-        assertEq(2, governance.epoch(), "not in epoch 2");
-
-        // user stakes other half
-        _stakeLQTY(user1, uint88(lqtyAmount / 2));
-        // user votes on bribeInitiative with other half
-        _allocateLQTY(user1, lqtyAmount / 2, 0);
-
-        uint16 epochDepositedRest = governance.epoch();
-        (, uint32 averageStakingTimestamp2) = governance.userStates(user1);
-        assertTrue(
-            averageStakingTimestamp1 != averageStakingTimestamp2, "averageStakingTimestamp1 == averageStakingTimestamp2"
-        );
-
-        assertEq(epochDepositedHalf, epochDepositedRest, "We are in the same epoch");
-
-        // =========== epoch 4 ==================
-        vm.warp(block.timestamp + (EPOCH_DURATION * 2));
-        assertEq(4, governance.epoch(), "not in epoch 4");
-
-        // user should receive bribe from their allocated stake
-        (uint256 boldAmount, uint256 bribeTokenAmount) =
-            _claimBribe(user1, epochToClaimFor, epochDepositedRest, epochDepositedRest);
-        assertEq(boldAmount, 1e18, "boldAmount");
-        assertEq(bribeTokenAmount, 1e18, "bribeTokenAmount");
-
-        // With non spliting the amount would be 1e18, so this is a bug due to how allocations work
-    }
-
     // checks that user can receive bribes for an epoch in which they were allocated even if they're no longer allocated
     function test_decrement_after_claimBribes() public {
         // =========== epoch 1 ==================
@@ -1002,11 +949,11 @@ contract BribeInitiativeTest is Test {
         vm.stopPrank();
     }
 
-    function _depositBribe(address initiative, uint128 boldAmount, uint128 bribeAmount, uint16 epoch) public {
+    function _depositBribe(address _initiative, uint128 boldAmount, uint128 bribeAmount, uint16 epoch) public {
         vm.startPrank(lusdHolder);
-        lqty.approve(initiative, boldAmount);
-        lusd.approve(initiative, bribeAmount);
-        BribeInitiative(initiative).depositBribe(boldAmount, bribeAmount, epoch);
+        lqty.approve(_initiative, boldAmount);
+        lusd.approve(_initiative, bribeAmount);
+        BribeInitiative(_initiative).depositBribe(boldAmount, bribeAmount, epoch);
         vm.stopPrank();
     }
 

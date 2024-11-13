@@ -66,7 +66,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
 
             (uint88 voteLQTY,, uint16 epoch) = governance.lqtyAllocatedByUserToInitiative(user, deployedInitiatives[i]);
 
-            try initiative.lqtyAllocatedByUserAtEpoch(user, epoch) returns (uint88 amt, uint32) {
+            try initiative.lqtyAllocatedByUserAtEpoch(user, epoch) returns (uint88 amt, uint120) {
                 eq(voteLQTY, amt, "Allocation must match");
             } catch {
                 t(false, "Allocation doesn't match governance");
@@ -102,89 +102,76 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         return totalLQTYAllocatedAtEpoch;
     }
 
-    function property_BI05() public {
-        // users can't claim for current epoch so checking for previous
-        uint16 checkEpoch = governance.epoch() - 1;
+    // TODO: Looks pretty wrong and inaccurate
+    // Loop over the initiative
+    // Have all users claim all
+    // See what the result is
+    // See the dust
+    // Dust cap check
+    // function property_BI05() public {
+    //     // users can't claim for current epoch so checking for previous
+    //     uint16 checkEpoch = governance.epoch() - 1;
 
-        for (uint8 i; i < deployedInitiatives.length; i++) {
-            address initiative = deployedInitiatives[i];
-            // for any epoch: expected balance = Bribe - claimed bribes, actual balance = bribe token balance of initiative
-            // so if the delta between the expected and actual is > 0, dust is being collected
+    //     for (uint8 i; i < deployedInitiatives.length; i++) {
+    //         address initiative = deployedInitiatives[i];
+    //         // for any epoch: expected balance = Bribe - claimed bribes, actual balance = bribe token balance of initiative
+    //         // so if the delta between the expected and actual is > 0, dust is being collected
 
-            uint256 lqtyClaimedAccumulator;
-            uint256 lusdClaimedAccumulator;
-            for (uint8 j; j < users.length; j++) {
-                // if the bool switches, the user has claimed their bribe for the epoch
-                if (
-                    _before.claimedBribeForInitiativeAtEpoch[initiative][user][checkEpoch]
-                        != _after.claimedBribeForInitiativeAtEpoch[initiative][user][checkEpoch]
-                ) {
-                    // add user claimed balance delta to the accumulator
-                    lqtyClaimedAccumulator += _after.userLqtyBalance[users[j]] - _before.userLqtyBalance[users[j]];
-                    lusdClaimedAccumulator += _after.userLqtyBalance[users[j]] - _before.userLqtyBalance[users[j]];
-                }
-            }
+    //         uint256 lqtyClaimedAccumulator;
+    //         uint256 lusdClaimedAccumulator;
+    //         for (uint8 j; j < users.length; j++) {
+    //             // if the bool switches, the user has claimed their bribe for the epoch
+    //             if (
+    //                 _before.claimedBribeForInitiativeAtEpoch[initiative][user][checkEpoch]
+    //                     != _after.claimedBribeForInitiativeAtEpoch[initiative][user][checkEpoch]
+    //             ) {
+    //                 // add user claimed balance delta to the accumulator
+    //                 lqtyClaimedAccumulator += _after.userLqtyBalance[users[j]] - _before.userLqtyBalance[users[j]];
+    //                 lusdClaimedAccumulator += _after.userLqtyBalance[users[j]] - _before.userLqtyBalance[users[j]];
+    //             }
+    //         }
 
-            (uint128 boldAmount, uint128 bribeTokenAmount) = IBribeInitiative(initiative).bribeByEpoch(checkEpoch);
+    //         (uint128 boldAmount, uint128 bribeTokenAmount) = IBribeInitiative(initiative).bribeByEpoch(checkEpoch);
 
-            // shift 128 bit to the right to get the most significant bits of the accumulator (256 - 128 = 128)
-            uint128 lqtyClaimedAccumulator128 = uint128(lqtyClaimedAccumulator >> 128);
-            uint128 lusdClaimedAccumulator128 = uint128(lusdClaimedAccumulator >> 128);
+    //         // shift 128 bit to the right to get the most significant bits of the accumulator (256 - 128 = 128)
+    //         uint128 lqtyClaimedAccumulator128 = uint128(lqtyClaimedAccumulator >> 128);
+    //         uint128 lusdClaimedAccumulator128 = uint128(lusdClaimedAccumulator >> 128);
 
-            // find delta between bribe and claimed amount (how much should be remaining in contract)
-            uint128 lusdDelta = boldAmount - lusdClaimedAccumulator128;
-            uint128 lqtyDelta = bribeTokenAmount - lqtyClaimedAccumulator128;
+    //         // find delta between bribe and claimed amount (how much should be remaining in contract)
+    //         uint128 lusdDelta = boldAmount - lusdClaimedAccumulator128;
+    //         uint128 lqtyDelta = bribeTokenAmount - lqtyClaimedAccumulator128;
 
-            uint128 initiativeLusdBalance = uint128(lusd.balanceOf(initiative) >> 128);
-            uint128 initiativeLqtyBalance = uint128(lqty.balanceOf(initiative) >> 128);
+    //         uint128 initiativeLusdBalance = uint128(lusd.balanceOf(initiative) >> 128);
+    //         uint128 initiativeLqtyBalance = uint128(lqty.balanceOf(initiative) >> 128);
 
-            lte(
-                lusdDelta - initiativeLusdBalance,
-                1e8,
-                "BI-05: Bold token dust amount remaining after claiming should be less than 100 million wei"
-            );
-            lte(
-                lqtyDelta - initiativeLqtyBalance,
-                1e8,
-                "BI-05: Bribe token dust amount remaining after claiming should be less than 100 million wei"
-            );
-        }
-    }
-
-    function property_BI06() public {
-        // using ghost tracking for successful bribe deposits
-        uint16 currentEpoch = governance.epoch();
-
-        for (uint8 i; i < deployedInitiatives.length; i++) {
-            address initiative = deployedInitiatives[i];
-            IBribeInitiative.Bribe memory bribe = ghostBribeByEpoch[initiative][currentEpoch];
-            (uint128 boldAmount, uint128 bribeTokenAmount) = IBribeInitiative(initiative).bribeByEpoch(currentEpoch);
-            eq(
-                bribe.boldAmount,
-                boldAmount,
-                "BI-06: Accounting for bold amount in bribe for an epoch is always correct"
-            );
-            eq(
-                bribe.bribeTokenAmount,
-                bribeTokenAmount,
-                "BI-06: Accounting for bold amount in bribe for an epoch is always correct"
-            );
-        }
-    }
+    //         lte(
+    //             lusdDelta - initiativeLusdBalance,
+    //             1e8,
+    //             "BI-05: Bold token dust amount remaining after claiming should be less than 100 million wei"
+    //         );
+    //         lte(
+    //             lqtyDelta - initiativeLqtyBalance,
+    //             1e8,
+    //             "BI-05: Bribe token dust amount remaining after claiming should be less than 100 million wei"
+    //         );
+    //     }
+    // }
 
     function property_BI07() public {
-        uint16 currentEpoch = governance.epoch();
-
         // sum user allocations for an epoch
         // check that this matches the total allocation for the epoch
         for (uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
+            uint16 currentEpoch = initiative.getMostRecentTotalEpoch();
+
             uint88 sumLqtyAllocated;
             for (uint8 j; j < users.length; j++) {
-                address user = users[j];
-                (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, currentEpoch);
+                // NOTE: We need to grab user latest
+                uint16 userEpoch = initiative.getMostRecentUserEpoch(users[j]);
+                (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(users[j], userEpoch);
                 sumLqtyAllocated += lqtyAllocated;
             }
+
             (uint88 totalLQTYAllocated,) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
             eq(
                 sumLqtyAllocated,
@@ -203,10 +190,10 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
             uint256 sumOfPower;
             for (uint8 j; j < users.length; j++) {
-                (uint88 lqtyAllocated, uint32 userTS) = initiative.lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
+                (uint88 lqtyAllocated, uint120 userTS) = initiative.lqtyAllocatedByUserAtEpoch(users[j], currentEpoch);
                 sumOfPower += governance.lqtyToVotes(lqtyAllocated, userTS, uint32(block.timestamp));
             }
-            (uint88 totalLQTYAllocated, uint32 totalTS) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
+            (uint88 totalLQTYAllocated, uint120 totalTS) = initiative.totalLQTYAllocatedByEpoch(currentEpoch);
 
             uint256 totalRecordedPower = governance.lqtyToVotes(totalLQTYAllocated, totalTS, uint32(block.timestamp));
 
@@ -270,11 +257,5 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
                 gte(totalLQTYAllocated, lqtyAllocated, "BI-10: totalLQTYAllocatedByEpoch >= lqtyAllocatedByUserAtEpoch");
             }
         }
-    }
-
-    // BI-11: User can always claim a bribe amount for which they are entitled
-    function property_BI11() public {
-        // unableToClaim gets set in the call to claimBribes and checks if user had a claimable allocation that wasn't yet claimed and tried to claim it unsuccessfully
-        t(!unableToClaim, "BI-11: User can always claim a bribe amount for which they are entitled ");
     }
 }

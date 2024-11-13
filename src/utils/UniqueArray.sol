@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 /// @dev Checks that there's no duplicate addresses
 /// @param arr - List to check for dups
-function _requireNoDuplicates(address[] memory arr) pure {
+function _requireNoDuplicates(address[] calldata arr) pure {
     uint256 arrLength = arr.length;
     // only up to len - 1 (no j to check if i == len - 1)
     for (uint i; i < arrLength - 1;) {
@@ -18,5 +18,13 @@ function _requireNoDuplicates(address[] memory arr) pure {
         unchecked {
             ++i;
         }
+    }
+}
+
+function _requireNoNegatives(int88[] memory vals) pure {
+    uint256 arrLength = vals.length;
+
+    for (uint i; i < arrLength; i++) {
+        require(vals[i] >= 0, "Cannot be negative");
     }
 }

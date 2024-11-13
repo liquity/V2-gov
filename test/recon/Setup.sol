@@ -22,16 +22,11 @@ abstract contract Setup is BaseSetup {
     address internal user2 = address(0x537C8f3d3E18dF5517a58B3fB9D9143697996802); // derived using makeAddrAndKey
     address internal stakingV1;
     address internal userProxy;
-    address[] internal users = new address[](2);
+    address[] internal users;
     address[] internal deployedInitiatives;
     uint256 internal user2Pk = 23868421370328131711506074113045611601786642648093516849953535378706721142721; // derived using makeAddrAndKey
     bool internal claimedTwice;
     bool internal unableToClaim;
-
-    mapping(uint16 => uint88) internal ghostTotalAllocationAtEpoch;
-    mapping(address => uint88) internal ghostLqtyAllocationByUserAtEpoch;
-    // initiative => epoch => bribe
-    mapping(address => mapping(uint16 => IBribeInitiative.Bribe)) internal ghostBribeByEpoch;
 
     uint128 internal constant REGISTRATION_FEE = 1e18;
     uint128 internal constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
@@ -43,6 +38,8 @@ abstract contract Setup is BaseSetup {
     uint88 internal constant MIN_ACCRUAL = 1000e18;
     uint32 internal constant EPOCH_DURATION = 604800;
     uint32 internal constant EPOCH_VOTING_CUTOFF = 518400;
+
+    uint120 magnifiedStartTS;
 
     function setup() internal virtual override {
         vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back after the constructor
@@ -93,6 +90,8 @@ abstract contract Setup is BaseSetup {
         deployedInitiatives.push(address(initiative1));
 
         governance.registerInitiative(address(initiative1));
+
+        magnifiedStartTS = uint120(block.timestamp) * uint120(1e18);
     }
 
     function _getDeployedInitiative(uint8 index) internal view returns (address initiative) {
