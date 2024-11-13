@@ -20,11 +20,3 @@ function _requireNoDuplicates(address[] calldata arr) pure {
         }
     }
 }
-
-function _requireNoNegatives(int88[] memory vals) pure {
-    uint256 arrLength = vals.length;
-
-    for (uint i; i < arrLength; i++) {
-        require(vals[i] >= 0, "Cannot be negative");
-    }
-}

@@ -13,7 +13,7 @@ import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 
 import {add, max} from "./utils/Math.sol";
-import {_requireNoDuplicates, _requireNoNegatives} from "./utils/UniqueArray.sol";
+import {_requireNoDuplicates} from "./utils/UniqueArray.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
@@ -188,9 +188,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
     function _updateUserTimestamp(uint88 _lqtyAmount) private returns (UserProxy) {
         require(_lqtyAmount > 0, "Governance: zero-lqty-amount");
 
-        // Assert that we have resetted here
         UserState memory userState = userStates[msg.sender];
-        require(userState.allocatedLQTY == 0, "Governance: must-be-zero-allocation");
 
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
@@ -232,14 +230,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
     /// @inheritdoc IGovernance
     function withdrawLQTY(uint88 _lqtyAmount) external nonReentrant {
-        // check that user has reset before changing lqty balance
-        UserState storage userState = userStates[msg.sender];
-        require(userState.allocatedLQTY == 0, "Governance: must-allocate-zero");
-
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         require(address(userProxy).code.length != 0, "Governance: user-proxy-not-deployed");
 
         uint88 lqtyStaked = uint88(stakingV1.stakes(address(userProxy)));
+        // check if user has enough unallocated lqty
+        UserState storage userState = userStates[msg.sender];
+        require(_lqtyAmount <= lqtyStaked - userState.allocatedLQTY, "Governance: insufficient-unallocated-lqty");
 
         (uint256 accruedLUSD, uint256 accruedETH) = userProxy.unstake(_lqtyAmount, msg.sender);
 
@@ -631,7 +628,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
     /// @inheritdoc IGovernance
     function allocateLQTY(
-        address[] calldata _initiativesToReset,
         address[] calldata _initiatives,
         int88[] calldata _absoluteLQTYVotes,
         int88[] calldata _absoluteLQTYVetos
@@ -641,19 +637,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         // To ensure the change is safe, enforce uniqueness
         _requireNoDuplicates(_initiatives);
-        _requireNoDuplicates(_initiativesToReset);
 
-        // Explicit >= 0 checks for all values since we reset values below
-        _requireNoNegatives(_absoluteLQTYVotes);
-        _requireNoNegatives(_absoluteLQTYVetos);
-
-        // You MUST always reset
-        ResetInitiativeData[] memory cachedData = _resetInitiatives(_initiativesToReset);
-
-        /// Invariant, 0 allocated = 0 votes
-        UserState memory userState = userStates[msg.sender];
-        require(userState.allocatedLQTY == 0, "must be a reset");
-
+        // TODO
         // After cutoff you can only re-apply the same vote
         // Or vote less
         // Or abstain
