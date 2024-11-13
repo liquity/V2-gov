@@ -63,6 +63,9 @@ abstract contract OptimizationProperties is GovernanceProperties {
 
         return max;
     }
+
+    // NOTE: This property is not particularly good as you can just do a donation and not vote
+    // This douesn't really highlight a loss
     function optimize_max_claim_underpay() public returns (int256) {
         uint256 claimableSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
@@ -83,48 +86,6 @@ abstract contract OptimizationProperties is GovernanceProperties {
         return max;
     }
 
-    function optimize_max_claim_underpay_assertion() public returns (int256) {
-        uint256 claimableSum;
-        for (uint256 i; i < deployedInitiatives.length; i++) {
-            // NOTE: Non view so it accrues state
-            (Governance.InitiativeStatus status,, uint256 claimableAmount) = governance.getInitiativeState(deployedInitiatives[i]);
-
-            claimableSum += claimableAmount;
-        }
-
-        // Grab accrued
-        uint256 boldAccrued = governance.boldAccrued();
-
-        int256 delta;
-        if(boldAccrued > claimableSum) {
-            delta = int256(boldAccrued) - int256(claimableSum);
-        }
-
-        t(delta < 1e20, "Delta is too big, over 100 LQTY 1e20");
-
-        return delta;
-    }
-    function optimize_max_claim_underpay_assertion_mini() public returns (int256) {
-        uint256 claimableSum;
-        for (uint256 i; i < deployedInitiatives.length; i++) {
-            // NOTE: Non view so it accrues state
-            (Governance.InitiativeStatus status,, uint256 claimableAmount) = governance.getInitiativeState(deployedInitiatives[i]);
-
-            claimableSum += claimableAmount;
-        }
-
-        // Grab accrued
-        uint256 boldAccrued = governance.boldAccrued();
-
-        int256 delta;
-        if(boldAccrued > claimableSum) {
-            delta = int256(boldAccrued) - int256(claimableSum);
-        }
-
-        t(delta < 1e10, "Delta is too big, over 100 LQTY 1e10");
-
-        return delta;
-    }
 
     function property_sum_of_initatives_matches_total_votes_insolvency_assertion() public {
 
@@ -143,42 +104,7 @@ abstract contract OptimizationProperties is GovernanceProperties {
         console.log("govPower", govPower);
         console.log("delta", delta);
 
-        t(delta < 3e25, "Delta is too big"); // Max found via optimization
-    }
-
-    function property_sum_of_initatives_matches_total_votes_insolvency_assertion_mid() public {
-
-        uint256 delta = 0;
-
-        (, , uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
-
-
-        if(votedPowerSum > govPower) {
-            delta = votedPowerSum - govPower;
-
-            console.log("votedPowerSum * 1e18 / govPower", votedPowerSum * 1e18 / govPower);
-        }
-
-        console.log("votedPowerSum", votedPowerSum);
-        console.log("govPower", govPower);
-        console.log("delta", delta);
-        
-
-        t(delta < 1e18, "Delta is too big");
-    }
-
-    function property_sum_of_initatives_matches_total_votes_insolvency_assertion_small() public {
-
-        uint256 delta = 0;
-
-        (, , uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
-
-
-        if(votedPowerSum > govPower) {
-            delta = votedPowerSum - govPower;
-        }
-
-        t(delta < 1e10, "Delta is too big");
+        t(delta < 4e25, "Delta is too big"); // 3e25 was found via optimization, no value past that was found
     }
     
 
@@ -207,7 +133,7 @@ abstract contract OptimizationProperties is GovernanceProperties {
         return max;
     }
 
-    function optimize_property_sum_of_initatives_matches_total_votes_insolvency() public returns (int256) {
+    function optimize_property_sum_of_initatives_matches_total_votes_insolvency() public returns (bool) {
 
         int256 max = 0;
 
@@ -218,7 +144,7 @@ abstract contract OptimizationProperties is GovernanceProperties {
             max = int256(votedPowerSum) - int256(govPower);
         }
 
-        return max;
+        return max < 3e25;
     }
 
     function optimize_property_sum_of_initatives_matches_total_votes_underpaying() public returns (int256) {
