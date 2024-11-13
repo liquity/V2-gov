@@ -13,13 +13,12 @@ contract TrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
         setup();
     }
 
-
     // forge test --match-test test_check_unregisterable_consistecy_0 -vv
     /// This shows another issue tied to snapshot vs voting
     /// This state transition will not be possible if you always unregister an initiative
     /// But can happen if unregistering is skipped
     // function test_check_unregisterable_consistecy_0() public {
-        /// TODO AUDIT Known bug
+    /// TODO AUDIT Known bug
     //     vm.roll(block.number + 1);
     //     vm.warp(block.timestamp + 385918);
     //     governance_depositLQTY(2);

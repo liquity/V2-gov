@@ -574,9 +574,6 @@ contract BribeInitiativeTest is Test {
         assertEq(bribeTokenAmount, 0, "vetoer receives bribe amount");
     }
 
-
-    
-
     // checks that user can receive bribes for an epoch in which they were allocated even if they're no longer allocated
     function test_decrement_after_claimBribes() public {
         // =========== epoch 1 ==================

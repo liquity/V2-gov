@@ -10,4 +10,10 @@ import {SynchProperties} from "./properties/SynchProperties.sol";
 import {RevertProperties} from "./properties/RevertProperties.sol";
 import {TsProperties} from "./properties/TsProperties.sol";
 
-abstract contract Properties is OptimizationProperties, BribeInitiativeProperties, SynchProperties, RevertProperties, TsProperties {}
+abstract contract Properties is
+    OptimizationProperties,
+    BribeInitiativeProperties,
+    SynchProperties,
+    RevertProperties,
+    TsProperties
+{}

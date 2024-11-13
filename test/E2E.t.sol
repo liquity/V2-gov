@@ -282,7 +282,6 @@ contract E2ETests is Test {
         assertEq(skipCount, UNREGISTRATION_AFTER_EPOCHS + 1, "Skipped exactly UNREGISTRATION_AFTER_EPOCHS");
     }
 
-
     // forge test --match-test test_unregisterWorksCorrectlyEvenAfterXEpochs_andCanBeSavedAtLast -vv
     function test_unregisterWorksCorrectlyEvenAfterXEpochs_andCanBeSavedAtLast(uint8 epochsInFuture) public {
         vm.warp(block.timestamp + epochsInFuture * EPOCH_DURATION);
@@ -338,9 +337,7 @@ contract E2ETests is Test {
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 4
         ++skipCount;
-        assertEq(
-            uint256(Governance.InitiativeStatus.CLAIMABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE"
-        );    
+        assertEq(uint256(Governance.InitiativeStatus.CLAIMABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE");
     }
 
     function _deposit(uint88 amt) internal {

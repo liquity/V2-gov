@@ -4,8 +4,8 @@ pragma solidity ^0.8.24;
 contract MockGovernance {
     uint16 private __epoch;
 
-    uint32 constant public EPOCH_START = 0;
-    uint32 constant public EPOCH_DURATION = 7 days;
+    uint32 public constant EPOCH_START = 0;
+    uint32 public constant EPOCH_DURATION = 7 days;
 
     function claimForInitiative(address) external pure returns (uint256) {
         return 1000e18;

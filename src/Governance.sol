@@ -18,7 +18,6 @@ import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
 
-
 /// @title Governance: Modular Initiative based Governance
 contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance {
     using SafeERC20 for IERC20;
@@ -78,7 +77,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
     uint16 constant UNREGISTERED_INITIATIVE = type(uint16).max;
 
     // 100 Million LQTY will be necessary to make the rounding error cause 1 second of loss per operation
-    uint120 constant public TIMESTAMP_PRECISION = 1e26;
+    uint120 public constant TIMESTAMP_PRECISION = 1e26;
 
     constructor(
         address _lqty,
@@ -189,10 +188,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint88 lqtyStaked = uint88(stakingV1.stakes(userProxyAddress));
 
         // update the average staked timestamp for LQTY staked by the user
-        
+
         // NOTE: Upscale user TS by `TIMESTAMP_PRECISION`
         userState.averageStakingTimestamp = _calculateAverageTimestamp(
-            userState.averageStakingTimestamp, uint120(block.timestamp) * uint120(TIMESTAMP_PRECISION), lqtyStaked, lqtyStaked + _lqtyAmount
+            userState.averageStakingTimestamp,
+            uint120(block.timestamp) * uint120(TIMESTAMP_PRECISION),
+            lqtyStaked,
+            lqtyStaked + _lqtyAmount
         );
         userStates[msg.sender] = userState;
 
@@ -331,7 +333,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         if (snapshot.forEpoch < currentEpoch - 1) {
             shouldUpdate = true;
 
-            snapshot.votes = lqtyToVotes(state.countedVoteLQTY, uint120(epochStart()) * uint120(TIMESTAMP_PRECISION), state.countedVoteLQTYAverageTimestamp);
+            snapshot.votes = lqtyToVotes(
+                state.countedVoteLQTY,
+                uint120(epochStart()) * uint120(TIMESTAMP_PRECISION),
+                state.countedVoteLQTYAverageTimestamp
+            );
             snapshot.forEpoch = currentEpoch - 1;
         }
     }
@@ -473,11 +479,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         uint256 upscaledInitiativeVotes = uint256(_votesForInitiativeSnapshot.votes);
         uint256 upscaledInitiativeVetos = uint256(_votesForInitiativeSnapshot.vetos);
         uint256 upscaledTotalVotes = uint256(_votesSnapshot.votes);
-        
-        if (
-            upscaledInitiativeVotes > votingTheshold
-                && !(upscaledInitiativeVetos >= upscaledInitiativeVotes)
-        ) {
+
+        if (upscaledInitiativeVotes > votingTheshold && !(upscaledInitiativeVetos >= upscaledInitiativeVotes)) {
             /// @audit 2^208 means we only have 2^48 left
             /// Therefore we need to scale the value down by 4 orders of magnitude to make it fit
             assert(upscaledInitiativeVotes * 1e14 / (VOTING_THRESHOLD_FACTOR / 1e4) > upscaledTotalVotes);
@@ -489,7 +492,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             ///     We use `CUSTOM_PRECISION` for this reason, a smaller multiplicative value
             ///     The change SHOULD be safe because we already check for `threshold` before getting into these lines
             /// As an alternative, this line could be replaced by https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/FullMath.sol
-            uint256 claim = upscaledInitiativeVotes * CUSTOM_PRECISION / upscaledTotalVotes * boldAccrued / CUSTOM_PRECISION;
+            uint256 claim =
+                upscaledInitiativeVotes * CUSTOM_PRECISION / upscaledTotalVotes * boldAccrued / CUSTOM_PRECISION;
             return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
 
@@ -524,19 +528,20 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
         uint256 upscaledSnapshotVotes = uint256(snapshot.votes);
         require(
-            lqtyToVotes(uint88(stakingV1.stakes(userProxyAddress)), uint120(epochStart()) * uint120(TIMESTAMP_PRECISION), userState.averageStakingTimestamp)
-                >= upscaledSnapshotVotes * REGISTRATION_THRESHOLD_FACTOR / WAD,
+            lqtyToVotes(
+                uint88(stakingV1.stakes(userProxyAddress)),
+                uint120(epochStart()) * uint120(TIMESTAMP_PRECISION),
+                userState.averageStakingTimestamp
+            ) >= upscaledSnapshotVotes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );
 
         uint16 currentEpoch = epoch();
 
         registeredInitiatives[_initiative] = currentEpoch;
-        
-        /// @audit This ensures that the initiatives has UNREGISTRATION_AFTER_EPOCHS even after the first epoch
-        initiativeStates[_initiative].lastEpochClaim = epoch() - 1; 
 
-        
+        /// @audit This ensures that the initiatives has UNREGISTRATION_AFTER_EPOCHS even after the first epoch
+        initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
 
         emit RegisterInitiative(_initiative, msg.sender, currentEpoch);
 
@@ -604,7 +609,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         // As such the check is optional here
         // All other calls to the system enforce this
         // So it's recommended that your last call to `resetAllocations` passes the check
-        if(checkAll) {
+        if (checkAll) {
             require(userStates[msg.sender].allocatedLQTY == 0, "Governance: must be a reset");
         }
     }
@@ -727,13 +732,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
             // update the average staking timestamp for the initiative based on the user's average staking timestamp
             initiativeState.averageStakingTimestampVoteLQTY = _calculateAverageTimestamp(
                 initiativeState.averageStakingTimestampVoteLQTY,
-                userState.averageStakingTimestamp, /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
+                userState.averageStakingTimestamp,
+                /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
                 initiativeState.voteLQTY,
                 add(initiativeState.voteLQTY, deltaLQTYVotes)
             );
             initiativeState.averageStakingTimestampVetoLQTY = _calculateAverageTimestamp(
                 initiativeState.averageStakingTimestampVetoLQTY,
-                userState.averageStakingTimestamp, /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
+                userState.averageStakingTimestamp,
+                /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
                 initiativeState.vetoLQTY,
                 add(initiativeState.vetoLQTY, deltaLQTYVetos)
             );
@@ -789,7 +796,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
 
                 state.countedVoteLQTY += initiativeState.voteLQTY;
             }
-            
+
             // == USER ALLOCATION == //
 
             // allocate the voting and vetoing LQTY to the initiative
@@ -901,7 +908,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, IGovernance
         /// We upscale the timestamp to reduce the impact of the loss
         /// However this is still possible
         uint256 available = bold.balanceOf(address(this));
-        if(claimableAmount > available) {
+        if (claimableAmount > available) {
             claimableAmount = available;
         }
 

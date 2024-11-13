@@ -163,7 +163,7 @@ contract BribeInitiativeAllocateTest is Test {
 
         vm.startPrank(address(governance));
 
-        // set user2 allocations like governance would using onAfterAllocateLQTY at epoch 1 
+        // set user2 allocations like governance would using onAfterAllocateLQTY at epoch 1
         // sets avgTimestamp to current block.timestamp
         {
             IGovernance.UserState memory userState =
@@ -188,7 +188,7 @@ contract BribeInitiativeAllocateTest is Test {
         }
 
         // set user2 allocations like governance would using onAfterAllocateLQTY at epoch 1
-        // sets avgTimestamp to current block.timestamp 
+        // sets avgTimestamp to current block.timestamp
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
@@ -201,7 +201,7 @@ contract BribeInitiativeAllocateTest is Test {
                 lastEpochClaim: 0
             });
             bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
-            
+
             (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
                 bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
             assertEq(totalLQTYAllocated, 1001e18);
@@ -224,8 +224,8 @@ contract BribeInitiativeAllocateTest is Test {
 
         vm.startPrank(address(governance));
 
-        // set allocation in initiative for user in epoch 1 
-        // sets avgTimestamp to current block.timestamp 
+        // set allocation in initiative for user in epoch 1
+        // sets avgTimestamp to current block.timestamp
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
@@ -249,7 +249,7 @@ contract BribeInitiativeAllocateTest is Test {
         }
 
         // set allocation in initiative for user2 in epoch 1
-        // sets avgTimestamp to current block.timestamp 
+        // sets avgTimestamp to current block.timestamp
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
@@ -272,7 +272,7 @@ contract BribeInitiativeAllocateTest is Test {
             assertEq(userAverageTimestamp, uint120(block.timestamp));
         }
 
-        governance.setEpoch(3); 
+        governance.setEpoch(3);
         vm.warp(block.timestamp + governance.EPOCH_DURATION()); // warp to third epoch ts
 
         vm.startPrank(address(user));

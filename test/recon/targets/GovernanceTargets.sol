@@ -37,8 +37,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         // StateB4
         (uint88 b4_global_allocatedLQTY,) = governance.globalState();
 
-        (Governance.InitiativeStatus status, ,) = governance.getInitiativeState(initiatives[0]);
-
+        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiatives[0]);
 
         try governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray) {
             t(deltaLQTYVotesArray[0] == 0 || deltaLQTYVetosArray[0] == 0, "One alloc must be zero");
@@ -54,11 +53,10 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         // If Initiative was anything else
         // Global state and user state accounting should change
 
-
         // (uint88 after_user_allocatedLQTY,) = governance.userStates(user); // TODO
         (uint88 after_global_allocatedLQTY,) = governance.globalState();
 
-        if(status == Governance.InitiativeStatus.DISABLED) {
+        if (status == Governance.InitiativeStatus.DISABLED) {
             // NOTE: It could be 0
             lte(after_global_allocatedLQTY, b4_global_allocatedLQTY, "Alloc can only be strictly decreasing");
         }
@@ -69,7 +67,6 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         uint96 deltaLQTYVotes,
         uint96 deltaLQTYVetos
     ) public withChecks {
-
         uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user2)).staked(); // clamp using the user's staked balance
 
         address[] memory initiatives = new address[](1);
@@ -88,6 +85,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     function governance_resetAllocations() public {
         governance.resetAllocations(deployedInitiatives, true);
     }
+
     function governance_resetAllocations_user_2() public {
         vm.prank(user2);
         governance.resetAllocations(deployedInitiatives, true);
@@ -113,7 +111,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         uint88 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
 
         // Deposit on zero
-        if(stakedAmount == 0) {
+        if (stakedAmount == 0) {
             lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
             governance.depositLQTY(lqtyAmount);
 
@@ -131,6 +129,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
             gte(ts_after, ts_b4, "User TS must always increase");
         }
     }
+
     function depositMustFailOnNonZeroAlloc(uint88 lqtyAmount) public withChecks {
         (uint88 user_allocatedLQTY,) = governance.userStates(user);
 
@@ -139,10 +138,9 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
         try governance.depositLQTY(lqtyAmount) {
             t(false, "Deposit Must always revert when user is not reset");
-        } catch {
-        }
+        } catch {}
     }
-    
+
     function withdrwaMustFailOnNonZeroAcc(uint88 _lqtyAmount) public withChecks {
         (uint88 user_allocatedLQTY,) = governance.userStates(user);
 
@@ -150,8 +148,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
         try governance.withdrawLQTY(_lqtyAmount) {
             t(false, "Withdraw Must always revert when user is not reset");
-        } catch {
-        }
+        } catch {}
     }
 
     // For every previous epoch go grab ghost values and ensure they match snapshot
@@ -191,8 +188,8 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         require(governance.epoch() > 2); // Prevent reverts due to timewarp
         address initiative = _getDeployedInitiative(initiativeIndex);
 
-        try governance.claimForInitiative(initiative) {
-        } catch {
+        try governance.claimForInitiative(initiative) {}
+        catch {
             t(false, "claimForInitiative should never revert");
         }
     }
@@ -210,15 +207,14 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
         governance.depositLQTY(lqtyAmount);
     }
+
     function governance_depositLQTY_2(uint88 lqtyAmount) public withChecks {
         // Deploy and approve since we don't do it in constructor
         vm.prank(user2);
         try governance.deployUserProxy() returns (address proxy) {
-             vm.prank(user2);
-             lqty.approve(proxy, type(uint88).max);
-        } catch {
-
-        }
+            vm.prank(user2);
+            lqty.approve(proxy, type(uint88).max);
+        } catch {}
 
         lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user2));
         vm.prank(user2);
@@ -269,15 +265,16 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
     function governance_withdrawLQTY_shouldRevertWhenClamped(uint88 _lqtyAmount) public withChecks {
         uint88 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
-        
+
         // Ensure we have 0 votes
-        try governance.resetAllocations(deployedInitiatives, true) {} catch {
+        try governance.resetAllocations(deployedInitiatives, true) {}
+        catch {
             t(false, "Should not revert cause OOG is unlikely");
         }
 
         _lqtyAmount %= stakedAmount + 1;
-        try governance.withdrawLQTY(_lqtyAmount) {
-        } catch {
+        try governance.withdrawLQTY(_lqtyAmount) {}
+        catch {
             t(false, "Clamped withdraw should not revert");
         }
     }

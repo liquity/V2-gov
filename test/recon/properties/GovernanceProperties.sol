@@ -9,7 +9,6 @@ import {vm} from "@chimera/Hevm.sol";
 import {IUserProxy} from "src/interfaces/IUserProxy.sol";
 
 abstract contract GovernanceProperties is BeforeAfter {
-
     uint256 constant TOLLERANCE = 1e19; // NOTE: 1e18 is 1 second due to upscaling
     /// So we accept at most 10 seconds of errors
 
@@ -109,7 +108,6 @@ abstract contract GovernanceProperties is BeforeAfter {
         // Sum up all voted users
         // Total must match
         (uint256 totalUserCountedLQTY, uint256 totalCountedLQTY) = _getGlobalLQTYAndUserSum();
-        
 
         eq(totalUserCountedLQTY, totalCountedLQTY, "Global vs SUM(Users_lqty) must match");
     }
@@ -129,8 +127,6 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         return (totalUserCountedLQTY, totalCountedLQTY);
     }
-
-
 
     // NOTE: In principle this will work since this is a easier to reach property vs checking each initiative
     function property_ensure_user_alloc_cannot_dos() public {
@@ -190,8 +186,6 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
     }
 
-
-
     // sum of voting power for users that allocated to an initiative == the voting power of the initiative
     /// TODO ??
     function property_sum_of_user_voting_weights_strict() public {
@@ -201,7 +195,7 @@ abstract contract GovernanceProperties is BeforeAfter {
         // - compare with the voting weight of the initiative for the epoch for the same timestamp
         VotesSumAndInitiativeSum[] memory votesSumAndInitiativeValues = _getUserVotesSumAndInitiativesVotes();
 
-        for(uint256 i; i < votesSumAndInitiativeValues.length; i++) {
+        for (uint256 i; i < votesSumAndInitiativeValues.length; i++) {
             eq(
                 votesSumAndInitiativeValues[i].userSum,
                 votesSumAndInitiativeValues[i].initiativeWeight,
@@ -217,24 +211,27 @@ abstract contract GovernanceProperties is BeforeAfter {
         // - compare with the voting weight of the initiative for the epoch for the same timestamp
         VotesSumAndInitiativeSum[] memory votesSumAndInitiativeValues = _getUserVotesSumAndInitiativesVotes();
 
-        for(uint256 i; i < votesSumAndInitiativeValues.length; i++) {
+        for (uint256 i; i < votesSumAndInitiativeValues.length; i++) {
             eq(votesSumAndInitiativeValues[i].userSum, votesSumAndInitiativeValues[i].initiativeWeight, "Matching");
-            t( 
-                votesSumAndInitiativeValues[i].userSum == votesSumAndInitiativeValues[i].initiativeWeight ||
-                (
-                votesSumAndInitiativeValues[i].userSum >= votesSumAndInitiativeValues[i].initiativeWeight - TOLLERANCE &&
-                votesSumAndInitiativeValues[i].userSum <= votesSumAndInitiativeValues[i].initiativeWeight + TOLLERANCE
-                ),
+            t(
+                votesSumAndInitiativeValues[i].userSum == votesSumAndInitiativeValues[i].initiativeWeight
+                    || (
+                        votesSumAndInitiativeValues[i].userSum
+                            >= votesSumAndInitiativeValues[i].initiativeWeight - TOLLERANCE
+                            && votesSumAndInitiativeValues[i].userSum
+                                <= votesSumAndInitiativeValues[i].initiativeWeight + TOLLERANCE
+                    ),
                 "initiative voting weights and user's allocated weight match within tollerance"
             );
         }
     }
+
     struct VotesSumAndInitiativeSum {
         uint256 userSum;
         uint256 initiativeWeight;
     }
-    
-    function _getUserVotesSumAndInitiativesVotes() internal returns (VotesSumAndInitiativeSum[] memory){
+
+    function _getUserVotesSumAndInitiativesVotes() internal returns (VotesSumAndInitiativeSum[] memory) {
         VotesSumAndInitiativeSum[] memory acc = new VotesSumAndInitiativeSum[](deployedInitiatives.length);
         for (uint256 i; i < deployedInitiatives.length; i++) {
             uint240 userWeightAccumulatorForInitiative;
@@ -243,15 +240,17 @@ abstract contract GovernanceProperties is BeforeAfter {
                 // TODO: double check that okay to use this average timestamp
                 (, uint120 averageStakingTimestamp) = governance.userStates(users[j]);
                 // add the weight calculated for each user's allocation to the accumulator
-                userWeightAccumulatorForInitiative +=
-                    governance.lqtyToVotes(userVoteLQTY, uint120(block.timestamp) * uint120(1e18), averageStakingTimestamp);
+                userWeightAccumulatorForInitiative += governance.lqtyToVotes(
+                    userVoteLQTY, uint120(block.timestamp) * uint120(1e18), averageStakingTimestamp
+                );
             }
 
             (uint88 initiativeVoteLQTY,, uint120 initiativeAverageStakingTimestampVoteLQTY,,) =
                 governance.initiativeStates(deployedInitiatives[i]);
-            uint240 initiativeWeight =
-                governance.lqtyToVotes(initiativeVoteLQTY, uint120(block.timestamp) * uint120(1e18), initiativeAverageStakingTimestampVoteLQTY);
-            
+            uint240 initiativeWeight = governance.lqtyToVotes(
+                initiativeVoteLQTY, uint120(block.timestamp) * uint120(1e18), initiativeAverageStakingTimestampVoteLQTY
+            );
+
             acc[i].userSum = userWeightAccumulatorForInitiative;
             acc[i].initiativeWeight = initiativeWeight;
         }
@@ -272,36 +271,34 @@ abstract contract GovernanceProperties is BeforeAfter {
     function property_sum_of_initatives_matches_total_votes_strict() public {
         // Sum up all initiatives
         // Compare to total votes
-        (uint256 allocatedLQTYSum, uint256 totalCountedLQTY, uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
+        (uint256 allocatedLQTYSum, uint256 totalCountedLQTY, uint256 votedPowerSum, uint256 govPower) =
+            _getInitiativeStateAndGlobalState();
 
         eq(allocatedLQTYSum, totalCountedLQTY, "LQTY Sum of Initiative State matches Global State at all times");
         eq(votedPowerSum, govPower, "Voting Power Sum of Initiative State matches Global State at all times");
     }
+
     function property_sum_of_initatives_matches_total_votes_bounded() public {
         // Sum up all initiatives
         // Compare to total votes
-        (uint256 allocatedLQTYSum, uint256 totalCountedLQTY, uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
+        (uint256 allocatedLQTYSum, uint256 totalCountedLQTY, uint256 votedPowerSum, uint256 govPower) =
+            _getInitiativeStateAndGlobalState();
 
         t(
-            allocatedLQTYSum == totalCountedLQTY || (
-                allocatedLQTYSum >= totalCountedLQTY - TOLLERANCE &&
-                allocatedLQTYSum <= totalCountedLQTY + TOLLERANCE
-            ),
-        "Sum of Initiative LQTY And State matches within absolute tollerance");
+            allocatedLQTYSum == totalCountedLQTY
+                || (allocatedLQTYSum >= totalCountedLQTY - TOLLERANCE && allocatedLQTYSum <= totalCountedLQTY + TOLLERANCE),
+            "Sum of Initiative LQTY And State matches within absolute tollerance"
+        );
 
         t(
-            votedPowerSum == govPower || (
-                votedPowerSum >= govPower - TOLLERANCE &&
-                votedPowerSum <= govPower + TOLLERANCE
-            ),
-        "Sum of Initiative LQTY And State matches within absolute tollerance");
+            votedPowerSum == govPower
+                || (votedPowerSum >= govPower - TOLLERANCE && votedPowerSum <= govPower + TOLLERANCE),
+            "Sum of Initiative LQTY And State matches within absolute tollerance"
+        );
     }
 
     function _getInitiativeStateAndGlobalState() internal returns (uint256, uint256, uint256, uint256) {
-        (
-            uint88 totalCountedLQTY,
-            uint120 global_countedVoteLQTYAverageTimestamp 
-        ) = governance.globalState();
+        (uint88 totalCountedLQTY, uint120 global_countedVoteLQTYAverageTimestamp) = governance.globalState();
 
         // Can sum via projection I guess
 
@@ -315,7 +312,6 @@ abstract contract GovernanceProperties is BeforeAfter {
                 uint88 vetoLQTY,
                 uint120 averageStakingTimestampVoteLQTY,
                 uint120 averageStakingTimestampVetoLQTY,
-
             ) = governance.initiativeStates(deployedInitiatives[i]);
 
             // Conditional, only if not DISABLED
@@ -324,12 +320,19 @@ abstract contract GovernanceProperties is BeforeAfter {
             if (status != Governance.InitiativeStatus.DISABLED) {
                 allocatedLQTYSum += voteLQTY;
                 // Sum via projection
-                votedPowerSum += governance.lqtyToVotes(voteLQTY, uint120(block.timestamp) * uint120(governance.TIMESTAMP_PRECISION()), averageStakingTimestampVoteLQTY);
+                votedPowerSum += governance.lqtyToVotes(
+                    voteLQTY,
+                    uint120(block.timestamp) * uint120(governance.TIMESTAMP_PRECISION()),
+                    averageStakingTimestampVoteLQTY
+                );
             }
-
         }
 
-        uint256 govPower = governance.lqtyToVotes(totalCountedLQTY, uint120(block.timestamp) * uint120(governance.TIMESTAMP_PRECISION()), global_countedVoteLQTYAverageTimestamp);
+        uint256 govPower = governance.lqtyToVotes(
+            totalCountedLQTY,
+            uint120(block.timestamp) * uint120(governance.TIMESTAMP_PRECISION()),
+            global_countedVoteLQTYAverageTimestamp
+        );
 
         return (allocatedLQTYSum, totalCountedLQTY, votedPowerSum, govPower);
     }
@@ -368,12 +371,8 @@ abstract contract GovernanceProperties is BeforeAfter {
             // Next status must be SKIP, because by definition it has
             // Received no votes (cannot)
             // Must not be UNREGISTERABLE
-            t(
-                uint256(newStatus) == uint256(Governance.InitiativeStatus.SKIP),
-                "Must be SKIP"
-            );
+            t(uint256(newStatus) == uint256(Governance.InitiativeStatus.SKIP), "Must be SKIP");
         }
-
     }
 
     /// NOTE: This property can break in some specific combinations of:
@@ -426,7 +425,8 @@ abstract contract GovernanceProperties is BeforeAfter {
         uint256 claimableSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
             // NOTE: Non view so it accrues state
-            (Governance.InitiativeStatus status,, uint256 claimableAmount) = governance.getInitiativeState(deployedInitiatives[i]);
+            (Governance.InitiativeStatus status,, uint256 claimableAmount) =
+                governance.getInitiativeState(deployedInitiatives[i]);
 
             claimableSum += claimableAmount;
         }
@@ -465,7 +465,7 @@ abstract contract GovernanceProperties is BeforeAfter {
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (uint88 allocVotes, uint88 allocVetos,) =
                 governance.lqtyAllocatedByUserToInitiative(theUser, deployedInitiatives[i]);
-            if(skipDisabled) {
+            if (skipDisabled) {
                 (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
 
                 // Conditionally add based on state
@@ -478,7 +478,6 @@ abstract contract GovernanceProperties is BeforeAfter {
                 votes += allocVotes;
                 vetos += allocVetos;
             }
-
         }
     }
 
@@ -488,7 +487,6 @@ abstract contract GovernanceProperties is BeforeAfter {
         uint96 deltaLQTYVetos,
         uint88 lqtyAmount
     ) public withChecks {
-
         address targetInitiative = _getDeployedInitiative(initiativesIndex);
 
         // 0. Reset first to ensure we start fresh, else the totals can be out of whack
@@ -501,18 +499,14 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
 
         // GET state and initiative data before allocation
-        (   
-            uint88 totalCountedLQTY,
-            uint120 user_countedVoteLQTYAverageTimestamp 
-        ) = governance.globalState();
+        (uint88 totalCountedLQTY, uint120 user_countedVoteLQTYAverageTimestamp) = governance.globalState();
         (
             uint88 voteLQTY,
             uint88 vetoLQTY,
             uint120 averageStakingTimestampVoteLQTY,
             uint120 averageStakingTimestampVetoLQTY,
-
         ) = governance.initiativeStates(targetInitiative);
-        
+
         // Allocate
         {
             uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked();
@@ -527,7 +521,6 @@ abstract contract GovernanceProperties is BeforeAfter {
             governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
         }
 
-
         // Deposit (Changes total LQTY an hopefully also changes ts)
         {
             (, uint120 averageStakingTimestamp1) = governance.userStates(user);
@@ -535,7 +528,7 @@ abstract contract GovernanceProperties is BeforeAfter {
             lqtyAmount = uint88(lqtyAmount % lqty.balanceOf(user));
             governance.depositLQTY(lqtyAmount);
             (, uint120 averageStakingTimestamp2) = governance.userStates(user);
-            
+
             require(averageStakingTimestamp2 > averageStakingTimestamp1, "Must have changed");
         }
 
@@ -547,16 +540,13 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         // Check total allocation and initiative allocation
         {
-            (   
-                uint88 after_totalCountedLQTY,
-                uint120 after_user_countedVoteLQTYAverageTimestamp 
-            ) = governance.globalState();
+            (uint88 after_totalCountedLQTY, uint120 after_user_countedVoteLQTYAverageTimestamp) =
+                governance.globalState();
             (
                 uint88 after_voteLQTY,
                 uint88 after_vetoLQTY,
                 uint120 after_averageStakingTimestampVoteLQTY,
                 uint120 after_averageStakingTimestampVetoLQTY,
-
             ) = governance.initiativeStates(targetInitiative);
 
             eq(voteLQTY, after_voteLQTY, "Same vote");

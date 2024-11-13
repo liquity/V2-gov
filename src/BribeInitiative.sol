@@ -72,7 +72,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     uint256 constant TIMESTAMP_PRECISION = 1e26;
 
-
     function _claimBribe(
         address _user,
         uint16 _epoch,
@@ -104,7 +103,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         (uint88 totalLQTY, uint120 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
 
         // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
-        uint120 scaledEpochEnd = (uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())) * uint120(TIMESTAMP_PRECISION);
+        uint120 scaledEpochEnd = (
+            uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())
+        ) * uint120(TIMESTAMP_PRECISION);
 
         /// @audit User Invariant
         assert(totalAverageTimestamp <= scaledEpochEnd);

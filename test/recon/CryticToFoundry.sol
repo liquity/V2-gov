@@ -13,38 +13,34 @@ import {console} from "forge-std/console.sol";
 contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     function setUp() public {
         setup();
-        
     }
 
+    // forge test --match-test test_optimize_property_sum_of_initatives_matches_total_votes_insolvency_0 -vv
+    function test_optimize_property_sum_of_initatives_matches_total_votes_insolvency_0() public {
+        vm.warp(block.timestamp + 574062);
 
-// forge test --match-test test_optimize_property_sum_of_initatives_matches_total_votes_insolvency_0 -vv 
- function test_optimize_property_sum_of_initatives_matches_total_votes_insolvency_0() public {
+        vm.roll(block.number + 280);
 
-     vm.warp(block.timestamp + 574062);
+        governance_depositLQTY_2(106439091954186822399173735);
 
-     vm.roll(block.number + 280);
+        vm.roll(block.number + 748);
+        vm.warp(block.timestamp + 75040);
+        governance_depositLQTY(2116436955066717227177);
 
-     governance_depositLQTY_2(106439091954186822399173735);
+        governance_allocateLQTY_clamped_single_initiative(1, 1, 0);
 
-     vm.roll(block.number + 748);
-     vm.warp(block.timestamp + 75040);
-     governance_depositLQTY(2116436955066717227177);
+        helper_deployInitiative();
 
-     governance_allocateLQTY_clamped_single_initiative(1,1,0);
+        governance_registerInitiative(1);
 
-     helper_deployInitiative();
+        vm.warp(block.timestamp + 566552);
 
-     governance_registerInitiative(1);
+        vm.roll(block.number + 23889);
 
-     vm.warp(block.timestamp + 566552);
-
-     vm.roll(block.number + 23889);
-
-     governance_allocateLQTY_clamped_single_initiative_2nd_user(31,1314104679369829143691540410,0);
-    (, , uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
-    console.log("votedPowerSum", votedPowerSum);
-    console.log("govPower", govPower);
-    assert(optimize_property_sum_of_initatives_matches_total_votes_insolvency());
- }
-
+        governance_allocateLQTY_clamped_single_initiative_2nd_user(31, 1314104679369829143691540410, 0);
+        (,, uint256 votedPowerSum, uint256 govPower) = _getInitiativeStateAndGlobalState();
+        console.log("votedPowerSum", votedPowerSum);
+        console.log("govPower", govPower);
+        assert(optimize_property_sum_of_initatives_matches_total_votes_insolvency());
+    }
 }

@@ -379,7 +379,7 @@ contract VotingPowerTest is Test {
 
         // user allocates to baseInitiative1
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-        (uint88 allocatedLQTY, ) = governance.userStates(user);
+        (uint88 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "half");
 
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
@@ -396,7 +396,7 @@ contract VotingPowerTest is Test {
 
         // user allocates to baseInitiative1
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-        (uint88 allocatedLQTY, ) = governance.userStates(user);
+        (uint88 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "Half");
 
         // Go to Cutoff
@@ -421,7 +421,6 @@ contract VotingPowerTest is Test {
         // Can Veto more than allocate
         _allocate(address(baseInitiative1), 0, lqtyAmount);
     }
-
 
     // Check if Flashloan can be used to cause issues?
     // A flashloan would cause issues in the measure in which it breaks any specific property
@@ -466,7 +465,7 @@ contract VotingPowerTest is Test {
         initiativesToReset[0] = baseInitiative1;
         initiativesToReset[1] = baseInitiative2;
         initiativesToReset[2] = baseInitiative3;
-        
+
         governance.resetAllocations(initiativesToReset, true);
     }
 }

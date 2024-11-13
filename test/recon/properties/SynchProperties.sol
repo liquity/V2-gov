@@ -17,7 +17,8 @@ abstract contract SynchProperties is BeforeAfter {
         // For all strategies
         for (uint256 i; i < deployedInitiatives.length; i++) {
             for (uint256 j; j < users.length; j++) {
-                (uint88 votes, , uint16 epoch) = governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
+                (uint88 votes,, uint16 epoch) =
+                    governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
 
                 // Grab epoch from initiative
                 (uint88 lqtyAllocatedByUserAtEpoch, uint120 ts) =
@@ -26,7 +27,7 @@ abstract contract SynchProperties is BeforeAfter {
                 // Check that TS matches (only for votes)
                 eq(lqtyAllocatedByUserAtEpoch, votes, "Votes must match at all times");
 
-                if(votes != 0) {
+                if (votes != 0) {
                     // if we're voting and the votes are different from 0
                     // then we check user TS
                     (, uint120 averageStakingTimestamp) = governance.userStates(users[j]);
@@ -38,8 +39,5 @@ abstract contract SynchProperties is BeforeAfter {
                 }
             }
         }
-
     }
-
-
 }

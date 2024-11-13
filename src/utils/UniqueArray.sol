@@ -26,6 +26,5 @@ function _requireNoNegatives(int88[] memory vals) pure {
 
     for (uint i; i < arrLength; i++) {
         require(vals[i] >= 0, "Cannot be negative");
-        
     }
 }

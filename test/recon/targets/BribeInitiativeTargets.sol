@@ -36,15 +36,12 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
         eq(boldAmountB4 + boldAmount, boldAmountAfter, "Bold amount tracking is sound");
         eq(bribeTokenAmountB4 + bribeTokenAmount, bribeTokenAmountAfter, "Bribe amount tracking is sound");
-
-
     }
 
     // Canaries are no longer necessary
     // function canary_bribeWasThere(uint8 initiativeIndex) public {
     //     uint16 epoch = governance.epoch();
     //     IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
-
 
     //     (uint128 boldAmount, uint128 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
     //     t(boldAmount == 0 && bribeTokenAmount == 0, "A bribe was found");
@@ -60,12 +57,7 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
         uint16 userEpoch = initiative.getMostRecentUserEpoch(user);
         uint16 stateEpoch = initiative.getMostRecentTotalEpoch();
-        initiative_claimBribes(
-            governance.epoch() - 1,
-            userEpoch,
-            stateEpoch,
-            initiativeIndex
-        );
+        initiative_claimBribes(governance.epoch() - 1, userEpoch, stateEpoch, initiativeIndex);
     }
 
     function initiative_claimBribes(
@@ -91,20 +83,18 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
         bool alreadyClaimed = initiative.claimedBribeAtEpoch(user, epoch);
 
         try initiative.claimBribes(claimData) {
-
             // Claiming at the same epoch is an issue
             if (alreadyClaimed) {
                 // toggle canary that breaks the BI-02 property
                 claimedTwice = true;
             }
-        }
-        catch {
+        } catch {
             // NOTE: This is not a full check, but a sufficient check for some cases
             /// Specifically we may have to look at the user last epoch
             /// And see if we need to port over that balance from then
             (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, epoch);
             bool claimedBribe = initiative.claimedBribeAtEpoch(user, epoch);
-            if(initiative.getMostRecentTotalEpoch() != prevTotalAllocationEpoch) {
+            if (initiative.getMostRecentTotalEpoch() != prevTotalAllocationEpoch) {
                 return; // We are in a edge case
             }
 
@@ -117,10 +107,9 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
             if (lqtyAllocated > 0 && !claimedBribe && bribeWasThere) {
                 // user wasn't able to claim a bribe they were entitled to
-                unableToClaim = true; /// @audit Consider adding this as a test once claiming is simplified
+                unableToClaim = true;
+                /// @audit Consider adding this as a test once claiming is simplified
             }
         }
-
-
     }
 }

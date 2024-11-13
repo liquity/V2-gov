@@ -163,7 +163,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         for (uint8 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
             uint16 currentEpoch = initiative.getMostRecentTotalEpoch();
-            
+
             uint88 sumLqtyAllocated;
             for (uint8 j; j < users.length; j++) {
                 // NOTE: We need to grab user latest
@@ -180,7 +180,6 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
             );
         }
     }
-
 
     function property_sum_of_votes_in_bribes_match() public {
         uint16 currentEpoch = governance.epoch();
@@ -259,5 +258,4 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
             }
         }
     }
-
 }
