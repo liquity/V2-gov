@@ -229,8 +229,10 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     function onAfterAllocateLQTY(
         uint16 _currentEpoch,
         address _user,
+        uint88 _allocatedLQTY,
+        uint160 _voteOffset,
+        bool _isVeto,
         IGovernance.UserState calldata _userState,
-        IGovernance.Allocation calldata _allocation,
         IGovernance.InitiativeState calldata _initiativeState
     ) external virtual onlyGovernance {
         if (_currentEpoch == 0) return;
@@ -248,7 +250,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         _setLQTYAllocationByUserAtEpoch(
             _user,
             _currentEpoch,
-            _allocation.voteLQTY,
+            _allocatedLQTY, // TODO
             _userState.averageStakingTimestamp,
             mostRecentUserEpoch != _currentEpoch // Insert if user current > recent
         );

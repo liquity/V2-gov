@@ -70,7 +70,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation = IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: 1});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1e18,
+                voteOffset: 0,
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -78,7 +82,15 @@ contract BribeInitiativeAllocateTest is Test {
                 averageStakingTimestampVetoLQTY: 0,
                 lastEpochClaim: 0
             });
-            bribeInitiative.onAfterAllocateLQTY(governance.epoch(), user2, userState, allocation, initiativeState);
+            bribeInitiative.onAfterAllocateLQTY(
+                governance.epoch(),
+                user2,
+                allocation.allocatedLQTY,
+                allocation.voteOffset,
+                allocation.isVeto,
+                userState,
+                initiativeState
+            );
         }
         (uint88 totalLQTYAllocated, uint120 totalAverageTimestamp) =
             bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
@@ -92,8 +104,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState2 =
                 IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation2 =
-                IGovernance.Allocation({voteLQTY: 1000e18, vetoLQTY: 0, atEpoch: 1});
+            IGovernance.UserInitiativeAllocation memory allocation2 = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1000e18,
+                voteOffset: 0,
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState2 = IGovernance.InitiativeState({
                 voteLQTY: 1001e18,
                 vetoLQTY: 0,
@@ -125,8 +140,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 2000e18, averageStakingTimestamp: uint32(1)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 2000e18, vetoLQTY: 0, atEpoch: 2});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 2000e18,
+                voteOffset: 0,
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 2001e18,
                 vetoLQTY: 0,
@@ -168,7 +186,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation = IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: 1});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1e18,
+                voteOffset: 0,
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -192,7 +214,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation = IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: 1});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1e18,
+                voteOffset: 0,
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1001e18,
                 vetoLQTY: 0,
@@ -229,7 +255,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation = IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: 1});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1,
+                voteOffset: 0,
+                isVeto: true
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 0,
                 vetoLQTY: 1,
@@ -253,7 +283,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation = IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: 1});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1,
+                voteOffset: 0,
+                isVeto: true
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 0,
                 vetoLQTY: 1,
@@ -294,8 +328,11 @@ contract BribeInitiativeAllocateTest is Test {
 
         IGovernance.UserState memory userState =
             IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-        IGovernance.Allocation memory allocation =
-            IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+        IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+            allocatedLQTY: 1e18,
+            voteOffset: 0, // governance.epoch()
+            isVeto: false
+        });
         IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
             voteLQTY: 1e18,
             vetoLQTY: 0,
@@ -316,8 +353,11 @@ contract BribeInitiativeAllocateTest is Test {
 
         IGovernance.UserState memory userStateVeto =
             IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
-        IGovernance.Allocation memory allocationVeto =
-            IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1000e18, atEpoch: uint16(governance.epoch())});
+        IGovernance.UserInitiativeAllocation memory allocationVeto = IGovernance.UserInitiativeAllocation({
+            allocatedLQTY: 1000e18,
+            voteOffset: 0, // governance.epoch()
+            isVeto: true
+        });
         IGovernance.InitiativeState memory initiativeStateVeto = IGovernance.InitiativeState({
             voteLQTY: 1e18,
             vetoLQTY: 1000e18,
@@ -343,8 +383,11 @@ contract BribeInitiativeAllocateTest is Test {
 
         IGovernance.UserState memory userStateNewEpoch =
             IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint32(block.timestamp)});
-        IGovernance.Allocation memory allocationNewEpoch =
-            IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: uint16(governance.epoch())});
+        IGovernance.UserInitiativeAllocation memory allocationNewEpoch = IGovernance.UserInitiativeAllocation({
+            allocatedLQTY: 1,
+            voteOffset: 0, // governance.epoch()
+            isVeto: true
+        });
         IGovernance.InitiativeState memory initiativeStateNewEpoch = IGovernance.InitiativeState({
             voteLQTY: 1e18,
             vetoLQTY: 1,
@@ -378,8 +421,11 @@ contract BribeInitiativeAllocateTest is Test {
 
         IGovernance.UserState memory userStateNewEpoch3 =
             IGovernance.UserState({allocatedLQTY: 2000e18, averageStakingTimestamp: uint32(block.timestamp)});
-        IGovernance.Allocation memory allocationNewEpoch3 =
-            IGovernance.Allocation({voteLQTY: 2000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+        IGovernance.UserInitiativeAllocation memory allocationNewEpoch3 = IGovernance.UserInitiativeAllocation({
+            allocatedLQTY: 2000e18,
+            voteOffset: 0, // governance.epoch()
+            isVeto: false
+        });
         IGovernance.InitiativeState memory initiativeStateNewEpoch3 = IGovernance.InitiativeState({
             voteLQTY: 2001e18,
             vetoLQTY: 0,
@@ -420,8 +466,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -444,8 +493,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 1000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1000e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1001e18,
                 vetoLQTY: 0,
@@ -470,8 +522,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1,
+                voteOffset: 0, // governance.epoch()
+                isVeto: true
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -496,8 +551,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1,
+                voteOffset: 0, // governance.epoch()
+                isVeto: true
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -533,8 +591,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -557,8 +618,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 1000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1000e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1001e18,
                 vetoLQTY: 0,
@@ -581,8 +645,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 2000e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 2000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 2000e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 2001e18,
                 vetoLQTY: 0,
@@ -629,8 +696,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -653,8 +723,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 1000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1000e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1001e18,
                 vetoLQTY: 0,
@@ -677,8 +750,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1,
+                voteOffset: 0, // governance.epoch()
+                isVeto: true
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -727,8 +803,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -751,8 +830,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 1000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1000e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1001e18,
                 vetoLQTY: 0,
@@ -775,8 +857,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1,
+                voteOffset: 0, // governance.epoch()
+                isVeto: true
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -799,8 +884,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 2000e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 2000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 2000e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 2001e18,
                 vetoLQTY: 0,
@@ -840,8 +928,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 1e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -864,8 +955,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1000e18, averageStakingTimestamp: uint32(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 1000e18, vetoLQTY: 0, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1000e18,
+                voteOffset: 0, // governance.epoch()
+                isVeto: false
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1001e18,
                 vetoLQTY: 0,
@@ -888,8 +982,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 1, averageStakingTimestamp: uint120(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 1, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 1,
+                voteOffset: 0, // governance.epoch()
+                isVeto: true
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,
@@ -912,8 +1009,11 @@ contract BribeInitiativeAllocateTest is Test {
         {
             IGovernance.UserState memory userState =
                 IGovernance.UserState({allocatedLQTY: 2, averageStakingTimestamp: uint120(block.timestamp)});
-            IGovernance.Allocation memory allocation =
-                IGovernance.Allocation({voteLQTY: 0, vetoLQTY: 2, atEpoch: uint16(governance.epoch())});
+            IGovernance.UserInitiativeAllocation memory allocation = IGovernance.UserInitiativeAllocation({
+                allocatedLQTY: 2,
+                voteOffset: 0, // governance.epoch()
+                isVeto: true
+            });
             IGovernance.InitiativeState memory initiativeState = IGovernance.InitiativeState({
                 voteLQTY: 1e18,
                 vetoLQTY: 0,

@@ -26,7 +26,7 @@ contract MockInitiative is IInitiative {
         uint16,
         address,
         IGovernance.UserState calldata,
-        IGovernance.Allocation calldata,
+        IGovernance.UserInitiativeAllocation calldata,
         IGovernance.InitiativeState calldata
     ) external virtual {
         address[] memory initiatives = new address[](0);

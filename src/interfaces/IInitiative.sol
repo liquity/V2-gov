@@ -15,14 +15,18 @@ interface IInitiative {
     /// @notice Callback hook that is called by Governance after the LQTY allocation is updated by a user
     /// @param _currentEpoch Epoch at which the LQTY allocation is updated
     /// @param _user Address of the user that updated their LQTY allocation
+    /// @param _allocatedLQTY Total LQTY allocated by user for the initiative
+    /// @param _voteOffset TODO..., it corresponds to y-intercept
+    /// @param _isVeto It’s vetoing the intiative if true,  vouching for it otherwise
     /// @param _userState User state
-    /// @param _allocation Allocation state from user to initiative
     /// @param _initiativeState Initiative state
     function onAfterAllocateLQTY(
         uint16 _currentEpoch,
         address _user,
+        uint88 _allocatedLQTY,
+        uint160 _voteOffset,
+        bool _isVeto,
         IGovernance.UserState calldata _userState,
-        IGovernance.Allocation calldata _allocation,
         IGovernance.InitiativeState calldata _initiativeState
     ) external;
 

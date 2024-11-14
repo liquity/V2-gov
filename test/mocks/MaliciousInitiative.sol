@@ -41,7 +41,7 @@ contract MaliciousInitiative is IInitiative {
         uint16,
         address,
         IGovernance.UserState calldata,
-        IGovernance.Allocation calldata,
+        IGovernance.UserInitiativeAllocation calldata,
         IGovernance.InitiativeState calldata
     ) external view override {
         _performRevertBehaviour(revertBehaviours[FunctionType.ALLOCATE]);
