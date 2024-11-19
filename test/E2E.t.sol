@@ -2,21 +2,14 @@
 pragma solidity ^0.8.24;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {VmSafe} from "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
-import {ILQTY} from "../src/interfaces/ILQTY.sol";
 
 import {BribeInitiative} from "../src/BribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
-import {UserProxy} from "../src/UserProxy.sol";
-
-import {PermitParams} from "../src/utils/Types.sol";
-
-import {MockInitiative} from "./mocks/MockInitiative.sol";
 
 contract E2ETests is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
