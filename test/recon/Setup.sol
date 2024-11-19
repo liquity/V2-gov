@@ -5,6 +5,7 @@ import {BaseSetup} from "@chimera/BaseSetup.sol";
 import {vm} from "@chimera/Hevm.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
+import {deployMockStakingV1} from "../mocks/deployMockStakingV1.sol";
 import {MockERC20Tester} from "../mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "../mocks/MockStakingV1.sol";
 import {Governance} from "src/Governance.sol";
@@ -14,13 +15,13 @@ import {IGovernance} from "src/interfaces/IGovernance.sol";
 
 abstract contract Setup is BaseSetup {
     Governance governance;
+    MockStakingV1 internal stakingV1;
     MockERC20Tester internal lqty;
     MockERC20Tester internal lusd;
     IBribeInitiative internal initiative1;
 
     address internal user = address(this);
     address internal user2 = address(0x537C8f3d3E18dF5517a58B3fB9D9143697996802); // derived using makeAddrAndKey
-    address internal stakingV1;
     address internal userProxy;
     address[] internal users;
     address[] internal deployedInitiatives;
@@ -47,16 +48,17 @@ abstract contract Setup is BaseSetup {
         users.push(user);
         users.push(user2);
 
-        uint256 initialMintAmount = type(uint88).max;
-        lqty = new MockERC20Tester(user, initialMintAmount, "Liquity", "LQTY", 18);
-        lusd = new MockERC20Tester(user, initialMintAmount, "Liquity USD", "LUSD", 18);
-        lqty.mint(user2, initialMintAmount);
+        (stakingV1, lqty, lusd) = deployMockStakingV1();
 
-        stakingV1 = address(new MockStakingV1(address(lqty)));
+        uint256 initialMintAmount = type(uint88).max;
+        lqty.mock_mint(user, initialMintAmount);
+        lqty.mock_mint(user2, initialMintAmount);
+        lusd.mock_mint(user, initialMintAmount);
+
         governance = new Governance(
             address(lqty),
             address(lusd),
-            stakingV1,
+            address(stakingV1),
             address(lusd), // bold
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,

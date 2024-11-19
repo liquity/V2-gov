@@ -1,24 +1,104 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Math} from "openzeppelin/contracts/utils/math/Math.sol";
+import {EnumerableSet} from "openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {ILQTYStaking} from "../../src/interfaces/ILQTYStaking.sol";
 
-contract MockStakingV1 {
-    IERC20 public immutable lqty;
+contract MockStakingV1 is ILQTYStaking, Ownable {
+    using EnumerableSet for EnumerableSet.AddressSet;
 
-    mapping(address => uint256) public stakes;
+    IERC20 internal immutable _lqty;
+    IERC20 internal immutable _lusd;
 
-    constructor(address _lqty) {
-        lqty = IERC20(_lqty);
+    uint256 internal _totalStakes;
+    EnumerableSet.AddressSet internal _stakers;
+    mapping(address staker => uint256) public stakes;
+    mapping(address staker => uint256) internal _pendingLUSDGain;
+    mapping(address staker => uint256) internal _pendingETHGain;
+
+    constructor(IERC20 lqty, IERC20 lusd) Ownable(msg.sender) {
+        _lqty = lqty;
+        _lusd = lusd;
     }
 
-    function stake(uint256 _LQTYamount) external {
-        stakes[msg.sender] += _LQTYamount;
-        lqty.transferFrom(msg.sender, address(this), _LQTYamount);
+    function _resetGains() internal returns (uint256 lusdGain, uint256 ethGain) {
+        lusdGain = _pendingLUSDGain[msg.sender];
+        ethGain = _pendingETHGain[msg.sender];
+
+        _pendingLUSDGain[msg.sender] = 0;
+        _pendingETHGain[msg.sender] = 0;
     }
 
-    function unstake(uint256 _LQTYamount) external {
-        stakes[msg.sender] -= _LQTYamount;
-        lqty.transfer(msg.sender, _LQTYamount);
+    function _payoutGains(uint256 lusdGain, uint256 ethGain) internal {
+        _lusd.transfer(msg.sender, lusdGain);
+        (bool success,) = msg.sender.call{value: ethGain}("");
+        require(success, "LQTYStaking: Failed to send accumulated ETHGain");
+    }
+
+    function stake(uint256 amount) external override {
+        require(amount > 0, "LQTYStaking: Amount must be non-zero");
+        uint256 oldStake = stakes[msg.sender];
+        (uint256 lusdGain, uint256 ethGain) = oldStake > 0 ? _resetGains() : (0, 0);
+
+        stakes[msg.sender] += amount;
+        _totalStakes += amount;
+        _stakers.add(msg.sender);
+
+        _lqty.transferFrom(msg.sender, address(this), amount);
+        if (oldStake > 0) _payoutGains(lusdGain, ethGain);
+    }
+
+    function unstake(uint256 amount) external override {
+        require(stakes[msg.sender] > 0, "LQTYStaking: User must have a non-zero stake");
+        (uint256 lusdGain, uint256 ethGain) = _resetGains();
+
+        if (amount > 0) {
+            uint256 withdrawn = Math.min(amount, stakes[msg.sender]);
+            if ((stakes[msg.sender] -= withdrawn) == 0) _stakers.remove(msg.sender);
+            _totalStakes -= withdrawn;
+
+            _lqty.transfer(msg.sender, withdrawn);
+        }
+
+        _payoutGains(lusdGain, ethGain);
+    }
+
+    function getPendingLUSDGain(address user) external view override returns (uint256) {
+        return _pendingLUSDGain[user];
+    }
+
+    function getPendingETHGain(address user) external view override returns (uint256) {
+        return _pendingETHGain[user];
+    }
+
+    function setAddresses(address, address, address, address, address) external override {}
+    function increaseF_ETH(uint256) external override {}
+    function increaseF_LUSD(uint256) external override {}
+
+    function mock_addLUSDGain(uint256 amount) external onlyOwner {
+        uint256 numStakers = _stakers.length();
+        assert(numStakers == 0 || _totalStakes > 0);
+
+        for (uint256 i = 0; i < numStakers; ++i) {
+            address staker = _stakers.at(i);
+            assert(stakes[staker] > 0);
+            _pendingETHGain[staker] += amount * stakes[staker] / _totalStakes;
+        }
+
+        _lusd.transferFrom(msg.sender, address(this), amount);
+    }
+
+    function mock_addETHGain() external payable onlyOwner {
+        uint256 numStakers = _stakers.length();
+        assert(numStakers == 0 || _totalStakes > 0);
+
+        for (uint256 i = 0; i < numStakers; ++i) {
+            address staker = _stakers.at(i);
+            assert(stakes[staker] > 0);
+            _pendingETHGain[staker] += msg.value * stakes[staker] / _totalStakes;
+        }
     }
 }

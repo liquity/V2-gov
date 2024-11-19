@@ -3,14 +3,13 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {console} from "forge-std/console.sol";
-import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
 import {Governance} from "../src/Governance.sol";
 import {BribeInitiative} from "../src/BribeInitiative.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 
-import {MockStakingV1} from "./mocks/MockStakingV1.sol";
+import {MockERC20Tester} from "./mocks/MockERC20Tester.sol";
 import {MockGovernance} from "./mocks/MockGovernance.sol";
 
 // new epoch:
@@ -33,9 +32,8 @@ import {MockGovernance} from "./mocks/MockGovernance.sol";
 //   veto to veto: set 0 user allocation, do nothing to total allocation
 
 contract BribeInitiativeAllocateTest is Test {
-    MockERC20 private lqty;
-    MockERC20 private lusd;
-    address private stakingV1;
+    MockERC20Tester private lqty;
+    MockERC20Tester private lusd;
     address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
     address private constant user2 = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
@@ -44,13 +42,11 @@ contract BribeInitiativeAllocateTest is Test {
     BribeInitiative private bribeInitiative;
 
     function setUp() public {
-        lqty = deployMockERC20("Liquity", "LQTY", 18);
-        lusd = deployMockERC20("Liquity USD", "LUSD", 18);
+        lqty = new MockERC20Tester("Liquity", "LQTY");
+        lusd = new MockERC20Tester("Liquity USD", "LUSD");
 
-        vm.store(address(lqty), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10000e18)));
-        vm.store(address(lusd), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10000e18)));
-
-        stakingV1 = address(new MockStakingV1(address(lqty)));
+        lqty.mock_mint(lusdHolder, 10000e18);
+        lusd.mock_mint(lusdHolder, 10000e18);
 
         governance = new MockGovernance();
 

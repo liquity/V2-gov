@@ -1,24 +1,23 @@
-// SPDX-License-Identifier: GPL-2.0
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
 
-import {MockERC20} from "forge-std/mocks/MockERC20.sol";
+import {Ownable} from "openzeppelin/contracts/access/Ownable.sol";
+import {ERC20} from "openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract MockERC20Tester is MockERC20 {
-    address owner;
+contract MockERC20Tester is ERC20, Ownable {
+    mapping(address spender => bool) public mock_isWildcardSpender;
 
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-        _;
+    constructor(string memory name, string memory symbol) ERC20(name, symbol) Ownable(msg.sender) {}
+
+    function allowance(address owner, address spender) public view virtual override returns (uint256) {
+        return mock_isWildcardSpender[spender] ? type(uint256).max : super.allowance(owner, spender);
     }
 
-    constructor(address recipient, uint256 mintAmount, string memory name, string memory symbol, uint8 decimals) {
-        super.initialize(name, symbol, decimals);
-        _mint(recipient, mintAmount);
-
-        owner = msg.sender;
+    function mock_setWildcardSpender(address spender, bool allowed) external onlyOwner {
+        mock_isWildcardSpender[spender] = allowed;
     }
 
-    function mint(address to, uint256 amount) public onlyOwner {
-        _mint(to, amount);
+    function mock_mint(address account, uint256 value) external onlyOwner {
+        _mint(account, value);
     }
 }
