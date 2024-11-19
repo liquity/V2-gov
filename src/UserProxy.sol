@@ -37,7 +37,6 @@ contract UserProxy is IUserProxy {
     /// @inheritdoc IUserProxy
     function stake(uint256 _amount, address _lqtyFrom) public onlyStakingV2 {
         lqty.safeTransferFrom(_lqtyFrom, address(this), _amount);
-        lqty.approve(address(stakingV1), _amount);
         stakingV1.stake(_amount);
         emit Stake(_amount, _lqtyFrom);
     }
