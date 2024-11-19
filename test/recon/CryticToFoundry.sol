@@ -16,6 +16,7 @@ contract CryticToFoundry is Test, TargetFunctions, FoundryAsserts {
     }
 
     // forge test --match-test test_optimize_property_sum_of_initatives_matches_total_votes_insolvency_0 -vv
+    // Example broken property due to rounding errors
     function test_optimize_property_sum_of_initatives_matches_total_votes_insolvency_0() public {
         vm.warp(block.timestamp + 574062);
 
