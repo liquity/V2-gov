@@ -88,19 +88,19 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             lqtyAllocationByUserAtEpoch[_user].getItem(_prevLQTYAllocationEpoch);
 
         require(
-            lqtyAllocation.value != 0 && _prevLQTYAllocationEpoch <= _epoch
-                && (lqtyAllocation.next > _epoch || lqtyAllocation.next == 0),
+            _prevLQTYAllocationEpoch <= _epoch && (lqtyAllocation.next > _epoch || lqtyAllocation.next == 0),
             "BribeInitiative: invalid-prev-lqty-allocation-epoch"
         );
         DoubleLinkedList.Item memory totalLQTYAllocation =
             totalLQTYAllocationByEpoch.getItem(_prevTotalLQTYAllocationEpoch);
         require(
-            totalLQTYAllocation.value != 0 && _prevTotalLQTYAllocationEpoch <= _epoch
+            _prevTotalLQTYAllocationEpoch <= _epoch
                 && (totalLQTYAllocation.next > _epoch || totalLQTYAllocation.next == 0),
             "BribeInitiative: invalid-prev-total-lqty-allocation-epoch"
         );
 
         (uint88 totalLQTY, uint120 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
+        require(totalLQTY > 0, "BribeInitiative: invalid-prev-total-lqty");
 
         // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
         uint120 scaledEpochEnd = (
@@ -113,6 +113,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         uint240 totalVotes = governance.lqtyToVotes(totalLQTY, scaledEpochEnd, totalAverageTimestamp);
         if (totalVotes != 0) {
             (uint88 lqty, uint120 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
+            require(lqty > 0, "BribeInitiative: invalid-prev-lqty");
 
             /// @audit Governance Invariant
             assert(averageTimestamp <= scaledEpochEnd);
