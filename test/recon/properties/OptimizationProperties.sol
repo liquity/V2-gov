@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 import {BeforeAfter} from "../BeforeAfter.sol";
 import {Governance} from "src/Governance.sol";
 import {IGovernance} from "src/interfaces/IGovernance.sol";
-import {MockStakingV1} from "test/mocks/MockStakingV1.sol";
 import {vm} from "@chimera/Hevm.sol";
 import {IUserProxy} from "src/interfaces/IUserProxy.sol";
 import {GovernanceProperties} from "./GovernanceProperties.sol";
