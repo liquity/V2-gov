@@ -35,19 +35,37 @@ contract UserProxy is IUserProxy {
     }
 
     /// @inheritdoc IUserProxy
-    function stake(uint256 _amount, address _lqtyFrom) public onlyStakingV2 {
+    function stake(uint256 _amount, address _lqtyFrom, bool _doSendRewards, address _recipient)
+        public
+        onlyStakingV2
+        returns (uint256 lusdAmount, uint256 ethAmount)
+    {
+        uint256 initialLUSDAmount = lusd.balanceOf(address(this));
+        uint256 initialETHAmount = address(this).balance;
+
         lqty.safeTransferFrom(_lqtyFrom, address(this), _amount);
         lqty.approve(address(stakingV1), _amount);
         stakingV1.stake(_amount);
         emit Stake(_amount, _lqtyFrom);
+
+        if (_doSendRewards) {
+            (lusdAmount, ethAmount) = _sendRewards(_recipient, initialLUSDAmount, initialETHAmount);
+        }
     }
 
     /// @inheritdoc IUserProxy
-    function stakeViaPermit(uint256 _amount, address _lqtyFrom, PermitParams calldata _permitParams)
-        public
-        onlyStakingV2
-    {
+    function stakeViaPermit(
+        uint256 _amount,
+        address _lqtyFrom,
+        PermitParams calldata _permitParams,
+        bool _doSendRewards,
+        address _recipient
+    ) public onlyStakingV2 returns (uint256 lusdAmount, uint256 ethAmount) {
         require(_lqtyFrom == _permitParams.owner, "UserProxy: owner-not-sender");
+
+        uint256 initialLUSDAmount = lusd.balanceOf(address(this));
+        uint256 initialETHAmount = address(this).balance;
+
         try IERC20Permit(address(lqty)).permit(
             _permitParams.owner,
             _permitParams.spender,
@@ -57,11 +75,15 @@ contract UserProxy is IUserProxy {
             _permitParams.r,
             _permitParams.s
         ) {} catch {}
-        stake(_amount, _lqtyFrom);
+        stake(_amount, _lqtyFrom, _doSendRewards, _recipient);
+
+        if (_doSendRewards) {
+            (lusdAmount, ethAmount) = _sendRewards(_recipient, initialLUSDAmount, initialETHAmount);
+        }
     }
 
     /// @inheritdoc IUserProxy
-    function unstake(uint256 _amount, address _recipient)
+    function unstake(uint256 _amount, bool _doSendRewards, address _recipient)
         public
         onlyStakingV2
         returns (uint256 lusdAmount, uint256 ethAmount)
@@ -72,23 +94,29 @@ contract UserProxy is IUserProxy {
         stakingV1.unstake(_amount);
 
         uint256 lqtyAmount = lqty.balanceOf(address(this));
-        if (lqtyAmount > 0) lqty.safeTransfer(_recipient, lqtyAmount);
+        if (lqtyAmount > 0) lqty.transfer(_recipient, lqtyAmount);
+
+        emit Unstake(_recipient, _amount, lqtyAmount);
+
+        if (_doSendRewards) {
+            (lusdAmount, ethAmount) = _sendRewards(_recipient, initialLUSDAmount, initialETHAmount);
+        }
+    }
+
+    function _sendRewards(address _recipient, uint256 _initialLUSDAmount, uint256 _initialETHAmount)
+        internal
+        returns (uint256 lusdAmount, uint256 ethAmount)
+    {
         lusdAmount = lusd.balanceOf(address(this));
-        if (lusdAmount > 0) lusd.safeTransfer(_recipient, lusdAmount);
+        if (lusdAmount > 0) lusd.transfer(_recipient, lusdAmount);
         ethAmount = address(this).balance;
         if (ethAmount > 0) {
             (bool success,) = payable(_recipient).call{value: ethAmount}("");
             require(success, "UserProxy: eth-fail");
         }
 
-        emit Unstake(
-            _recipient,
-            _amount,
-            lqtyAmount,
-            lusdAmount - initialLUSDAmount,
-            lusdAmount,
-            ethAmount - initialETHAmount,
-            ethAmount
+        emit SendRewards(
+            _recipient, lusdAmount - _initialLUSDAmount, lusdAmount, ethAmount - _initialETHAmount, ethAmount
         );
     }
 
