@@ -11,7 +11,6 @@ env:
   MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
   FOUNDRY_PROFILE: ci
 
-
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -66,12 +65,6 @@ jobs:
 
       - name: Show the Foundry config
         run: "forge config"
-
-      - name: Generate a fuzz seed that changes weekly to avoid burning through RPC allowance
-        run: >
-          echo "FOUNDRY_FUZZ_SEED=$(
-            echo $(($EPOCHSECONDS - $EPOCHSECONDS % 604800))
-          )" >> $GITHUB_ENV
 
       - name: Run tests
         run: forge test -vvv --gas-report
