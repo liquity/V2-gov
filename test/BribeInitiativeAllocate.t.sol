@@ -44,8 +44,8 @@ contract BribeInitiativeAllocateTest is Test {
         lqty = new MockERC20Tester("Liquity", "LQTY");
         lusd = new MockERC20Tester("Liquity USD", "LUSD");
 
-        lqty.mock_mint(lusdHolder, 10000e18);
-        lusd.mock_mint(lusdHolder, 10000e18);
+        lqty.mint(lusdHolder, 10000e18);
+        lusd.mint(lusdHolder, 10000e18);
 
         governance = new MockGovernance();
 

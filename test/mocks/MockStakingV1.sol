@@ -13,7 +13,7 @@ contract MockStakingV1 is ILQTYStaking, Ownable {
     IERC20 internal immutable _lqty;
     IERC20 internal immutable _lusd;
 
-    uint256 internal _totalStakes;
+    uint256 public totalLQTYStaked;
     EnumerableSet.AddressSet internal _stakers;
     mapping(address staker => uint256) public stakes;
     mapping(address staker => uint256) internal _pendingLUSDGain;
@@ -44,7 +44,7 @@ contract MockStakingV1 is ILQTYStaking, Ownable {
         (uint256 lusdGain, uint256 ethGain) = oldStake > 0 ? _resetGains() : (0, 0);
 
         stakes[msg.sender] += amount;
-        _totalStakes += amount;
+        totalLQTYStaked += amount;
         _stakers.add(msg.sender);
 
         _lqty.transferFrom(msg.sender, address(this), amount);
@@ -58,7 +58,7 @@ contract MockStakingV1 is ILQTYStaking, Ownable {
         if (amount > 0) {
             uint256 withdrawn = Math.min(amount, stakes[msg.sender]);
             if ((stakes[msg.sender] -= withdrawn) == 0) _stakers.remove(msg.sender);
-            _totalStakes -= withdrawn;
+            totalLQTYStaked -= withdrawn;
 
             _lqty.transfer(msg.sender, withdrawn);
         }
@@ -80,12 +80,12 @@ contract MockStakingV1 is ILQTYStaking, Ownable {
 
     function mock_addLUSDGain(uint256 amount) external onlyOwner {
         uint256 numStakers = _stakers.length();
-        assert(numStakers == 0 || _totalStakes > 0);
+        assert(numStakers == 0 || totalLQTYStaked > 0);
 
         for (uint256 i = 0; i < numStakers; ++i) {
             address staker = _stakers.at(i);
             assert(stakes[staker] > 0);
-            _pendingETHGain[staker] += amount * stakes[staker] / _totalStakes;
+            _pendingLUSDGain[staker] += amount * stakes[staker] / totalLQTYStaked;
         }
 
         _lusd.transferFrom(msg.sender, address(this), amount);
@@ -93,12 +93,12 @@ contract MockStakingV1 is ILQTYStaking, Ownable {
 
     function mock_addETHGain() external payable onlyOwner {
         uint256 numStakers = _stakers.length();
-        assert(numStakers == 0 || _totalStakes > 0);
+        assert(numStakers == 0 || totalLQTYStaked > 0);
 
         for (uint256 i = 0; i < numStakers; ++i) {
             address staker = _stakers.at(i);
             assert(stakes[staker] > 0);
-            _pendingETHGain[staker] += msg.value * stakes[staker] / _totalStakes;
+            _pendingETHGain[staker] += msg.value * stakes[staker] / totalLQTYStaked;
         }
     }
 }

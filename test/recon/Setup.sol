@@ -51,9 +51,9 @@ abstract contract Setup is BaseSetup {
         (stakingV1, lqty, lusd) = deployMockStakingV1();
 
         uint256 initialMintAmount = type(uint88).max;
-        lqty.mock_mint(user, initialMintAmount);
-        lqty.mock_mint(user2, initialMintAmount);
-        lusd.mock_mint(user, initialMintAmount);
+        lqty.mint(user, initialMintAmount);
+        lqty.mint(user2, initialMintAmount);
+        lusd.mint(user, initialMintAmount);
 
         governance = new Governance(
             address(lqty),

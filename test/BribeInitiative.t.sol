@@ -44,8 +44,8 @@ contract BribeInitiativeTest is Test {
     function setUp() public {
         (stakingV1, lqty, lusd) = deployMockStakingV1();
 
-        lqty.mock_mint(lusdHolder, 10_000_000e18);
-        lusd.mock_mint(lusdHolder, 10_000_000e18);
+        lqty.mint(lusdHolder, 10_000_000e18);
+        lusd.mint(lusdHolder, 10_000_000e18);
 
         bribeInitiative = new BribeInitiative(
             address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
