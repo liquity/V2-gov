@@ -2546,11 +2546,7 @@ abstract contract GovernanceTest is Test {
 
 contract MockedGovernanceTest is GovernanceTest, MockStakingV1Deployer {
     function setUp() public override {
-        MockERC20Tester mockLQTY;
-        MockERC20Tester mockLUSD;
-        MockStakingV1 mockStakingV1;
-
-        (mockStakingV1, mockLQTY, mockLUSD) = deployMockStakingV1();
+        (MockStakingV1 mockStakingV1, MockERC20Tester mockLQTY, MockERC20Tester mockLUSD) = deployMockStakingV1();
 
         mockLQTY.mint(user, 1_000e18);
         mockLQTY.mint(user2, 1_000e18);
