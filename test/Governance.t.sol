@@ -2188,7 +2188,7 @@ abstract contract GovernanceTest is Test {
 
         _allocateLQTY(user, lqtyAmount);
 
-        uint256 stateBeforeSnapshottingVotes = vm.snapshot();
+        uint256 stateBeforeSnapshottingVotes = vm.snapshotState();
 
         // =========== epoch 3 (start) ==================
         // 3a. warp to start of third epoch
@@ -2210,7 +2210,7 @@ abstract contract GovernanceTest is Test {
 
         // =========== epoch 3 (end) ==================
         // revert EVM to state before snapshotting
-        vm.revertTo(stateBeforeSnapshottingVotes);
+        vm.revertToState(stateBeforeSnapshottingVotes);
 
         // 3b. warp to end of third epoch
         vm.warp(block.timestamp + (EPOCH_DURATION * 2) - 1);
@@ -2251,7 +2251,7 @@ abstract contract GovernanceTest is Test {
         uint88 lqtyAmount = 1e18;
         _stakeLQTY(user, lqtyAmount);
 
-        uint256 stateBeforeAllocation = vm.snapshot();
+        uint256 stateBeforeAllocation = vm.snapshotState();
 
         // =========== epoch 2 (start) ==================
         // 2a. user allocates at start of epoch 2
@@ -2273,7 +2273,7 @@ abstract contract GovernanceTest is Test {
 
         // ===============  epoch 1 ===============
         // revert EVM to state before allocation
-        vm.revertTo(stateBeforeAllocation);
+        vm.revertToState(stateBeforeAllocation);
 
         // ===============  epoch 2 (end - just before cutoff) ===============
         // 2b. user allocates at end of epoch 2
