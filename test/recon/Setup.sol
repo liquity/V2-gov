@@ -5,15 +5,15 @@ import {BaseSetup} from "@chimera/BaseSetup.sol";
 import {vm} from "@chimera/Hevm.sol";
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
-import {deployMockStakingV1} from "../mocks/deployMockStakingV1.sol";
 import {MockERC20Tester} from "../mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "../mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "../mocks/MockStakingV1Deployer.sol";
 import {Governance} from "src/Governance.sol";
 import {BribeInitiative} from "../../src/BribeInitiative.sol";
 import {IBribeInitiative} from "../../src/interfaces/IBribeInitiative.sol";
 import {IGovernance} from "src/interfaces/IGovernance.sol";
 
-abstract contract Setup is BaseSetup {
+abstract contract Setup is BaseSetup, MockStakingV1Deployer {
     Governance governance;
     MockStakingV1 internal stakingV1;
     MockERC20Tester internal lqty;

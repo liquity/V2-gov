@@ -15,12 +15,12 @@ import {UniV4Donations} from "../src/UniV4Donations.sol";
 import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
 import {Hooks} from "../src/utils/BaseHook.sol";
 
-import {deployMockStakingV1} from "../test/mocks/deployMockStakingV1.sol";
 import {MockERC20Tester} from "../test/mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "../test/mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "../test/mocks/MockStakingV1Deployer.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
 
-contract DeploySepoliaScript is Script, Deployers {
+contract DeploySepoliaScript is Script, Deployers, MockStakingV1Deployer {
     // Environment Constants
     MockERC20Tester private lqty;
     MockERC20Tester private bold;

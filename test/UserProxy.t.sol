@@ -4,8 +4,6 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-
 import {ILQTY} from "../src/interfaces/ILQTY.sol";
 import {ILUSD} from "../src/interfaces/ILUSD.sol";
 import {ILQTYStaking} from "../src/interfaces/ILQTYStaking.sol";
@@ -15,12 +13,12 @@ import {UserProxy} from "./../src/UserProxy.sol";
 
 import {PermitParams} from "../src/utils/Types.sol";
 
-import {deployMockStakingV1} from "./mocks/deployMockStakingV1.sol";
 import {MockERC20Tester} from "./mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "./mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
 import "./constants.sol";
 
-abstract contract UserProxyTest is Test {
+abstract contract UserProxyTest is Test, MockStakingV1Deployer {
     ILQTY internal lqty;
     ILUSD internal lusd;
     ILQTYStaking internal stakingV1;

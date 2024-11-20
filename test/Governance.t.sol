@@ -5,10 +5,12 @@ import {Test, console2} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {IERC20Errors} from "openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
+import {ILUSD} from "../src/interfaces/ILUSD.sol";
 import {ILQTY} from "../src/interfaces/ILQTY.sol";
+import {ILQTYStaking} from "../src/interfaces/ILQTYStaking.sol";
 
 import {BribeInitiative} from "../src/BribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
@@ -16,7 +18,11 @@ import {UserProxy} from "../src/UserProxy.sol";
 
 import {PermitParams} from "../src/utils/Types.sol";
 
+import {MockERC20Tester} from "./mocks/MockERC20Tester.sol";
 import {MockInitiative} from "./mocks/MockInitiative.sol";
+import {MockStakingV1} from "./mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
+import "./constants.sol";
 
 contract GovernanceInternal is Governance {
     constructor(
@@ -44,13 +50,14 @@ contract GovernanceInternal is Governance {
     }
 }
 
-contract GovernanceTest is Test {
-    IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
-    IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
-    address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
-    address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
-    address private constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
-    address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
+abstract contract GovernanceTest is Test {
+    ILQTY internal lqty;
+    ILUSD internal lusd;
+    ILQTYStaking internal stakingV1;
+
+    address internal constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
+    address internal constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
+    address internal constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
 
     uint128 private constant REGISTRATION_FEE = 1e18;
     uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
@@ -71,77 +78,41 @@ contract GovernanceTest is Test {
     address private baseInitiative3;
     address private baseInitiative1;
 
-    function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+    function _expectInsufficientAllowance() internal virtual;
+    function _expectInsufficientBalance() internal virtual;
 
-        baseInitiative1 = address(
-            new BribeInitiative(
-                address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 3)),
-                address(lusd),
-                address(lqty)
-            )
+    // When both allowance and balance are insufficient, LQTY fails on insufficient balance, unlike recent OZ ERC20
+    function _expectInsufficientAllowanceAndBalance() internal virtual;
+
+    function setUp() public virtual {
+        IGovernance.Configuration memory config = IGovernance.Configuration({
+            registrationFee: REGISTRATION_FEE,
+            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+            registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+            minClaim: MIN_CLAIM,
+            minAccrual: MIN_ACCRUAL,
+            epochStart: uint32(block.timestamp),
+            epochDuration: EPOCH_DURATION,
+            epochVotingCutoff: EPOCH_VOTING_CUTOFF
+        });
+
+        governance = new Governance(
+            address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), new address[](0)
         );
 
-        baseInitiative2 = address(
-            new BribeInitiative(
-                address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 2)),
-                address(lusd),
-                address(lqty)
-            )
-        );
-
-        baseInitiative3 = address(
-            new BribeInitiative(
-                address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
-                address(lusd),
-                address(lqty)
-            )
-        );
+        baseInitiative1 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
+        baseInitiative2 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
+        baseInitiative3 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
 
         initialInitiatives.push(baseInitiative1);
         initialInitiatives.push(baseInitiative2);
-
-        governance = new Governance(
-            address(lqty),
-            address(lusd),
-            stakingV1,
-            address(lusd),
-            IGovernance.Configuration({
-                registrationFee: REGISTRATION_FEE,
-                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-                minClaim: MIN_CLAIM,
-                minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp),
-                epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
-            }),
-            address(this),
-            initialInitiatives
-        );
+        governance.registerInitialInitiatives(initialInitiatives);
 
         governanceInternal = new GovernanceInternal(
-            address(lqty),
-            address(lusd),
-            stakingV1,
-            address(lusd),
-            IGovernance.Configuration({
-                registrationFee: REGISTRATION_FEE,
-                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-                minClaim: MIN_CLAIM,
-                minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp),
-                epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
-            }),
-            initialInitiatives
+            address(lqty), address(lusd), address(stakingV1), address(lusd), config, initialInitiatives
         );
     }
 
@@ -183,11 +154,11 @@ contract GovernanceTest is Test {
         governance.depositLQTY(0);
 
         // should revert if the `_lqtyAmount` > `lqty.allowance(msg.sender, userProxy)`
-        vm.expectRevert("ERC20: transfer amount exceeds allowance");
+        _expectInsufficientAllowance();
         governance.depositLQTY(1e18);
 
         // should revert if the `_lqtyAmount` > `lqty.balanceOf(msg.sender)`
-        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        _expectInsufficientAllowanceAndBalance();
         governance.depositLQTY(type(uint88).max);
 
         // should not revert if the user doesn't have a UserProxy deployed yet
@@ -284,7 +255,7 @@ contract GovernanceTest is Test {
         permitParams.v = v;
         permitParams.r = r;
 
-        vm.expectRevert("ERC20: transfer amount exceeds allowance");
+        _expectInsufficientAllowance();
         governance.depositLQTYViaPermit(1e18, permitParams);
 
         permitParams.s = s;
@@ -296,7 +267,7 @@ contract GovernanceTest is Test {
 
         vm.startPrank(wallet.addr);
 
-        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        _expectInsufficientAllowanceAndBalance();
         governance.depositLQTYViaPermit(type(uint88).max, permitParams);
 
         // deploy and deposit 1 LQTY
@@ -532,8 +503,8 @@ contract GovernanceTest is Test {
         (uint240 votes,) = governance.votesSnapshot();
         assertEq(votes, 1e18);
 
-        // should revert if the `REGISTRATION_FEE` > `lqty.balanceOf(msg.sender)`
-        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        // should revert if the `REGISTRATION_FEE` > `lusd.balanceOf(msg.sender)`
+        _expectInsufficientAllowanceAndBalance();
         governance.registerInitiative(baseInitiative3);
 
         vm.startPrank(lusdHolder);
@@ -548,8 +519,8 @@ contract GovernanceTest is Test {
         vm.expectRevert("Governance: insufficient-lqty");
         governance.registerInitiative(baseInitiative3);
 
-        // should revert if the `REGISTRATION_FEE` > `lqty.allowance(msg.sender, governance)`
-        vm.expectRevert("ERC20: transfer amount exceeds allowance");
+        // should revert if the `REGISTRATION_FEE` > `lusd.allowance(msg.sender, governance)`
+        _expectInsufficientAllowance();
         governance.depositLQTY(1e18);
 
         lqty.approve(address(userProxy), 1e18);
@@ -1315,7 +1286,7 @@ contract GovernanceTest is Test {
 
         address userProxy = governance.deployUserProxy();
 
-        vm.store(address(lqty), keccak256(abi.encode(user, 0)), bytes32(abi.encode(uint256(_deltaLQTYVotes))));
+        deal(address(lqty), user, _deltaLQTYVotes);
         lqty.approve(address(userProxy), _deltaLQTYVotes);
         governance.depositLQTY(_deltaLQTYVotes);
 
@@ -1339,7 +1310,7 @@ contract GovernanceTest is Test {
 
         address userProxy = governance.deployUserProxy();
 
-        vm.store(address(lqty), keccak256(abi.encode(user, 0)), bytes32(abi.encode(uint256(_deltaLQTYVetos))));
+        deal(address(lqty), user, _deltaLQTYVetos);
         lqty.approve(address(userProxy), _deltaLQTYVetos);
         governance.depositLQTY(_deltaLQTYVetos);
 
@@ -2570,5 +2541,61 @@ contract GovernanceTest is Test {
 
         governance.allocateLQTY(initiativesToDeRegister, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         vm.stopPrank();
+    }
+}
+
+contract MockedGovernanceTest is GovernanceTest, MockStakingV1Deployer {
+    function setUp() public override {
+        MockERC20Tester mockLQTY;
+        MockERC20Tester mockLUSD;
+        MockStakingV1 mockStakingV1;
+
+        (mockStakingV1, mockLQTY, mockLUSD) = deployMockStakingV1();
+
+        mockLQTY.mint(user, 1_000e18);
+        mockLQTY.mint(user2, 1_000e18);
+        mockLUSD.mint(lusdHolder, 20_000e18);
+
+        lqty = mockLQTY;
+        lusd = mockLUSD;
+        stakingV1 = mockStakingV1;
+
+        super.setUp();
+    }
+
+    function _expectInsufficientAllowance() internal override {
+        vm.expectPartialRevert(IERC20Errors.ERC20InsufficientAllowance.selector);
+    }
+
+    function _expectInsufficientBalance() internal override {
+        vm.expectPartialRevert(IERC20Errors.ERC20InsufficientBalance.selector);
+    }
+
+    function _expectInsufficientAllowanceAndBalance() internal override {
+        _expectInsufficientAllowance();
+    }
+}
+
+contract ForkedGovernanceTest is GovernanceTest {
+    function setUp() public override {
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+
+        lqty = ILQTY(MAINNET_LQTY);
+        lusd = ILUSD(MAINNET_LUSD);
+        stakingV1 = ILQTYStaking(MAINNET_LQTY_STAKING);
+
+        super.setUp();
+    }
+
+    function _expectInsufficientAllowance() internal override {
+        vm.expectRevert("ERC20: transfer amount exceeds allowance");
+    }
+
+    function _expectInsufficientBalance() internal override {
+        vm.expectRevert("ERC20: transfer amount exceeds balance");
+    }
+
+    function _expectInsufficientAllowanceAndBalance() internal override {
+        _expectInsufficientBalance();
     }
 }
