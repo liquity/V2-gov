@@ -11,7 +11,7 @@ import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {BribeInitiative} from "../src/BribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 
-contract E2ETests is Test {
+contract ForkedE2ETests is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
     address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
