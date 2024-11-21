@@ -98,7 +98,6 @@ contract E2ETests is Test {
         );
     }
 
-    // forge test --match-test test_initialInitiativesCanBeVotedOnAtStart -vv
     function test_initialInitiativesCanBeVotedOnAtStart() public {
         /// @audit NOTE: In order for this to work, the constructor must set the start time a week behind
         /// This will make the initiatives work on the first epoch
@@ -128,7 +127,7 @@ contract E2ETests is Test {
         // Check that we can vote on the first epoch, right after deployment
         _deposit(100_000_000e18);
 
-        console.log("epoch", governance.epoch());
+        //console.log("epoch", governance.epoch());
         _allocate(baseInitiative1, 100_000_000e18, 0);
     }
 
@@ -148,11 +147,10 @@ contract E2ETests is Test {
 
         vm.warp(block.timestamp + EPOCH_DURATION);
 
-        console.log("epoch", governance.epoch());
+        //console.log("epoch", governance.epoch());
         _allocate(newInitiative, 100_000_000e18, 0);
     }
 
-    // forge test --match-test test_noVetoGriefAtEpochOne -vv
     function test_noVetoGriefAtEpochOne() public {
         /// @audit NOTE: In order for this to work, the constructor must set the start time a week behind
         /// This will make the initiatives work on the first epoch
@@ -170,7 +168,6 @@ contract E2ETests is Test {
         governance.unregisterInitiative(baseInitiative1);
     }
 
-    // forge test --match-test test_deregisterIsSound -vv
     function test_deregisterIsSound() public {
         // Deregistration works as follows:
         // We stop voting
@@ -283,7 +280,6 @@ contract E2ETests is Test {
         assertEq(skipCount, UNREGISTRATION_AFTER_EPOCHS + 1, "Skipped exactly UNREGISTRATION_AFTER_EPOCHS");
     }
 
-    // forge test --match-test test_unregisterWorksCorrectlyEvenAfterXEpochs_andCanBeSavedAtLast -vv
     function test_unregisterWorksCorrectlyEvenAfterXEpochs_andCanBeSavedAtLast(uint8 epochsInFuture) public {
         vm.warp(block.timestamp + epochsInFuture * EPOCH_DURATION);
         vm.startPrank(user);
@@ -334,6 +330,7 @@ contract E2ETests is Test {
         assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         // Allocating to it, saves it
+        _reset(newInitiative2);
         _allocate(newInitiative, 1e18, 0);
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 4
@@ -349,13 +346,7 @@ contract E2ETests is Test {
     }
 
     function _allocate(address initiative, int88 votes, int88 vetos) internal {
-        address[] memory initiativesToDeRegister = new address[](5);
-        initiativesToDeRegister[0] = baseInitiative1;
-        initiativesToDeRegister[1] = baseInitiative2;
-        initiativesToDeRegister[2] = baseInitiative3;
-        initiativesToDeRegister[3] = address(0x123123);
-        initiativesToDeRegister[4] = address(0x1231234);
-
+        address[] memory initiativesToDeRegister;
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
         int88[] memory deltaLQTYVotes = new int88[](1);
@@ -367,14 +358,14 @@ contract E2ETests is Test {
     }
 
     function _allocate(address[] memory initiatives, int88[] memory votes, int88[] memory vetos) internal {
-        address[] memory initiativesToDeRegister = new address[](5);
-        initiativesToDeRegister[0] = baseInitiative1;
-        initiativesToDeRegister[1] = baseInitiative2;
-        initiativesToDeRegister[2] = baseInitiative3;
-        initiativesToDeRegister[3] = address(0x123123);
-        initiativesToDeRegister[4] = address(0x1231234);
-
+        address[] memory initiativesToDeRegister;
         governance.allocateLQTY(initiativesToDeRegister, initiatives, votes, vetos);
+    }
+
+    function _reset(address initiative) internal {
+        address[] memory initiativesToReset = new address[](1);
+        initiativesToReset[0] = initiative;
+        governance.resetAllocations(initiativesToReset, false);
     }
 
     function _getInitiativeStatus(address _initiative) internal returns (uint256) {

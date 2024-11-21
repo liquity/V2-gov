@@ -25,8 +25,15 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     ) public withChecks {
         uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
 
+        address initiative = _getDeployedInitiative(initiativesIndex);
+        address[] memory initiativesToReset;
+        (uint88 currentVote, uint88 currentVeto,) = governance.lqtyAllocatedByUserToInitiative(user, address(initiative));
+        if (currentVote != 0 || currentVeto != 0) {
+            initiativesToReset = new address[](1);
+            initiativesToReset[0] = address(initiative);
+        }
         address[] memory initiatives = new address[](1);
-        initiatives[0] = _getDeployedInitiative(initiativesIndex);
+        initiatives[0] = initiative;
         int88[] memory deltaLQTYVotesArray = new int88[](1);
         deltaLQTYVotesArray[0] = int88(uint88(deltaLQTYVotes % (stakedAmount + 1)));
         int88[] memory deltaLQTYVetosArray = new int88[](1);
@@ -39,7 +46,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
         (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiatives[0]);
 
-        try governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray) {
+        try governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray) {
             t(deltaLQTYVotesArray[0] == 0 || deltaLQTYVetosArray[0] == 0, "One alloc must be zero");
         } catch {
             // t(false, "Clamped allocated should not revert"); // TODO: Consider adding overflow check here
@@ -69,8 +76,15 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     ) public withChecks {
         uint96 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user2)).staked(); // clamp using the user's staked balance
 
+        address initiative = _getDeployedInitiative(initiativesIndex);
+        address[] memory initiativesToReset;
+        (uint88 currentVote, uint88 currentVeto,) = governance.lqtyAllocatedByUserToInitiative(user2, address(initiative));
+        if (currentVote != 0 || currentVeto != 0) {
+            initiativesToReset = new address[](1);
+            initiativesToReset[0] = address(initiative);
+        }
         address[] memory initiatives = new address[](1);
-        initiatives[0] = _getDeployedInitiative(initiativesIndex);
+        initiatives[0] = initiative;
         int88[] memory deltaLQTYVotesArray = new int88[](1);
         deltaLQTYVotesArray[0] = int88(uint88(deltaLQTYVotes % stakedAmount));
         int88[] memory deltaLQTYVetosArray = new int88[](1);
@@ -79,7 +93,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         require(stakedAmount > 0, "0 stake");
 
         vm.prank(user2);
-        governance.allocateLQTY(deployedInitiatives, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray);
     }
 
     function governance_resetAllocations() public {
@@ -94,10 +108,8 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     // TODO: if userState.allocatedLQTY != 0 deposit and withdraw must always revert
 
     // Resetting never fails and always resets
-    function property_resetting_never_reverts() public withChecks {
-        int88[] memory zeroes = new int88[](deployedInitiatives.length);
-
-        try governance.allocateLQTY(deployedInitiatives, deployedInitiatives, zeroes, zeroes) {}
+    function property_resetting_never_reverts(address[] memory initiativesToReset) public withChecks {
+        try governance.resetAllocations(initiativesToReset, true) {}
         catch {
             t(false, "must never revert");
         }

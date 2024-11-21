@@ -587,6 +587,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         // Prepare reset data
         for (uint256 i; i < _initiativesToReset.length; i++) {
             Allocation memory alloc = lqtyAllocatedByUserToInitiative[msg.sender][_initiativesToReset[i]];
+            require(alloc.voteLQTY > 0 || alloc.vetoLQTY > 0, "Governance: nothing to reset");
 
             // Must be below, else we cannot reset"
             // Makes cast safe
@@ -640,12 +641,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         require(_absoluteLQTYVetos.length == _absoluteLQTYVotes.length, "Length");
 
         // To ensure the change is safe, enforce uniqueness
-        _requireNoDuplicates(_initiatives);
         _requireNoDuplicates(_initiativesToReset);
+        _requireNoDuplicates(_initiatives);
 
         // Explicit >= 0 checks for all values since we reset values below
         _requireNoNegatives(_absoluteLQTYVotes);
         _requireNoNegatives(_absoluteLQTYVetos);
+        // If the goal is to remove all votes from an initiative, including in _initiativesToReset is enough
+        _requireNoNOP(_absoluteLQTYVotes, _absoluteLQTYVetos);
 
         // You MUST always reset
         ResetInitiativeData[] memory cachedData = _resetInitiatives(_initiativesToReset);
@@ -708,6 +711,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             address initiative = _initiatives[i];
             int88 deltaLQTYVotes = _deltaLQTYVotes[i];
             int88 deltaLQTYVetos = _deltaLQTYVetos[i];
+            assert(deltaLQTYVotes != 0 || deltaLQTYVetos != 0);
 
             /// === Check FSM === ///
             // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states
@@ -940,5 +944,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         );
 
         return claimableAmount;
+    }
+
+    function _requireNoNOP(int88[] memory _absoluteLQTYVotes, int88[] memory _absoluteLQTYVetos) internal pure {
+        for (uint256 i; i < _absoluteLQTYVotes.length; i++) {
+            require(_absoluteLQTYVotes[i] > 0 || _absoluteLQTYVetos[i] > 0, "Governance: voting nothing");
+        }
     }
 }

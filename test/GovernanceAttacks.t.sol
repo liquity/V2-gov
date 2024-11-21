@@ -12,7 +12,7 @@ import {UserProxy} from "../src/UserProxy.sol";
 
 import {MaliciousInitiative} from "./mocks/MaliciousInitiative.sol";
 
-contract GovernanceTest is Test {
+contract GovernanceAttacksTest is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
     address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
@@ -70,7 +70,6 @@ contract GovernanceTest is Test {
         );
     }
 
-    // forge test --match-test test_all_revert_attacks_hardcoded -vv
     // All calls should never revert due to malicious initiative
     function test_all_revert_attacks_hardcoded() public {
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
@@ -139,7 +138,7 @@ contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
-        vm.startPrank(user);
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](2);
         initiatives[0] = address(maliciousInitiative2);
         initiatives[1] = address(eoaInitiative);
@@ -151,34 +150,35 @@ contract GovernanceTest is Test {
         /// === Allocate LQTY REVERTS === ///
         uint256 allocateSnapshot = vm.snapshot();
 
+        vm.startPrank(user);
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.THROW
         );
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.revertTo(allocateSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.OOG
         );
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.revertTo(allocateSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.RETURN_BOMB
         );
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.revertTo(allocateSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.REVERT_BOMB
         );
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         vm.revertTo(allocateSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.NONE
         );
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
@@ -219,16 +219,15 @@ contract GovernanceTest is Test {
         /// === Unregister Reverts === ///
 
         vm.startPrank(user);
-        initiatives = new address[](3);
-        initiatives[0] = address(maliciousInitiative2);
-        initiatives[1] = address(eoaInitiative);
-        initiatives[2] = address(maliciousInitiative1);
-        deltaVoteLQTY = new int88[](3);
-        deltaVoteLQTY[0] = 0;
-        deltaVoteLQTY[1] = 0;
-        deltaVoteLQTY[2] = 5e17;
-        deltaVetoLQTY = new int88[](3);
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        initiativesToReset = new address[](2);
+        initiativesToReset[0] = address(maliciousInitiative2);
+        initiativesToReset[1] = address(eoaInitiative);
+        initiatives = new address[](1);
+        initiatives[0] = address(maliciousInitiative1);
+        deltaVoteLQTY = new int88[](1);
+        deltaVoteLQTY[0] = 5e17;
+        deltaVetoLQTY = new int88[](1);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
 
         (Governance.VoteSnapshot memory v, Governance.InitiativeVoteSnapshot memory initData) =
             governance.snapshotVotesForInitiative(address(maliciousInitiative2));

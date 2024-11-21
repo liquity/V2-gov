@@ -447,10 +447,13 @@ contract VotingPowerTest is Test {
     }
 
     function _allocate(address initiative, int88 votes, int88 vetos) internal {
-        address[] memory initiativesToReset = new address[](3);
-        initiativesToReset[0] = baseInitiative1;
-        initiativesToReset[1] = baseInitiative2;
-        initiativesToReset[2] = baseInitiative3;
+        address[] memory initiativesToReset;
+        (uint88 currentVote, uint88 currentVeto,) = governance.lqtyAllocatedByUserToInitiative(user, address(initiative));
+        if (currentVote != 0 || currentVeto != 0) {
+            initiativesToReset = new address[](1);
+            initiativesToReset[0] = address(initiative);
+        }
+
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
         int88[] memory deltaLQTYVotes = new int88[](1);
