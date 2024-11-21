@@ -10,6 +10,7 @@ on:
 env:
   MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
   FOUNDRY_PROFILE: ci
+  FORCE_COLOR: true
 
 jobs:
   lint:
