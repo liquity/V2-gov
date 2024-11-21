@@ -100,7 +100,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         );
 
         (uint88 totalLQTY, uint120 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
-        require(totalLQTY > 0, "BribeInitiative: invalid-prev-total-lqty");
+        require(totalLQTY > 0, "BribeInitiative: total-lqty-allocation-zero");
 
         // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
         uint120 scaledEpochEnd = (
@@ -113,7 +113,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         uint240 totalVotes = governance.lqtyToVotes(totalLQTY, scaledEpochEnd, totalAverageTimestamp);
         if (totalVotes != 0) {
             (uint88 lqty, uint120 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
-            require(lqty > 0, "BribeInitiative: invalid-prev-lqty");
+            require(lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
             /// @audit Governance Invariant
             assert(averageTimestamp <= scaledEpochEnd);
