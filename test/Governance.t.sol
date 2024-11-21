@@ -388,7 +388,7 @@ abstract contract GovernanceTest is Test {
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
         vm.store(
             address(governance),
-            bytes32(uint256(2)),
+            bytes32(uint256(3)),
             bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
         );
         (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
@@ -396,7 +396,7 @@ abstract contract GovernanceTest is Test {
         assertEq(forEpoch, 1);
 
         uint256 boldAccrued = 1000e18;
-        vm.store(address(governance), bytes32(uint256(1)), bytes32(abi.encode(boldAccrued)));
+        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encode(boldAccrued)));
         assertEq(governance.boldAccrued(), 1000e18);
 
         assertEq(governance.getLatestVotingThreshold(), MIN_CLAIM / 1000);
@@ -427,7 +427,7 @@ abstract contract GovernanceTest is Test {
         snapshot = IGovernance.VoteSnapshot(10000e18, 1);
         vm.store(
             address(governance),
-            bytes32(uint256(2)),
+            bytes32(uint256(3)),
             bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
         );
         (votes, forEpoch) = governance.votesSnapshot();
@@ -435,7 +435,7 @@ abstract contract GovernanceTest is Test {
         assertEq(forEpoch, 1);
 
         boldAccrued = 1000e18;
-        vm.store(address(governance), bytes32(uint256(1)), bytes32(abi.encode(boldAccrued)));
+        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encode(boldAccrued)));
         assertEq(governance.boldAccrued(), 1000e18);
 
         assertEq(governance.getLatestVotingThreshold(), 10000e18 * 0.04);
@@ -476,14 +476,14 @@ abstract contract GovernanceTest is Test {
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(_votes, _forEpoch);
         vm.store(
             address(governance),
-            bytes32(uint256(2)),
+            bytes32(uint256(3)),
             bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
         );
         (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
         assertEq(votes, _votes);
         assertEq(forEpoch, _forEpoch);
 
-        vm.store(address(governance), bytes32(uint256(1)), bytes32(abi.encode(_boldAccrued)));
+        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encode(_boldAccrued)));
         assertEq(governance.boldAccrued(), _boldAccrued);
 
         governance.getLatestVotingThreshold();
@@ -497,7 +497,7 @@ abstract contract GovernanceTest is Test {
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
         vm.store(
             address(governance),
-            bytes32(uint256(2)),
+            bytes32(uint256(3)),
             bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
         );
         (uint240 votes,) = governance.votesSnapshot();
@@ -552,7 +552,7 @@ abstract contract GovernanceTest is Test {
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
         vm.store(
             address(governance),
-            bytes32(uint256(2)),
+            bytes32(uint256(3)),
             bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
         );
         (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
@@ -594,7 +594,7 @@ abstract contract GovernanceTest is Test {
         snapshot = IGovernance.VoteSnapshot(1e18, governance.epoch() - 1);
         vm.store(
             address(governance),
-            bytes32(uint256(2)),
+            bytes32(uint256(3)),
             bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
         );
         (votes, forEpoch) = governance.votesSnapshot();
@@ -1540,7 +1540,7 @@ abstract contract GovernanceTest is Test {
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
         vm.store(
             address(governance),
-            bytes32(uint256(2)),
+            bytes32(uint256(3)),
             bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
         );
         (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
@@ -1575,7 +1575,7 @@ abstract contract GovernanceTest is Test {
         snapshot = IGovernance.VoteSnapshot(1, governance.epoch() - 1);
         vm.store(
             address(governance),
-            bytes32(uint256(2)),
+            bytes32(uint256(3)),
             bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
         );
         (votes, forEpoch) = governance.votesSnapshot();
@@ -1586,7 +1586,7 @@ abstract contract GovernanceTest is Test {
             IGovernance.InitiativeVoteSnapshot(1, governance.epoch() - 1, governance.epoch() - 1, 0);
         vm.store(
             address(governance),
-            keccak256(abi.encode(address(mockInitiative), uint256(3))),
+            keccak256(abi.encode(address(mockInitiative), uint256(4))),
             bytes32(
                 abi.encodePacked(
                     uint16(initiativeSnapshot.lastCountedEpoch),
@@ -1608,7 +1608,7 @@ abstract contract GovernanceTest is Test {
         initiativeSnapshot = IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0, 0);
         vm.store(
             address(governance),
-            keccak256(abi.encode(address(mockInitiative), uint256(3))),
+            keccak256(abi.encode(address(mockInitiative), uint256(4))),
             bytes32(
                 abi.encodePacked(
                     uint16(initiativeSnapshot.lastCountedEpoch),

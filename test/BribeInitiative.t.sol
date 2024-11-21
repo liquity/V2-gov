@@ -699,7 +699,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         lqty.approve(address(bribeInitiative), 1e18);
         lusd.approve(address(bribeInitiative), 1e18);
 
-        vm.expectRevert("BribeInitiative: only-future-epochs");
+        vm.expectRevert("BribeInitiative: now-or-future-epochs");
         bribeInitiative.depositBribe(1e18, 1e18, uint16(0));
 
         vm.stopPrank();
