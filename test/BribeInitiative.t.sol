@@ -570,7 +570,7 @@ contract BribeInitiativeTest is Test {
         // user2 should receive no bribes if they try to claim
         claimEpoch = governance.epoch() - 1; // claim for epoch 3
         prevAllocationEpoch = governance.epoch() - 1; // epoch 3
-        (boldAmount, bribeTokenAmount) = _claimBribe(user2, claimEpoch, prevAllocationEpoch, prevAllocationEpoch);
+        (boldAmount, bribeTokenAmount) = _claimBribe(user2, claimEpoch, prevAllocationEpoch, prevAllocationEpoch, true);
         assertEq(boldAmount, 0, "vetoer receives bold bribe amount");
         assertEq(bribeTokenAmount, 0, "vetoer receives bribe amount");
     }
@@ -857,7 +857,7 @@ contract BribeInitiativeTest is Test {
         epochs[0].epoch = governance.epoch() - 1;
         epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 2;
         epochs[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 2;
-        vm.expectRevert("BribeInitiative: invalid-prev-total-lqty-allocation-epoch");
+        vm.expectRevert("BribeInitiative: total-lqty-allocation-zero");
         (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
         vm.stopPrank();
 
