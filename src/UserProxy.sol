@@ -3,15 +3,12 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 import {IERC20Permit} from "openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import {SafeERC20} from "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IUserProxy} from "./interfaces/IUserProxy.sol";
 import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {PermitParams} from "./utils/Types.sol";
 
 contract UserProxy is IUserProxy {
-    using SafeERC20 for IERC20;
-
     /// @inheritdoc IUserProxy
     IERC20 public immutable lqty;
     /// @inheritdoc IUserProxy
@@ -43,7 +40,7 @@ contract UserProxy is IUserProxy {
         uint256 initialLUSDAmount = lusd.balanceOf(address(this));
         uint256 initialETHAmount = address(this).balance;
 
-        lqty.safeTransferFrom(_lqtyFrom, address(this), _amount);
+        lqty.transferFrom(_lqtyFrom, address(this), _amount);
         lqty.approve(address(stakingV1), _amount);
         stakingV1.stake(_amount);
         emit Stake(_amount, _lqtyFrom);
@@ -88,6 +85,7 @@ contract UserProxy is IUserProxy {
         onlyStakingV2
         returns (uint256 lusdAmount, uint256 ethAmount)
     {
+        uint256 initialLQTYAmount = lqty.balanceOf(address(this));
         uint256 initialLUSDAmount = lusd.balanceOf(address(this));
         uint256 initialETHAmount = address(this).balance;
 
@@ -96,7 +94,7 @@ contract UserProxy is IUserProxy {
         uint256 lqtyAmount = lqty.balanceOf(address(this));
         if (lqtyAmount > 0) lqty.transfer(_recipient, lqtyAmount);
 
-        emit Unstake(_recipient, _amount, lqtyAmount);
+        emit Unstake(_recipient, lqtyAmount - initialLQTYAmount, lqtyAmount);
 
         if (_doSendRewards) {
             (lusdAmount, ethAmount) = _sendRewards(_recipient, initialLUSDAmount, initialETHAmount);

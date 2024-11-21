@@ -9,7 +9,7 @@ import {PermitParams} from "../utils/Types.sol";
 
 interface IUserProxy {
     event Stake(uint256 amount, address lqtyFrom);
-    event Unstake(address indexed lqtyRecipient, uint256 lqtyUnstaked, uint256 lqtySent);
+    event Unstake(address indexed lqtyRecipient, uint256 lqtyReceived, uint256 lqtySent);
     event SendRewards(
         address indexed recipient,
         uint256 lusdAmountReceived,
