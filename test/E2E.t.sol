@@ -40,55 +40,33 @@ contract E2ETests is Test {
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
 
-        baseInitiative1 = address(
-            new BribeInitiative(
-                address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 3)),
-                address(lusd),
-                address(lqty)
-            )
+        IGovernance.Configuration memory config = IGovernance.Configuration({
+            registrationFee: REGISTRATION_FEE,
+            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+            registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+            minClaim: MIN_CLAIM,
+            minAccrual: MIN_ACCRUAL,
+            epochStart: uint32(block.timestamp - EPOCH_DURATION),
+            /// @audit KEY
+            epochDuration: EPOCH_DURATION,
+            epochVotingCutoff: EPOCH_VOTING_CUTOFF
+        });
+
+        governance = new Governance(
+            address(lqty), address(lusd), stakingV1, address(lusd), config, address(this), new address[](0)
         );
 
-        baseInitiative2 = address(
-            new BribeInitiative(
-                address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 2)),
-                address(lusd),
-                address(lqty)
-            )
-        );
-
-        baseInitiative3 = address(
-            new BribeInitiative(
-                address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
-                address(lusd),
-                address(lqty)
-            )
-        );
+        baseInitiative1 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
+        baseInitiative2 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
+        baseInitiative3 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
 
         initialInitiatives.push(baseInitiative1);
         initialInitiatives.push(baseInitiative2);
 
-        governance = new Governance(
-            address(lqty),
-            address(lusd),
-            stakingV1,
-            address(lusd),
-            IGovernance.Configuration({
-                registrationFee: REGISTRATION_FEE,
-                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-                minClaim: MIN_CLAIM,
-                minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp - EPOCH_DURATION),
-                /// @audit KEY
-                epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
-            }),
-            address(this),
-            initialInitiatives
-        );
+        governance.registerInitialInitiatives(initialInitiatives);
     }
 
     // forge test --match-test test_initialInitiativesCanBeVotedOnAtStart -vv

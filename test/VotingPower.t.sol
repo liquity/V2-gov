@@ -60,7 +60,7 @@ abstract contract VotingPowerTest is Test {
         });
 
         governance = new Governance(
-            address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), initialInitiatives
+            address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), new address[](0)
         );
 
         baseInitiative1 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));

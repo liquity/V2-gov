@@ -47,35 +47,27 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         lqty.mint(lusdHolder, 10_000_000e18);
         lusd.mint(lusdHolder, 10_000_000e18);
 
-        bribeInitiative = new BribeInitiative(
-            address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
-            address(lusd),
-            address(lqty)
-        );
-
-        initialInitiatives.push(address(bribeInitiative));
+        IGovernance.Configuration memory config = IGovernance.Configuration({
+            registrationFee: REGISTRATION_FEE,
+            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+            registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+            minClaim: MIN_CLAIM,
+            minAccrual: MIN_ACCRUAL,
+            epochStart: uint32(block.timestamp),
+            epochDuration: EPOCH_DURATION,
+            epochVotingCutoff: EPOCH_VOTING_CUTOFF
+        });
 
         governance = new Governance(
-            address(lqty),
-            address(lusd),
-            address(stakingV1),
-            address(lusd),
-            IGovernance.Configuration({
-                registrationFee: REGISTRATION_FEE,
-                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-                minClaim: MIN_CLAIM,
-                minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp),
-                epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
-            }),
-            address(this),
-            initialInitiatives
+            address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), new address[](0)
         );
+
+        bribeInitiative = new BribeInitiative(address(governance), address(lusd), address(lqty));
+        initialInitiatives.push(address(bribeInitiative));
+        governance.registerInitialInitiatives(initialInitiatives);
 
         vm.startPrank(lusdHolder);
         lqty.transfer(user1, 1_000_000e18);
