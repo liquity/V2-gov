@@ -11,7 +11,7 @@ interface IUserProxy {
     event Stake(uint256 amount, address lqtyFrom);
     event Unstake(
         address indexed lqtyRecipient,
-        uint256 lqtyUnstaked,
+        uint256 lqtyReceived,
         uint256 lqtySent,
         uint256 lusdAmountReceived,
         uint256 lusdAmountSent,

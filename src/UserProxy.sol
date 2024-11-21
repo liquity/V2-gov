@@ -66,6 +66,7 @@ contract UserProxy is IUserProxy {
         onlyStakingV2
         returns (uint256 lusdAmount, uint256 ethAmount)
     {
+        uint256 initialLQTYAmount = lqty.balanceOf(address(this));
         uint256 initialLUSDAmount = lusd.balanceOf(address(this));
         uint256 initialETHAmount = address(this).balance;
 
@@ -83,7 +84,7 @@ contract UserProxy is IUserProxy {
 
         emit Unstake(
             _recipient,
-            _amount,
+            lqtyAmount - initialLQTYAmount,
             lqtyAmount,
             lusdAmount - initialLUSDAmount,
             lusdAmount,
