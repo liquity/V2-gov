@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {ILQTYStaking} from "../interfaces/ILQTYStaking.sol";
 
@@ -9,7 +9,15 @@ import {PermitParams} from "../utils/Types.sol";
 
 interface IUserProxy {
     event Stake(uint256 amount, address lqtyFrom);
-    event Unstake(uint256 lqtyUnstaked, address indexed lqtyRecipient, uint256 lusdAmount, uint256 ethAmount);
+    event Unstake(
+        address indexed lqtyRecipient,
+        uint256 lqtyReceived,
+        uint256 lqtySent,
+        uint256 lusdAmountReceived,
+        uint256 lusdAmountSent,
+        uint256 ethAmountReceived,
+        uint256 ethAmountSent
+    );
 
     /// @notice Address of the LQTY token
     /// @return lqty Address of the LQTY token

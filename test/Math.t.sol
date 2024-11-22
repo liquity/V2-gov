@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 
 import {add, abs} from "src/utils/Math.sol";
-import {console} from "forge-std/console.sol";
 
 contract AddComparer {
     function libraryAdd(uint88 a, int88 b) public pure returns (uint88) {

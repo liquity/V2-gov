@@ -3,22 +3,28 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
+import {ILUSD} from "../src/interfaces/ILUSD.sol";
+import {ILQTY} from "../src/interfaces/ILQTY.sol";
+import {ILQTYStaking} from "../src/interfaces/ILQTYStaking.sol";
 
 import {Governance} from "../src/Governance.sol";
 import {UserProxy} from "../src/UserProxy.sol";
 
 import {MaliciousInitiative} from "./mocks/MaliciousInitiative.sol";
+import {MockERC20Tester} from "./mocks/MockERC20Tester.sol";
+import {MockStakingV1} from "./mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
+import "./constants.sol";
 
-contract GovernanceTest is Test {
-    IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
-    IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
-    address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
-    address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
-    address private constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
-    address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
+abstract contract GovernanceAttacksTest is Test {
+    ILQTY internal lqty;
+    ILUSD internal lusd;
+    ILQTYStaking internal stakingV1;
+
+    address internal constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
+    address internal constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
+    address internal constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
 
     uint128 private constant REGISTRATION_FEE = 1e18;
     uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
@@ -38,34 +44,29 @@ contract GovernanceTest is Test {
     MaliciousInitiative private maliciousInitiative2;
     MaliciousInitiative private eoaInitiative;
 
-    function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
-
+    function setUp() public virtual {
         maliciousInitiative1 = new MaliciousInitiative();
         maliciousInitiative2 = new MaliciousInitiative();
         eoaInitiative = MaliciousInitiative(address(0x123123123123));
 
         initialInitiatives.push(address(maliciousInitiative1));
 
+        IGovernance.Configuration memory config = IGovernance.Configuration({
+            registrationFee: REGISTRATION_FEE,
+            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+            registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+            minClaim: MIN_CLAIM,
+            minAccrual: MIN_ACCRUAL,
+            epochStart: uint32(block.timestamp),
+            epochDuration: EPOCH_DURATION,
+            epochVotingCutoff: EPOCH_VOTING_CUTOFF
+        });
+
         governance = new Governance(
-            address(lqty),
-            address(lusd),
-            stakingV1,
-            address(lusd),
-            IGovernance.Configuration({
-                registrationFee: REGISTRATION_FEE,
-                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-                minClaim: MIN_CLAIM,
-                minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp),
-                epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
-            }),
-            initialInitiatives
+            address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), initialInitiatives
         );
     }
 
@@ -83,10 +84,10 @@ contract GovernanceTest is Test {
         // deploy and deposit 1 LQTY
         governance.depositLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
-        (uint88 allocatedLQTY, uint32 averageStakingTimestamp) = governance.userStates(user);
+        (uint88 allocatedLQTY, uint120 averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         // first deposit should have an averageStakingTimestamp if block.timestamp
-        assertEq(averageStakingTimestamp, block.timestamp);
+        assertEq(averageStakingTimestamp, block.timestamp * 1e26); // TODO: Normalize
         vm.stopPrank();
 
         vm.startPrank(lusdHolder);
@@ -99,31 +100,31 @@ contract GovernanceTest is Test {
         lusd.approve(address(governance), type(uint256).max);
 
         /// === REGISTRATION REVERTS === ///
-        uint256 registerNapshot = vm.snapshot();
+        uint256 registerNapshot = vm.snapshotState();
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.THROW
         );
         governance.registerInitiative(address(maliciousInitiative2));
-        vm.revertTo(registerNapshot);
+        vm.revertToState(registerNapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.OOG
         );
         governance.registerInitiative(address(maliciousInitiative2));
-        vm.revertTo(registerNapshot);
+        vm.revertToState(registerNapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.RETURN_BOMB
         );
         governance.registerInitiative(address(maliciousInitiative2));
-        vm.revertTo(registerNapshot);
+        vm.revertToState(registerNapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.REGISTER, MaliciousInitiative.RevertType.REVERT_BOMB
         );
         governance.registerInitiative(address(maliciousInitiative2));
-        vm.revertTo(registerNapshot);
+        vm.revertToState(registerNapshot);
 
         // Reset and continue
         maliciousInitiative2.setRevertBehaviour(
@@ -148,31 +149,31 @@ contract GovernanceTest is Test {
         int88[] memory deltaVetoLQTY = new int88[](2);
 
         /// === Allocate LQTY REVERTS === ///
-        uint256 allocateSnapshot = vm.snapshot();
+        uint256 allocateSnapshot = vm.snapshotState();
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.THROW
         );
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        vm.revertTo(allocateSnapshot);
+        vm.revertToState(allocateSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.OOG
         );
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        vm.revertTo(allocateSnapshot);
+        vm.revertToState(allocateSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.RETURN_BOMB
         );
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        vm.revertTo(allocateSnapshot);
+        vm.revertToState(allocateSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.REVERT_BOMB
         );
         governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        vm.revertTo(allocateSnapshot);
+        vm.revertToState(allocateSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.ALLOCATE, MaliciousInitiative.RevertType.NONE
@@ -182,31 +183,31 @@ contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
         /// === Claim for initiative REVERTS === ///
-        uint256 claimShapsnot = vm.snapshot();
+        uint256 claimShapsnot = vm.snapshotState();
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.THROW
         );
         governance.claimForInitiative(address(maliciousInitiative2));
-        vm.revertTo(claimShapsnot);
+        vm.revertToState(claimShapsnot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.OOG
         );
         governance.claimForInitiative(address(maliciousInitiative2));
-        vm.revertTo(claimShapsnot);
+        vm.revertToState(claimShapsnot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.RETURN_BOMB
         );
         governance.claimForInitiative(address(maliciousInitiative2));
-        vm.revertTo(claimShapsnot);
+        vm.revertToState(claimShapsnot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.REVERT_BOMB
         );
         governance.claimForInitiative(address(maliciousInitiative2));
-        vm.revertTo(claimShapsnot);
+        vm.revertToState(claimShapsnot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.CLAIM, MaliciousInitiative.RevertType.NONE
@@ -239,31 +240,31 @@ contract GovernanceTest is Test {
 
         /// @audit needs 5?
         (v, initData) = governance.snapshotVotesForInitiative(address(maliciousInitiative2));
-        uint256 unregisterSnapshot = vm.snapshot();
+        uint256 unregisterSnapshot = vm.snapshotState();
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.THROW
         );
         governance.unregisterInitiative(address(maliciousInitiative2));
-        vm.revertTo(unregisterSnapshot);
+        vm.revertToState(unregisterSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.OOG
         );
         governance.unregisterInitiative(address(maliciousInitiative2));
-        vm.revertTo(unregisterSnapshot);
+        vm.revertToState(unregisterSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.RETURN_BOMB
         );
         governance.unregisterInitiative(address(maliciousInitiative2));
-        vm.revertTo(unregisterSnapshot);
+        vm.revertToState(unregisterSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.REVERT_BOMB
         );
         governance.unregisterInitiative(address(maliciousInitiative2));
-        vm.revertTo(unregisterSnapshot);
+        vm.revertToState(unregisterSnapshot);
 
         maliciousInitiative2.setRevertBehaviour(
             MaliciousInitiative.FunctionType.UNREGISTER, MaliciousInitiative.RevertType.NONE
@@ -271,5 +272,32 @@ contract GovernanceTest is Test {
         governance.unregisterInitiative(address(maliciousInitiative2));
 
         governance.unregisterInitiative(address(eoaInitiative));
+    }
+}
+
+contract MockedGovernanceAttacksTest is GovernanceAttacksTest, MockStakingV1Deployer {
+    function setUp() public override {
+        (MockStakingV1 mockStakingV1, MockERC20Tester mockLQTY, MockERC20Tester mockLUSD) = deployMockStakingV1();
+
+        mockLQTY.mint(user, 1e18);
+        mockLUSD.mint(lusdHolder, 10_000e18);
+
+        lqty = mockLQTY;
+        lusd = mockLUSD;
+        stakingV1 = mockStakingV1;
+
+        super.setUp();
+    }
+}
+
+contract ForkedGovernanceAttacksTest is GovernanceAttacksTest {
+    function setUp() public override {
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+
+        lqty = ILQTY(MAINNET_LQTY);
+        lusd = ILUSD(MAINNET_LUSD);
+        stakingV1 = ILQTYStaking(MAINNET_LQTY_STAKING);
+
+        super.setUp();
     }
 }

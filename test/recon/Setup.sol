@@ -7,31 +7,27 @@ import {IERC20} from "forge-std/interfaces/IERC20.sol";
 
 import {MockERC20Tester} from "../mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "../mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "../mocks/MockStakingV1Deployer.sol";
 import {Governance} from "src/Governance.sol";
 import {BribeInitiative} from "../../src/BribeInitiative.sol";
 import {IBribeInitiative} from "../../src/interfaces/IBribeInitiative.sol";
 import {IGovernance} from "src/interfaces/IGovernance.sol";
 
-abstract contract Setup is BaseSetup {
+abstract contract Setup is BaseSetup, MockStakingV1Deployer {
     Governance governance;
+    MockStakingV1 internal stakingV1;
     MockERC20Tester internal lqty;
     MockERC20Tester internal lusd;
     IBribeInitiative internal initiative1;
 
     address internal user = address(this);
     address internal user2 = address(0x537C8f3d3E18dF5517a58B3fB9D9143697996802); // derived using makeAddrAndKey
-    address internal stakingV1;
     address internal userProxy;
-    address[] internal users = new address[](2);
+    address[] internal users;
     address[] internal deployedInitiatives;
     uint256 internal user2Pk = 23868421370328131711506074113045611601786642648093516849953535378706721142721; // derived using makeAddrAndKey
     bool internal claimedTwice;
     bool internal unableToClaim;
-
-    mapping(uint16 => uint88) internal ghostTotalAllocationAtEpoch;
-    mapping(address => uint88) internal ghostLqtyAllocationByUserAtEpoch;
-    // initiative => epoch => bribe
-    mapping(address => mapping(uint16 => IBribeInitiative.Bribe)) internal ghostBribeByEpoch;
 
     uint128 internal constant REGISTRATION_FEE = 1e18;
     uint128 internal constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
@@ -44,22 +40,25 @@ abstract contract Setup is BaseSetup {
     uint32 internal constant EPOCH_DURATION = 604800;
     uint32 internal constant EPOCH_VOTING_CUTOFF = 518400;
 
+    uint120 magnifiedStartTS;
+
     function setup() internal virtual override {
         vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back after the constructor
         // Random TS that is realistic
         users.push(user);
         users.push(user2);
 
-        uint256 initialMintAmount = type(uint88).max;
-        lqty = new MockERC20Tester(user, initialMintAmount, "Liquity", "LQTY", 18);
-        lusd = new MockERC20Tester(user, initialMintAmount, "Liquity USD", "LUSD", 18);
-        lqty.mint(user2, initialMintAmount);
+        (stakingV1, lqty, lusd) = deployMockStakingV1();
 
-        stakingV1 = address(new MockStakingV1(address(lqty)));
+        uint256 initialMintAmount = type(uint88).max;
+        lqty.mint(user, initialMintAmount);
+        lqty.mint(user2, initialMintAmount);
+        lusd.mint(user, initialMintAmount);
+
         governance = new Governance(
             address(lqty),
             address(lusd),
-            stakingV1,
+            address(stakingV1),
             address(lusd), // bold
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
@@ -75,6 +74,7 @@ abstract contract Setup is BaseSetup {
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
+            address(this),
             deployedInitiatives // no initial initiatives passed in because don't have cheatcodes for calculating address where gov will be deployed
         );
 
@@ -92,6 +92,8 @@ abstract contract Setup is BaseSetup {
         deployedInitiatives.push(address(initiative1));
 
         governance.registerInitiative(address(initiative1));
+
+        magnifiedStartTS = uint120(block.timestamp) * uint120(1e18);
     }
 
     function _getDeployedInitiative(uint8 index) internal view returns (address initiative) {
