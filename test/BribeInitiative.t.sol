@@ -2,7 +2,6 @@
 pragma solidity ^0.8.24;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {IBribeInitiative} from "../src/interfaces/IBribeInitiative.sol";
@@ -10,12 +9,14 @@ import {IBribeInitiative} from "../src/interfaces/IBribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 import {BribeInitiative} from "../src/BribeInitiative.sol";
 
+import {MockERC20Tester} from "./mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "./mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
 
-contract BribeInitiativeTest is Test {
-    MockERC20 private lqty;
-    MockERC20 private lusd;
-    address private stakingV1;
+contract BribeInitiativeTest is Test, MockStakingV1Deployer {
+    MockERC20Tester private lqty;
+    MockERC20Tester private lusd;
+    MockStakingV1 private stakingV1;
     address private constant user1 = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
     address private constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
     address private user3 = makeAddr("user3");
@@ -41,45 +42,32 @@ contract BribeInitiativeTest is Test {
     BribeInitiative private bribeInitiative;
 
     function setUp() public {
-        lqty = deployMockERC20("Liquity", "LQTY", 18);
-        lusd = deployMockERC20("Liquity USD", "LUSD", 18);
+        (stakingV1, lqty, lusd) = deployMockStakingV1();
 
-        vm.store(address(lqty), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
-        vm.store(address(lusd), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
-        vm.store(address(lqty), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
-        vm.store(address(lusd), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
+        lqty.mint(lusdHolder, 10_000_000e18);
+        lusd.mint(lusdHolder, 10_000_000e18);
 
-        stakingV1 = address(new MockStakingV1(address(lqty)));
-
-        bribeInitiative = new BribeInitiative(
-            address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
-            address(lusd),
-            address(lqty)
-        );
-
-        initialInitiatives.push(address(bribeInitiative));
+        IGovernance.Configuration memory config = IGovernance.Configuration({
+            registrationFee: REGISTRATION_FEE,
+            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+            registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+            minClaim: MIN_CLAIM,
+            minAccrual: MIN_ACCRUAL,
+            epochStart: uint32(block.timestamp),
+            epochDuration: EPOCH_DURATION,
+            epochVotingCutoff: EPOCH_VOTING_CUTOFF
+        });
 
         governance = new Governance(
-            address(lqty),
-            address(lusd),
-            stakingV1,
-            address(lusd),
-            IGovernance.Configuration({
-                registrationFee: REGISTRATION_FEE,
-                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-                minClaim: MIN_CLAIM,
-                minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp),
-                epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
-            }),
-            address(this),
-            initialInitiatives
+            address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), new address[](0)
         );
+
+        bribeInitiative = new BribeInitiative(address(governance), address(lusd), address(lqty));
+        initialInitiatives.push(address(bribeInitiative));
+        governance.registerInitialInitiatives(initialInitiatives);
 
         vm.startPrank(lusdHolder);
         lqty.transfer(user1, 1_000_000e18);
@@ -703,7 +691,7 @@ contract BribeInitiativeTest is Test {
         lqty.approve(address(bribeInitiative), 1e18);
         lusd.approve(address(bribeInitiative), 1e18);
 
-        vm.expectRevert("BribeInitiative: only-future-epochs");
+        vm.expectRevert("BribeInitiative: now-or-future-epochs");
         bribeInitiative.depositBribe(1e18, 1e18, uint16(0));
 
         vm.stopPrank();

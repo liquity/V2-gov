@@ -41,7 +41,6 @@ contract UserProxy is IUserProxy {
         uint256 initialETHAmount = address(this).balance;
 
         lqty.transferFrom(_lqtyFrom, address(this), _amount);
-        lqty.approve(address(stakingV1), _amount);
         stakingV1.stake(_amount);
         emit Stake(_amount, _lqtyFrom);
 
