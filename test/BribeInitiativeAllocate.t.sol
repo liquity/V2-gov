@@ -276,6 +276,7 @@ contract BribeInitiativeAllocateTest is Test {
         claimData[0].epoch = 2;
         claimData[0].prevLQTYAllocationEpoch = 2;
         claimData[0].prevTotalLQTYAllocationEpoch = 2;
+        vm.expectRevert("BribeInitiative: total-lqty-allocation-zero");
         (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(claimData);
         assertEq(boldAmount, 0, "boldAmount nonzero");
         assertEq(bribeTokenAmount, 0, "bribeTokenAmount nonzero");
@@ -702,6 +703,7 @@ contract BribeInitiativeAllocateTest is Test {
         claimData[0].epoch = 1;
         claimData[0].prevLQTYAllocationEpoch = 1;
         claimData[0].prevTotalLQTYAllocationEpoch = 1;
+        vm.expectRevert("BribeInitiative: lqty-allocation-zero");
         (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(claimData);
         assertEq(boldAmount, 0);
         assertEq(bribeTokenAmount, 0);
