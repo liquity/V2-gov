@@ -27,7 +27,8 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
         address initiative = _getDeployedInitiative(initiativesIndex);
         address[] memory initiativesToReset;
-        (uint88 currentVote, uint88 currentVeto,) = governance.lqtyAllocatedByUserToInitiative(user, address(initiative));
+        (uint88 currentVote, uint88 currentVeto,) =
+            governance.lqtyAllocatedByUserToInitiative(user, address(initiative));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
             initiativesToReset[0] = address(initiative);
@@ -78,7 +79,8 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
         address initiative = _getDeployedInitiative(initiativesIndex);
         address[] memory initiativesToReset;
-        (uint88 currentVote, uint88 currentVeto,) = governance.lqtyAllocatedByUserToInitiative(user2, address(initiative));
+        (uint88 currentVote, uint88 currentVeto,) =
+            governance.lqtyAllocatedByUserToInitiative(user2, address(initiative));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
             initiativesToReset[0] = address(initiative);

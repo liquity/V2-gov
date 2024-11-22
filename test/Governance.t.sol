@@ -1513,16 +1513,18 @@ abstract contract GovernanceTest is Test {
         data[0] = abi.encodeWithSignature("deployUserProxy()");
         data[1] = abi.encodeWithSignature("depositLQTY(uint88)", lqtyAmount);
         data[2] = abi.encodeWithSignature(
-            "allocateLQTY(address[],address[],int88[],int88[])", initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY
+            "allocateLQTY(address[],address[],int88[],int88[])",
+            initiativesToReset,
+            initiatives,
+            deltaVoteLQTY,
+            deltaVetoLQTY
         );
         data[3] = abi.encodeWithSignature("userStates(address)", user);
         data[4] = abi.encodeWithSignature("snapshotVotesForInitiative(address)", baseInitiative1);
         data[5] = abi.encodeWithSignature(
             "allocateLQTY(address[],address[],int88[],int88[])", initiatives, initiatives, deltaVoteLQTY_, deltaVetoLQTY
         );
-        data[6] = abi.encodeWithSignature(
-            "resetAllocations(address[],bool)", initiatives, true
-        );
+        data[6] = abi.encodeWithSignature("resetAllocations(address[],bool)", initiatives, true);
         data[7] = abi.encodeWithSignature("withdrawLQTY(uint88)", lqtyAmount);
         bytes[] memory response = governance.multicall(data);
 
@@ -2488,7 +2490,8 @@ abstract contract GovernanceTest is Test {
         vm.startPrank(allocator);
 
         address[] memory initiativesToReset;
-        (uint88 currentVote, uint88 currentVeto,) = governance.lqtyAllocatedByUserToInitiative(allocator, address(baseInitiative1));
+        (uint88 currentVote, uint88 currentVeto,) =
+            governance.lqtyAllocatedByUserToInitiative(allocator, address(baseInitiative1));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
             initiativesToReset[0] = address(baseInitiative1);
@@ -2504,7 +2507,12 @@ abstract contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
-    function _allocateLQTYToInitiative(address allocator, address initiative, uint88 amount, address[] memory initiativesToReset) internal {
+    function _allocateLQTYToInitiative(
+        address allocator,
+        address initiative,
+        uint88 amount,
+        address[] memory initiativesToReset
+    ) internal {
         vm.startPrank(allocator);
 
         address[] memory initiatives = new address[](1);
@@ -2521,7 +2529,8 @@ abstract contract GovernanceTest is Test {
         vm.startPrank(allocator);
 
         address[] memory initiativesToReset;
-        (uint88 currentVote, uint88 currentVeto,) = governance.lqtyAllocatedByUserToInitiative(allocator, address(baseInitiative1));
+        (uint88 currentVote, uint88 currentVeto,) =
+            governance.lqtyAllocatedByUserToInitiative(allocator, address(baseInitiative1));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
             initiativesToReset[0] = address(baseInitiative1);
