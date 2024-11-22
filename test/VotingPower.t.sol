@@ -382,8 +382,8 @@ abstract contract VotingPowerTest is Test {
             governance.secondsWithinEpoch() > governance.EPOCH_VOTING_CUTOFF(), "We should not be able to vote more"
         );
 
-        vm.expectRevert(); // cannot allocate more
-        _allocate(address(baseInitiative1), lqtyAmount, 0);
+        // Should fail to allocate more
+        _tryAllocate(address(baseInitiative1), lqtyAmount, 0, "Cannot increase");
 
         // Can allocate less
         _allocate(address(baseInitiative1), lqtyAmount / 2 - 1, 0);
@@ -420,8 +420,16 @@ abstract contract VotingPowerTest is Test {
         return msg.sender;
     }
 
-    function _allocate(address initiative, int88 votes, int88 vetos) internal {
-        address[] memory initiativesToReset;
+    function _prepareAllocateParams(address initiative, int88 votes, int88 vetos)
+        internal
+        view
+        returns (
+            address[] memory initiativesToReset,
+            address[] memory initiatives,
+            int88[] memory absoluteLQTYVotes,
+            int88[] memory absoluteLQTYVetos
+        )
+    {
         (uint88 currentVote, uint88 currentVeto,) =
             governance.lqtyAllocatedByUserToInitiative(this.currentUser(), address(initiative));
         if (currentVote != 0 || currentVeto != 0) {
@@ -429,14 +437,35 @@ abstract contract VotingPowerTest is Test {
             initiativesToReset[0] = address(initiative);
         }
 
-        address[] memory initiatives = new address[](1);
+        initiatives = new address[](1);
         initiatives[0] = initiative;
-        int88[] memory deltaLQTYVotes = new int88[](1);
-        deltaLQTYVotes[0] = votes;
-        int88[] memory deltaLQTYVetos = new int88[](1);
-        deltaLQTYVetos[0] = vetos;
+        absoluteLQTYVotes = new int88[](1);
+        absoluteLQTYVotes[0] = votes;
+        absoluteLQTYVetos = new int88[](1);
+        absoluteLQTYVetos[0] = vetos;
+    }
 
-        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+    function _allocate(address initiative, int88 votes, int88 vetos) internal {
+        (
+            address[] memory initiativesToReset,
+            address[] memory initiatives,
+            int88[] memory absoluteLQTYVotes,
+            int88[] memory absoluteLQTYVetos
+        ) = _prepareAllocateParams(initiative, votes, vetos);
+
+        governance.allocateLQTY(initiativesToReset, initiatives, absoluteLQTYVotes, absoluteLQTYVetos);
+    }
+
+    function _tryAllocate(address initiative, int88 votes, int88 vetos, bytes memory expectedError) internal {
+        (
+            address[] memory initiativesToReset,
+            address[] memory initiatives,
+            int88[] memory absoluteLQTYVotes,
+            int88[] memory absoluteLQTYVetos
+        ) = _prepareAllocateParams(initiative, votes, vetos);
+
+        vm.expectRevert(expectedError);
+        governance.allocateLQTY(initiativesToReset, initiatives, absoluteLQTYVotes, absoluteLQTYVetos);
     }
 
     function _reset(address initiative) internal {
