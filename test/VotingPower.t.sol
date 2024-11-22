@@ -415,6 +415,7 @@ abstract contract VotingPowerTest is Test {
         governance.depositLQTY(amount);
     }
 
+    // Helper function to get the current prank address
     function currentUser() external view returns (address) {
         return msg.sender;
     }
