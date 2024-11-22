@@ -178,7 +178,7 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
         _loginitiative_and_state(); // 8
         property_sum_of_initatives_matches_total_votes_bounded();
 
-        governance_resetAllocations(); // NOTE: This leaves 1 vote from user2, and removes the votes from user1
+        // governance_resetAllocations(); // user 1 has nothing to reset
         _loginitiative_and_state(); // In lack of reset, we have 2 wei error | With reset the math is off by 7x
         property_sum_of_initatives_matches_total_votes_bounded();
         console.log("time 0", block.timestamp);

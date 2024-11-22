@@ -299,7 +299,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         _depositBribe(1e18, 1e18, governance.epoch());
         _allocateLQTY(user1, 1e18, 0);
         _allocateLQTY(user2, 1, 0);
-        _allocateNothing(user2);
+        _resetAllocation(user2);
 
         // =========== epoch 2 ==================
         vm.warp(block.timestamp + EPOCH_DURATION); // Needs to cause rounding error
@@ -898,7 +898,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         vm.stopPrank();
     }
 
-    function _allocateLQTY(address staker, int88 deltaVoteLQTYAmt, int88 deltaVetoLQTYAmt) internal {
+    function _allocateLQTY(address staker, int88 absoluteVoteLQTYAmt, int88 absoluteVetoLQTYAmt) internal {
         vm.startPrank(staker);
         address[] memory initiativesToReset;
         (uint88 currentVote, uint88 currentVeto,) =
@@ -911,13 +911,13 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
 
-        int88[] memory deltaVoteLQTY = new int88[](1);
-        deltaVoteLQTY[0] = deltaVoteLQTYAmt;
+        int88[] memory absoluteVoteLQTY = new int88[](1);
+        absoluteVoteLQTY[0] = absoluteVoteLQTYAmt;
 
-        int88[] memory deltaVetoLQTY = new int88[](1);
-        deltaVetoLQTY[0] = deltaVetoLQTYAmt;
+        int88[] memory absoluteVetoLQTY = new int88[](1);
+        absoluteVetoLQTY[0] = absoluteVetoLQTYAmt;
 
-        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, absoluteVoteLQTY, absoluteVetoLQTY);
         vm.stopPrank();
     }
 
@@ -926,12 +926,12 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
-        int88[] memory deltaLQTYVotes = new int88[](1);
-        deltaLQTYVotes[0] = votes;
-        int88[] memory deltaLQTYVetos = new int88[](1);
-        deltaLQTYVetos[0] = vetos;
+        int88[] memory absoluteLQTYVotes = new int88[](1);
+        absoluteLQTYVotes[0] = votes;
+        int88[] memory absoluteLQTYVetos = new int88[](1);
+        absoluteLQTYVetos[0] = vetos;
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiatives, initiatives, absoluteLQTYVotes, absoluteLQTYVetos);
 
         vm.stopPrank();
     }
@@ -943,11 +943,11 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
 
-        int88[] memory deltaVoteLQTY = new int88[](1);
-        int88[] memory deltaVetoLQTY = new int88[](1);
+        int88[] memory absoluteVoteLQTY = new int88[](1);
+        int88[] memory absoluteVetoLQTY = new int88[](1);
 
         vm.expectRevert("Governance: voting nothing");
-        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, absoluteVoteLQTY, absoluteVetoLQTY);
         vm.stopPrank();
     }
 

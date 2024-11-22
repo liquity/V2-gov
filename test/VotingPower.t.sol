@@ -39,9 +39,6 @@ abstract contract VotingPowerTest is Test {
 
     Governance private governance;
     address[] private initialInitiatives;
-
-    address private baseInitiative2;
-    address private baseInitiative3;
     address private baseInitiative1;
 
     function setUp() public virtual {
@@ -64,11 +61,7 @@ abstract contract VotingPowerTest is Test {
         );
 
         baseInitiative1 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
-        baseInitiative2 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
-        baseInitiative3 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
-
         initialInitiatives.push(baseInitiative1);
-        initialInitiatives.push(baseInitiative2);
 
         governance.registerInitialInitiatives(initialInitiatives);
     }
@@ -247,7 +240,7 @@ abstract contract VotingPowerTest is Test {
 
         vm.startPrank(user2);
         _allocate(address(baseInitiative1), 15, 0);
-        _allocate(address(baseInitiative1), 0, 0);
+        _reset(address(baseInitiative1));
 
         uint256 griefed_avg = _getAverageTS(baseInitiative1);
 
@@ -262,7 +255,7 @@ abstract contract VotingPowerTest is Test {
         // Causes a loss of power of 1 second per time this is done
 
         vm.startPrank(user);
-        _allocate(address(baseInitiative1), 0, 0);
+        _reset(address(baseInitiative1));
 
         uint256 final_avg = _getAverageTS(baseInitiative1);
         console.log("final_avg", final_avg);
@@ -287,7 +280,7 @@ abstract contract VotingPowerTest is Test {
 
         vm.startPrank(user2);
         _allocate(address(baseInitiative1), 15, 0);
-        _allocate(address(baseInitiative1), 0, 0);
+        _reset(address(baseInitiative1));
 
         uint256 griefed_avg = _getAverageTS(baseInitiative1);
         console.log("griefed_avg", griefed_avg);
@@ -299,7 +292,7 @@ abstract contract VotingPowerTest is Test {
 
         vm.startPrank(user2);
         _allocate(address(baseInitiative1), 15, 0);
-        _allocate(address(baseInitiative1), 0, 0);
+        _reset(address(baseInitiative1));
 
         uint256 ts = _getAverageTS(baseInitiative1);
         uint256 delta = currentMagnifiedTs - ts;
@@ -312,7 +305,7 @@ abstract contract VotingPowerTest is Test {
         while (i++ < 122) {
             console.log("i", i);
             _allocate(address(baseInitiative1), 15, 0);
-            _allocate(address(baseInitiative1), 0, 0);
+            _reset(address(baseInitiative1));
         }
 
         console.log("1?");
@@ -325,11 +318,11 @@ abstract contract VotingPowerTest is Test {
 
         // One more time
         _allocate(address(baseInitiative1), 15, 0);
-        _allocate(address(baseInitiative1), 0, 0);
+        _reset(address(baseInitiative1));
         _allocate(address(baseInitiative1), 15, 0);
-        _allocate(address(baseInitiative1), 0, 0);
+        _reset(address(baseInitiative1));
         _allocate(address(baseInitiative1), 15, 0);
-        _allocate(address(baseInitiative1), 0, 0);
+        _reset(address(baseInitiative1));
         _allocate(address(baseInitiative1), 15, 0);
 
         /// NOTE: Keep 1 wei to keep rounding error
@@ -339,7 +332,7 @@ abstract contract VotingPowerTest is Test {
         console.log("griefed_avg", ts);
 
         vm.startPrank(user);
-        _allocate(address(baseInitiative1), 0, 0);
+        _reset(address(baseInitiative1));
         _allocate(address(baseInitiative1), 124, 0);
 
         ts = _getAverageTS(baseInitiative1);
@@ -422,10 +415,14 @@ abstract contract VotingPowerTest is Test {
         governance.depositLQTY(amount);
     }
 
+    function currentUser() external view returns (address) {
+        return msg.sender;
+    }
+
     function _allocate(address initiative, int88 votes, int88 vetos) internal {
         address[] memory initiativesToReset;
         (uint88 currentVote, uint88 currentVeto,) =
-            governance.lqtyAllocatedByUserToInitiative(user, address(initiative));
+            governance.lqtyAllocatedByUserToInitiative(this.currentUser(), address(initiative));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
             initiativesToReset[0] = address(initiative);
@@ -441,12 +438,9 @@ abstract contract VotingPowerTest is Test {
         governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 
-    function _reset() internal {
-        address[] memory initiativesToReset = new address[](3);
-        initiativesToReset[0] = baseInitiative1;
-        initiativesToReset[1] = baseInitiative2;
-        initiativesToReset[2] = baseInitiative3;
-
+    function _reset(address initiative) internal {
+        address[] memory initiativesToReset = new address[](1);
+        initiativesToReset[0] = initiative;
         governance.resetAllocations(initiativesToReset, true);
     }
 }
