@@ -4,31 +4,37 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {VmSafe} from "forge-std/Vm.sol";
 
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-
 import {ILQTY} from "../src/interfaces/ILQTY.sol";
+import {ILUSD} from "../src/interfaces/ILUSD.sol";
+import {ILQTYStaking} from "../src/interfaces/ILQTYStaking.sol";
 
 import {UserProxyFactory} from "./../src/UserProxyFactory.sol";
 import {UserProxy} from "./../src/UserProxy.sol";
 
 import {PermitParams} from "../src/utils/Types.sol";
 
-contract UserProxyTest is Test {
-    IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
-    IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
-    address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
-    address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
-    address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
+import {MockERC20Tester} from "./mocks/MockERC20Tester.sol";
+import {MockStakingV1} from "./mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
+import "./constants.sol";
+
+abstract contract UserProxyTest is Test, MockStakingV1Deployer {
+    ILQTY internal lqty;
+    ILUSD internal lusd;
+    ILQTYStaking internal stakingV1;
+
+    address internal constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
 
     UserProxyFactory private userProxyFactory;
     UserProxy private userProxy;
 
-    function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
-
-        userProxyFactory = new UserProxyFactory(address(lqty), address(lusd), stakingV1);
+    function setUp() public virtual {
+        userProxyFactory = new UserProxyFactory(address(lqty), address(lusd), address(stakingV1));
         userProxy = UserProxy(payable(userProxyFactory.deployUserProxy()));
     }
+
+    function _addLUSDGain(uint256 amount) internal virtual;
+    function _addETHGain(uint256 amount) internal virtual;
 
     function test_stake() public {
         vm.startPrank(user);
@@ -115,18 +121,77 @@ contract UserProxyTest is Test {
         assertEq(lusdAmount, 0);
         assertEq(ethAmount, 0);
 
+        vm.stopPrank();
+
         vm.warp(block.timestamp + 7 days);
 
-        uint256 ethBalance = uint256(vm.load(stakingV1, bytes32(uint256(3))));
-        vm.store(stakingV1, bytes32(uint256(3)), bytes32(abi.encodePacked(ethBalance + 1e18)));
+        _addETHGain(stakingV1.totalLQTYStaked());
+        _addLUSDGain(stakingV1.totalLQTYStaked());
 
-        uint256 lusdBalance = uint256(vm.load(stakingV1, bytes32(uint256(4))));
-        vm.store(stakingV1, bytes32(uint256(4)), bytes32(abi.encodePacked(lusdBalance + 1e18)));
+        vm.startPrank(address(userProxyFactory));
 
         (lusdAmount, ethAmount) = userProxy.unstake(1e18, user);
         assertEq(lusdAmount, 1e18);
         assertEq(ethAmount, 1e18);
 
         vm.stopPrank();
+    }
+}
+
+contract MockedUserProxyTest is UserProxyTest {
+    MockERC20Tester private mockLQTY;
+    MockERC20Tester private mockLUSD;
+    MockStakingV1 private mockStakingV1;
+
+    function setUp() public override {
+        (mockStakingV1, mockLQTY, mockLUSD) = deployMockStakingV1();
+        mockLQTY.mint(user, 1e18);
+
+        lqty = mockLQTY;
+        lusd = mockLUSD;
+        stakingV1 = mockStakingV1;
+
+        super.setUp();
+    }
+
+    function _addLUSDGain(uint256 amount) internal override {
+        mockLUSD.mint(address(this), amount);
+        mockLUSD.approve(address(mockStakingV1), amount);
+        mockStakingV1.mock_addLUSDGain(amount);
+    }
+
+    function _addETHGain(uint256 amount) internal override {
+        deal(address(this), address(this).balance + amount);
+        mockStakingV1.mock_addETHGain{value: amount}();
+    }
+}
+
+contract ForkedUserProxyTest is UserProxyTest {
+    function setUp() public override {
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+
+        lqty = ILQTY(MAINNET_LQTY);
+        lusd = ILUSD(MAINNET_LUSD);
+        stakingV1 = ILQTYStaking(MAINNET_LQTY_STAKING);
+
+        super.setUp();
+    }
+
+    function _addLUSDGain(uint256 amount) internal override {
+        vm.prank(MAINNET_BORROWER_OPERATIONS);
+        stakingV1.increaseF_LUSD(amount);
+
+        vm.prank(MAINNET_BORROWER_OPERATIONS);
+        lusd.mint(address(stakingV1), amount);
+    }
+
+    function _addETHGain(uint256 amount) internal override {
+        deal(MAINNET_ACTIVE_POOL, MAINNET_ACTIVE_POOL.balance + amount);
+        vm.prank(MAINNET_ACTIVE_POOL);
+        (bool success,) = address(stakingV1).call{value: amount}("");
+        assert(success);
+
+        vm.prank(MAINNET_TROVE_MANAGER);
+        stakingV1.increaseF_ETH(amount);
     }
 }

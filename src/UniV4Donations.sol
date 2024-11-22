@@ -56,8 +56,8 @@ contract UniV4Donations is BribeInitiative, BaseHook {
             currency0 = _bold;
             currency1 = _token;
         } else {
-            currency1 = _token;
-            currency0 = _bold;
+            currency0 = _token;
+            currency1 = _bold;
         }
         fee = _fee;
         tickSpacing = _tickSpacing;

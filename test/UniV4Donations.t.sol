@@ -5,14 +5,20 @@ import {Test} from "forge-std/Test.sol";
 
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
-import {IPoolManager, PoolManager, Deployers, TickMath, Hooks, IHooks} from "v4-core/test/utils/Deployers.sol";
+import {IPoolManager, PoolManager, Deployers, TickMath} from "v4-core/test/utils/Deployers.sol";
 import {PoolModifyLiquidityTest} from "v4-core/src/test/PoolModifyLiquidityTest.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
+import {ILQTYStaking} from "../src/interfaces/ILQTYStaking.sol";
 
 import {UniV4Donations} from "../src/UniV4Donations.sol";
 import {Governance} from "../src/Governance.sol";
 import {BaseHook, Hooks} from "../src/utils/BaseHook.sol";
+
+import {MockERC20Tester} from "./mocks/MockERC20Tester.sol";
+import {MockStakingV1} from "./mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
+import "./constants.sol";
 
 contract UniV4DonationsImpl is UniV4Donations {
     constructor(
@@ -46,13 +52,14 @@ contract UniV4DonationsImpl is UniV4Donations {
     function validateHookAddress(BaseHook _this) internal pure override {}
 }
 
-contract UniV4DonationsTest is Test, Deployers {
-    IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
-    IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
-    IERC20 private constant usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-    address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
-    address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
-    address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
+abstract contract UniV4DonationsTest is Test, Deployers {
+    IERC20 internal lqty;
+    IERC20 internal lusd;
+    IERC20 internal usdc;
+    ILQTYStaking internal stakingV1;
+
+    address internal constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
+    address internal constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
 
     uint128 private constant REGISTRATION_FEE = 1e18;
     uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
@@ -73,17 +80,32 @@ contract UniV4DonationsTest is Test, Deployers {
 
     int24 constant MAX_TICK_SPACING = 32767;
 
-    function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+    function setUp() public virtual {
+        initialInitiatives.push(address(uniV4Donations));
+
+        IGovernance.Configuration memory config = IGovernance.Configuration({
+            registrationFee: REGISTRATION_FEE,
+            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+            registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
+            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+            minClaim: MIN_CLAIM,
+            minAccrual: MIN_ACCRUAL,
+            epochStart: uint32(block.timestamp),
+            epochDuration: EPOCH_DURATION,
+            epochVotingCutoff: EPOCH_VOTING_CUTOFF
+        });
+
+        governance = new Governance(
+            address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), initialInitiatives
+        );
 
         manager = new PoolManager(500000);
         modifyLiquidityRouter = new PoolModifyLiquidityTest(manager);
 
-        initialInitiatives = new address[](1);
-        initialInitiatives[0] = address(uniV4Donations);
-
         UniV4DonationsImpl impl = new UniV4DonationsImpl(
-            address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
+            address(governance),
             address(lusd),
             address(lqty),
             block.timestamp,
@@ -104,28 +126,6 @@ contract UniV4DonationsTest is Test, Deployers {
                 vm.store(address(uniV4Donations), slot, vm.load(address(impl), slot));
             }
         }
-
-        governance = new Governance(
-            address(lqty),
-            address(lusd),
-            stakingV1,
-            address(lusd),
-            IGovernance.Configuration({
-                registrationFee: REGISTRATION_FEE,
-                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-                minClaim: MIN_CLAIM,
-                minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp),
-                epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
-            }),
-            address(this),
-            initialInitiatives
-        );
     }
 
     function test_afterInitializeState() public {
@@ -246,5 +246,37 @@ contract UniV4DonationsTest is Test, Deployers {
         assertEq(released, 0);
 
         vm.stopPrank();
+    }
+}
+
+contract MockedUniV4DonationsTest is UniV4DonationsTest, MockStakingV1Deployer {
+    function setUp() public override {
+        (MockStakingV1 mockStakingV1, MockERC20Tester mockLQTY, MockERC20Tester mockLUSD) = deployMockStakingV1();
+
+        MockERC20Tester mockUSDC = new MockERC20Tester("USD Coin", "USDC");
+        vm.label(address(mockUSDC), "USDC");
+
+        mockLUSD.mint(lusdHolder, 1_000 + 1_000e18);
+        mockUSDC.mint(lusdHolder, 1_000);
+
+        lqty = mockLQTY;
+        lusd = mockLUSD;
+        usdc = mockUSDC;
+        stakingV1 = mockStakingV1;
+
+        super.setUp();
+    }
+}
+
+contract ForkedUniV4DonationsTest is UniV4DonationsTest {
+    function setUp() public override {
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+
+        lqty = IERC20(MAINNET_LQTY);
+        lusd = IERC20(MAINNET_LUSD);
+        usdc = IERC20(MAINNET_USDC);
+        stakingV1 = ILQTYStaking(MAINNET_LQTY_STAKING);
+
+        super.setUp();
     }
 }

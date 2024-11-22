@@ -3,15 +3,12 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 import {IERC20Permit} from "openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import {SafeERC20} from "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IUserProxy} from "./interfaces/IUserProxy.sol";
 import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {PermitParams} from "./utils/Types.sol";
 
 contract UserProxy is IUserProxy {
-    using SafeERC20 for IERC20;
-
     /// @inheritdoc IUserProxy
     IERC20 public immutable lqty;
     /// @inheritdoc IUserProxy
@@ -36,8 +33,7 @@ contract UserProxy is IUserProxy {
 
     /// @inheritdoc IUserProxy
     function stake(uint256 _amount, address _lqtyFrom) public onlyStakingV2 {
-        lqty.safeTransferFrom(_lqtyFrom, address(this), _amount);
-        lqty.approve(address(stakingV1), _amount);
+        lqty.transferFrom(_lqtyFrom, address(this), _amount);
         stakingV1.stake(_amount);
         emit Stake(_amount, _lqtyFrom);
     }
@@ -66,19 +62,31 @@ contract UserProxy is IUserProxy {
         onlyStakingV2
         returns (uint256 lusdAmount, uint256 ethAmount)
     {
+        uint256 initialLQTYAmount = lqty.balanceOf(address(this));
+        uint256 initialLUSDAmount = lusd.balanceOf(address(this));
+        uint256 initialETHAmount = address(this).balance;
+
         stakingV1.unstake(_amount);
 
         uint256 lqtyAmount = lqty.balanceOf(address(this));
-        if (lqtyAmount > 0) lqty.safeTransfer(_recipient, lqtyAmount);
+        if (lqtyAmount > 0) lqty.transfer(_recipient, lqtyAmount);
         lusdAmount = lusd.balanceOf(address(this));
-        if (lusdAmount > 0) lusd.safeTransfer(_recipient, lusdAmount);
+        if (lusdAmount > 0) lusd.transfer(_recipient, lusdAmount);
         ethAmount = address(this).balance;
         if (ethAmount > 0) {
             (bool success,) = payable(_recipient).call{value: ethAmount}("");
             require(success, "UserProxy: eth-fail");
         }
 
-        emit Unstake(_amount, _recipient, lusdAmount, ethAmount);
+        emit Unstake(
+            _recipient,
+            lqtyAmount - initialLQTYAmount,
+            lqtyAmount,
+            lusdAmount - initialLUSDAmount,
+            lusdAmount,
+            ethAmount - initialETHAmount,
+            ethAmount
+        );
     }
 
     /// @inheritdoc IUserProxy
