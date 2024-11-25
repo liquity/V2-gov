@@ -42,7 +42,7 @@ abstract contract UserProxyTest is Test, MockStakingV1Deployer {
         vm.stopPrank();
 
         vm.startPrank(address(userProxyFactory));
-        userProxy.stake(1e18, user);
+        userProxy.stake(1e18, user, false, address(0));
         vm.stopPrank();
     }
 
@@ -100,11 +100,11 @@ abstract contract UserProxyTest is Test, MockStakingV1Deployer {
         // deposit 1 LQTY
         vm.startPrank(address(userProxyFactory));
         vm.expectRevert();
-        userProxy.stakeViaPermit(0.5e18, user, permitParams);
-        userProxy.stakeViaPermit(0.5e18, wallet.addr, permitParams);
-        userProxy.stakeViaPermit(0.5e18, wallet.addr, permitParams);
+        userProxy.stakeViaPermit(0.5e18, user, permitParams, false, address(0));
+        userProxy.stakeViaPermit(0.5e18, wallet.addr, permitParams, false, address(0));
+        userProxy.stakeViaPermit(0.5e18, wallet.addr, permitParams, false, address(0));
         vm.expectRevert();
-        userProxy.stakeViaPermit(1, wallet.addr, permitParams);
+        userProxy.stakeViaPermit(1, wallet.addr, permitParams, false, address(0));
         vm.stopPrank();
     }
 
@@ -115,9 +115,9 @@ abstract contract UserProxyTest is Test, MockStakingV1Deployer {
 
         vm.startPrank(address(userProxyFactory));
 
-        userProxy.stake(1e18, user);
+        userProxy.stake(1e18, user, false, address(0));
 
-        (uint256 lusdAmount, uint256 ethAmount) = userProxy.unstake(0, user);
+        (uint256 lusdAmount, uint256 ethAmount) = userProxy.unstake(0, true, user);
         assertEq(lusdAmount, 0);
         assertEq(ethAmount, 0);
 
@@ -130,7 +130,7 @@ abstract contract UserProxyTest is Test, MockStakingV1Deployer {
 
         vm.startPrank(address(userProxyFactory));
 
-        (lusdAmount, ethAmount) = userProxy.unstake(1e18, user);
+        (lusdAmount, ethAmount) = userProxy.unstake(1e18, true, user);
         assertEq(lusdAmount, 1e18);
         assertEq(ethAmount, 1e18);
 

@@ -220,19 +220,36 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
     }
 
     /// @inheritdoc IGovernance
-    function depositLQTY(uint88 _lqtyAmount) external nonReentrant {
+    function depositLQTY(uint88 _lqtyAmount) external {
+        depositLQTY(_lqtyAmount, false, msg.sender);
+    }
+
+    function depositLQTY(uint88 _lqtyAmount, bool _doSendRewards, address _recipient) public nonReentrant {
         UserProxy userProxy = _updateUserTimestamp(_lqtyAmount);
-        userProxy.stake(_lqtyAmount, msg.sender);
+        userProxy.stake(_lqtyAmount, msg.sender, _doSendRewards, _recipient);
     }
 
     /// @inheritdoc IGovernance
-    function depositLQTYViaPermit(uint88 _lqtyAmount, PermitParams calldata _permitParams) external nonReentrant {
+    function depositLQTYViaPermit(uint88 _lqtyAmount, PermitParams calldata _permitParams) external {
+        depositLQTYViaPermit(_lqtyAmount, _permitParams, false, msg.sender);
+    }
+
+    function depositLQTYViaPermit(
+        uint88 _lqtyAmount,
+        PermitParams calldata _permitParams,
+        bool _doSendRewards,
+        address _recipient
+    ) public nonReentrant {
         UserProxy userProxy = _updateUserTimestamp(_lqtyAmount);
-        userProxy.stakeViaPermit(_lqtyAmount, msg.sender, _permitParams);
+        userProxy.stakeViaPermit(_lqtyAmount, msg.sender, _permitParams, _doSendRewards, _recipient);
     }
 
     /// @inheritdoc IGovernance
-    function withdrawLQTY(uint88 _lqtyAmount) external nonReentrant {
+    function withdrawLQTY(uint88 _lqtyAmount) external {
+        withdrawLQTY(_lqtyAmount, true, msg.sender);
+    }
+
+    function withdrawLQTY(uint88 _lqtyAmount, bool _doSendRewards, address _recipient) public nonReentrant {
         // check that user has reset before changing lqty balance
         UserState storage userState = userStates[msg.sender];
         require(userState.allocatedLQTY == 0, "Governance: must-allocate-zero");
@@ -242,7 +259,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         uint88 lqtyStaked = uint88(stakingV1.stakes(address(userProxy)));
 
-        (uint256 accruedLUSD, uint256 accruedETH) = userProxy.unstake(_lqtyAmount, msg.sender);
+        (uint256 accruedLUSD, uint256 accruedETH) = userProxy.unstake(_lqtyAmount, _doSendRewards, _recipient);
 
         emit WithdrawLQTY(msg.sender, _lqtyAmount, accruedLUSD, accruedETH);
     }
@@ -251,7 +268,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
     function claimFromStakingV1(address _rewardRecipient) external returns (uint256 accruedLUSD, uint256 accruedETH) {
         address payable userProxyAddress = payable(deriveUserProxyAddress(msg.sender));
         require(userProxyAddress.code.length != 0, "Governance: user-proxy-not-deployed");
-        return UserProxy(userProxyAddress).unstake(0, _rewardRecipient);
+        return UserProxy(userProxyAddress).unstake(0, true, _rewardRecipient);
     }
 
     /*//////////////////////////////////////////////////////////////
