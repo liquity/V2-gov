@@ -829,7 +829,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         vm.warp(block.timestamp + EPOCH_DURATION);
 
-        _allocateNothing(user1);
+        _tryAllocateNothing(user1);
 
         (uint88 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         (uint88 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
@@ -863,7 +863,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         vm.warp(block.timestamp + EPOCH_DURATION);
 
-        _allocateNothing(user1);
+        _tryAllocateNothing(user1);
 
         (uint88 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         (uint88 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
@@ -936,7 +936,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         vm.stopPrank();
     }
 
-    function _allocateNothing(address staker) internal {
+    function _tryAllocateNothing(address staker) internal {
         vm.startPrank(staker);
         address[] memory initiativesToReset;
 
