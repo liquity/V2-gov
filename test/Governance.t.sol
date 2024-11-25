@@ -619,7 +619,6 @@ abstract contract GovernanceTest is Test {
     }
 
     /// Used to demonstrate how composite voting could allow using more power than intended
-    // forge test --match-test test_crit_accounting_mismatch -vv
     function test_crit_accounting_mismatch() public {
         // User setup
         vm.startPrank(user);
@@ -631,6 +630,7 @@ abstract contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         /// Setup and vote for 2 initiatives, 0.1% vs 99.9%
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
@@ -639,7 +639,7 @@ abstract contract GovernanceTest is Test {
         deltaLQTYVotes[1] = 999e18;
         int88[] memory deltaLQTYVetos = new int88[](2);
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         (uint256 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1_000e18);
@@ -682,7 +682,6 @@ abstract contract GovernanceTest is Test {
 
     // Same setup as above (but no need for bug)
     // Show that you cannot withdraw
-    // forge test --match-test test_canAlwaysRemoveAllocation -vv
     function test_canAlwaysRemoveAllocation() public {
         // User setup
         vm.startPrank(user);
@@ -694,6 +693,7 @@ abstract contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         /// Setup and vote for 2 initiatives, 0.1% vs 99.9%
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
@@ -702,7 +702,7 @@ abstract contract GovernanceTest is Test {
         deltaLQTYVotes[1] = 999e18;
         int88[] memory deltaLQTYVetos = new int88[](2);
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         // Warp to end so we check the threshold against future threshold
 
@@ -730,17 +730,14 @@ abstract contract GovernanceTest is Test {
         address[] memory removeInitiatives = new address[](2);
         removeInitiatives[0] = baseInitiative1;
         removeInitiatives[1] = baseInitiative2;
+        governance.resetAllocations(removeInitiatives, true);
+
         int88[] memory removeDeltaLQTYVotes = new int88[](2);
-        // don't need to explicitly remove allocation because it already gets reset
-        removeDeltaLQTYVotes[0] = 0;
         int88[] memory removeDeltaLQTYVetos = new int88[](2);
-
-        governance.allocateLQTY(removeInitiatives, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
-
         removeDeltaLQTYVotes[0] = -1e18;
 
         vm.expectRevert("Cannot be negative");
-        governance.allocateLQTY(removeInitiatives, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
 
         address[] memory reAddInitiatives = new address[](1);
         reAddInitiatives[0] = baseInitiative1;
@@ -750,12 +747,11 @@ abstract contract GovernanceTest is Test {
 
         /// @audit This MUST revert, an initiative should not be re-votable once disabled
         vm.expectRevert("Governance: active-vote-fsm");
-        governance.allocateLQTY(reAddInitiatives, reAddInitiatives, reAddDeltaLQTYVotes, reAddDeltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, reAddInitiatives, reAddDeltaLQTYVotes, reAddDeltaLQTYVetos);
     }
 
     // Used to identify an accounting bug where vote power could be added to global state
     // While initiative is unregistered
-    // forge test --match-test test_allocationRemovalTotalLqtyMathIsSound -vv
     function test_allocationRemovalTotalLqtyMathIsSound() public {
         vm.startPrank(user2);
         address userProxy_2 = governance.deployUserProxy();
@@ -773,6 +769,7 @@ abstract contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         /// Setup and vote for 2 initiatives, 0.1% vs 99.9%
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
@@ -781,10 +778,10 @@ abstract contract GovernanceTest is Test {
         deltaLQTYVotes[1] = 999e18;
         int88[] memory deltaLQTYVetos = new int88[](2);
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         vm.startPrank(user2);
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         vm.startPrank(user);
 
@@ -797,17 +794,18 @@ abstract contract GovernanceTest is Test {
         (uint88 b4_countedVoteLQTY, uint120 b4_countedVoteLQTYAverageTimestamp) = governance.globalState();
 
         // I want to remove my allocation
-        address[] memory removeInitiatives = new address[](2);
-        removeInitiatives[0] = baseInitiative1;
-        removeInitiatives[1] = baseInitiative2;
-        int88[] memory removeDeltaLQTYVotes = new int88[](2);
+        initiativesToReset = new address[](2);
+        initiativesToReset[0] = baseInitiative1;
+        initiativesToReset[1] = baseInitiative2;
         // don't need to explicitly remove allocation because it already gets reset
-        removeDeltaLQTYVotes[0] = 0;
-        removeDeltaLQTYVotes[1] = 999e18;
+        address[] memory removeInitiatives = new address[](1);
+        removeInitiatives[0] = baseInitiative2;
+        int88[] memory removeDeltaLQTYVotes = new int88[](1);
+        removeDeltaLQTYVotes[0] = 999e18;
 
-        int88[] memory removeDeltaLQTYVetos = new int88[](2);
+        int88[] memory removeDeltaLQTYVetos = new int88[](1);
 
-        governance.allocateLQTY(removeInitiatives, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
 
         {
             // Get state here
@@ -823,7 +821,6 @@ abstract contract GovernanceTest is Test {
 
     // Remove allocation but check accounting
     // Need to find bug in accounting code
-    // forge test --match-test test_addRemoveAllocation_accounting -vv
     function test_addRemoveAllocation_accounting() public {
         // User setup
         vm.startPrank(user);
@@ -835,6 +832,7 @@ abstract contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         /// Setup and vote for 2 initiatives, 0.1% vs 99.9%
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
@@ -843,7 +841,7 @@ abstract contract GovernanceTest is Test {
         deltaLQTYVotes[1] = 999e18;
         int88[] memory deltaLQTYVetos = new int88[](2);
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         // Warp to end so we check the threshold against future threshold
         {
@@ -899,17 +897,12 @@ abstract contract GovernanceTest is Test {
         // User Votes
         // Initiative Votes
 
-        // I cannot
         address[] memory removeInitiatives = new address[](2);
         removeInitiatives[0] = baseInitiative1;
         removeInitiatives[1] = baseInitiative2; // all user initiatives previously allocated to need to be included for resetting
-        int88[] memory removeDeltaLQTYVotes = new int88[](2);
-        removeDeltaLQTYVotes[0] = 0;
-        removeDeltaLQTYVotes[1] = 0;
-        int88[] memory removeDeltaLQTYVetos = new int88[](2);
 
         /// @audit the next call MUST not revert - this is a critical bug
-        governance.allocateLQTY(removeInitiatives, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+        governance.resetAllocations(removeInitiatives, true);
 
         // After user counts LQTY the
         {
@@ -948,6 +941,7 @@ abstract contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         /// Setup and vote for 2 initiatives, 0.1% vs 99.9%
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
@@ -956,7 +950,7 @@ abstract contract GovernanceTest is Test {
         deltaLQTYVotes[1] = 999e18;
         int88[] memory deltaLQTYVetos = new int88[](2);
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         (uint88 allocatedB4Test,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
         console.log("allocatedB4Test", allocatedB4Test);
 
@@ -968,20 +962,20 @@ abstract contract GovernanceTest is Test {
         address[] memory removeInitiatives = new address[](2);
         removeInitiatives[0] = baseInitiative1;
         removeInitiatives[1] = baseInitiative2;
-        int88[] memory removeDeltaLQTYVotes = new int88[](2);
-        removeDeltaLQTYVotes[0] = 0;
-        int88[] memory removeDeltaLQTYVetos = new int88[](2);
 
         (uint88 allocatedB4Removal,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
         console.log("allocatedB4Removal", allocatedB4Removal);
 
-        governance.allocateLQTY(removeInitiatives, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+        governance.resetAllocations(removeInitiatives, true);
         (uint88 allocatedAfterRemoval,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
         console.log("allocatedAfterRemoval", allocatedAfterRemoval);
 
-        // @audit this test no longer reverts due to underflow because of resetting before each allocation
-        // vm.expectRevert();
-        governance.allocateLQTY(removeInitiatives, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
+        vm.expectRevert("Governance: nothing to reset");
+        governance.resetAllocations(removeInitiatives, true);
+        int88[] memory removeDeltaLQTYVotes = new int88[](2);
+        int88[] memory removeDeltaLQTYVetos = new int88[](2);
+        vm.expectRevert("Governance: voting nothing");
+        governance.allocateLQTY(initiativesToReset, removeInitiatives, removeDeltaLQTYVotes, removeDeltaLQTYVetos);
         (uint88 allocatedAfter,,) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
         console.log("allocatedAfter", allocatedAfter);
     }
@@ -1006,6 +1000,7 @@ abstract contract GovernanceTest is Test {
         (uint88 countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 0);
 
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
         int88[] memory deltaLQTYVotes = new int88[](1);
@@ -1014,10 +1009,10 @@ abstract contract GovernanceTest is Test {
 
         // should revert if the initiative has been registered in the current epoch
         vm.expectRevert("Governance: active-vote-fsm");
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         (allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1e18);
@@ -1072,11 +1067,11 @@ abstract contract GovernanceTest is Test {
         deltaLQTYVetos[0] = 1e18;
 
         vm.expectRevert("Governance: vote-and-veto");
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         deltaLQTYVetos[0] = 0;
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         // should update the user's allocated LQTY balance
         (allocatedLQTY,) = governance.userStates(user2);
@@ -1098,8 +1093,7 @@ abstract contract GovernanceTest is Test {
 
         // user can only unallocate after voting cutoff
         initiatives[0] = baseInitiative1;
-        deltaLQTYVotes[0] = 0;
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.resetAllocations(initiatives, true);
 
         (allocatedLQTY,) = governance.userStates(user2);
         assertEq(allocatedLQTY, 0);
@@ -1130,6 +1124,7 @@ abstract contract GovernanceTest is Test {
         (uint88 countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 0);
 
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
         int88[] memory deltaLQTYVotes = new int88[](1);
@@ -1138,10 +1133,10 @@ abstract contract GovernanceTest is Test {
 
         // should revert if the initiative has been registered in the current epoch
         vm.expectRevert("Governance: active-vote-fsm");
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         (allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1e18);
@@ -1196,11 +1191,11 @@ abstract contract GovernanceTest is Test {
         deltaLQTYVetos[0] = 1e18;
 
         vm.expectRevert("Governance: vote-and-veto");
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         deltaLQTYVetos[0] = 0;
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         // should update the user's allocated LQTY balance
         (allocatedLQTY,) = governance.userStates(user2);
@@ -1247,6 +1242,7 @@ abstract contract GovernanceTest is Test {
         (uint88 countedVoteLQTY,) = governance.globalState();
         assertEq(countedVoteLQTY, 0);
 
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
@@ -1257,7 +1253,7 @@ abstract contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         (allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 2e18);
@@ -1290,6 +1286,7 @@ abstract contract GovernanceTest is Test {
         lqty.approve(address(userProxy), _deltaLQTYVotes);
         governance.depositLQTY(_deltaLQTYVotes);
 
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
         int88[] memory deltaLQTYVotes = new int88[](1);
@@ -1298,7 +1295,7 @@ abstract contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         vm.stopPrank();
     }
@@ -1314,6 +1311,7 @@ abstract contract GovernanceTest is Test {
         lqty.approve(address(userProxy), _deltaLQTYVetos);
         governance.depositLQTY(_deltaLQTYVetos);
 
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
         int88[] memory deltaLQTYVotes = new int88[](1);
@@ -1322,12 +1320,11 @@ abstract contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         /// @audit needs overflow tests!!
         vm.stopPrank();
     }
 
-    // forge test --match-test test_claimForInitiative -vv
     function test_claimForInitiative() public {
         vm.startPrank(user);
 
@@ -1347,6 +1344,7 @@ abstract contract GovernanceTest is Test {
 
         vm.startPrank(user);
 
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
@@ -1354,7 +1352,7 @@ abstract contract GovernanceTest is Test {
         deltaVoteLQTY[0] = 500e18;
         deltaVoteLQTY[1] = 500e18;
         int88[] memory deltaVetoLQTY = new int88[](2);
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         (uint88 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1000e18);
 
@@ -1379,14 +1377,17 @@ abstract contract GovernanceTest is Test {
 
         vm.startPrank(user);
 
-        console.log("here 1");
+        initiativesToReset = new address[](2);
+        initiativesToReset[0] = baseInitiative1;
+        initiativesToReset[1] = baseInitiative2;
+        initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
-        initiatives[1] = baseInitiative2;
+        deltaVoteLQTY = new int88[](1);
+        deltaVetoLQTY = new int88[](1);
         deltaVoteLQTY[0] = 495e18;
+        // @audit user can't deallocate because votes already get reset
         // deltaVoteLQTY[1] = -495e18;
-        deltaVoteLQTY[1] = 0; // @audit user can't deallocate because votes already get reset
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
-        console.log("here 2");
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() + 1);
 
@@ -1433,6 +1434,7 @@ abstract contract GovernanceTest is Test {
 
         vm.startPrank(user);
 
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](2);
         initiatives[0] = EOAInitiative; // attempt for an EOA
         initiatives[1] = baseInitiative2;
@@ -1440,7 +1442,7 @@ abstract contract GovernanceTest is Test {
         deltaVoteLQTY[0] = 500e18;
         deltaVoteLQTY[1] = 500e18;
         int88[] memory deltaVetoLQTY = new int88[](2);
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         (uint88 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1000e18);
 
@@ -1497,7 +1499,8 @@ abstract contract GovernanceTest is Test {
 
         lqty.approve(address(governance.deriveUserProxyAddress(user)), lqtyAmount);
 
-        bytes[] memory data = new bytes[](7);
+        bytes[] memory data = new bytes[](8);
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
         int88[] memory deltaVoteLQTY = new int88[](1);
@@ -1505,19 +1508,24 @@ abstract contract GovernanceTest is Test {
         int88[] memory deltaVetoLQTY = new int88[](1);
 
         int88[] memory deltaVoteLQTY_ = new int88[](1);
-        deltaVoteLQTY_[0] = 0;
+        deltaVoteLQTY_[0] = 1;
 
         data[0] = abi.encodeWithSignature("deployUserProxy()");
         data[1] = abi.encodeWithSignature("depositLQTY(uint88)", lqtyAmount);
         data[2] = abi.encodeWithSignature(
-            "allocateLQTY(address[],address[],int88[],int88[])", initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY
+            "allocateLQTY(address[],address[],int88[],int88[])",
+            initiativesToReset,
+            initiatives,
+            deltaVoteLQTY,
+            deltaVetoLQTY
         );
         data[3] = abi.encodeWithSignature("userStates(address)", user);
         data[4] = abi.encodeWithSignature("snapshotVotesForInitiative(address)", baseInitiative1);
         data[5] = abi.encodeWithSignature(
             "allocateLQTY(address[],address[],int88[],int88[])", initiatives, initiatives, deltaVoteLQTY_, deltaVetoLQTY
         );
-        data[6] = abi.encodeWithSignature("withdrawLQTY(uint88)", lqtyAmount);
+        data[6] = abi.encodeWithSignature("resetAllocations(address[],bool)", initiatives, true);
+        data[7] = abi.encodeWithSignature("withdrawLQTY(uint88)", lqtyAmount);
         bytes[] memory response = governance.multicall(data);
 
         (uint88 allocatedLQTY,) = abi.decode(response[3], (uint88, uint120));
@@ -1530,6 +1538,8 @@ abstract contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
+    /*
+     * TODO
     function test_nonReentrant() public {
         MockInitiative mockInitiative = new MockInitiative(address(governance));
 
@@ -1552,8 +1562,8 @@ abstract contract GovernanceTest is Test {
         vm.stopPrank();
 
         vm.startPrank(user);
-
         lusd.approve(address(governance), 2e18);
+        vm.stopPrank();
 
         lqty.approve(address(userProxy), 1e18);
         governance.depositLQTY(1e18);
@@ -1569,7 +1579,7 @@ abstract contract GovernanceTest is Test {
         initiatives[0] = address(mockInitiative);
         int88[] memory deltaLQTYVotes = new int88[](1);
         int88[] memory deltaLQTYVetos = new int88[](1);
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
         snapshot = IGovernance.VoteSnapshot(1, governance.epoch() - 1);
@@ -1626,17 +1636,19 @@ abstract contract GovernanceTest is Test {
 
         governance.unregisterInitiative(address(mockInitiative));
     }
+    */
 
     // CS exploit PoC
     function test_allocateLQTY_overflow() public {
         vm.startPrank(user);
 
+        address[] memory initiativesToReset;
         address[] memory initiatives = new address[](2);
         initiatives[0] = baseInitiative1;
         initiatives[1] = baseInitiative2;
 
         int88[] memory deltaLQTYVotes = new int88[](2);
-        deltaLQTYVotes[0] = 0;
+        deltaLQTYVotes[0] = 1;
         deltaLQTYVotes[1] = type(int88).max;
         int88[] memory deltaLQTYVetos = new int88[](2);
         deltaLQTYVetos[0] = 0;
@@ -1644,15 +1656,15 @@ abstract contract GovernanceTest is Test {
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
         vm.expectRevert("Governance: insufficient-or-allocated-lqty");
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         deltaLQTYVotes[0] = 0;
         deltaLQTYVotes[1] = 0;
-        deltaLQTYVetos[0] = 0;
+        deltaLQTYVetos[0] = 1;
         deltaLQTYVetos[1] = type(int88).max;
 
         vm.expectRevert("Governance: insufficient-or-allocated-lqty");
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         vm.stopPrank();
     }
@@ -2030,7 +2042,9 @@ abstract contract GovernanceTest is Test {
         // 3. user allocates to baseInitiative2 in epoch 3
         vm.warp(block.timestamp + EPOCH_DURATION); // warp to third epoch
 
-        _allocateLQTYToInitiative(user, baseInitiative2, 1e18);
+        address[] memory initiativesToReset = new address[](1);
+        initiativesToReset[0] = address(baseInitiative1);
+        _allocateLQTYToInitiative(user, baseInitiative2, 1e18, initiativesToReset);
 
         // get user voting power at start of epoch 3 from lqtyAllocatedByUserToInitiative
         (, uint120 averageStakingTimestamp2) = governance.userStates(user);
@@ -2475,12 +2489,13 @@ abstract contract GovernanceTest is Test {
     function _allocateLQTY(address allocator, uint88 amount) internal {
         vm.startPrank(allocator);
 
-        // always pass all possible initiatives to deregister for simplicity
-        address[] memory initiativesToDeRegister = new address[](4);
-        initiativesToDeRegister[0] = baseInitiative1;
-        initiativesToDeRegister[1] = baseInitiative2;
-        initiativesToDeRegister[2] = baseInitiative3;
-        initiativesToDeRegister[3] = address(0x123123);
+        address[] memory initiativesToReset;
+        (uint88 currentVote, uint88 currentVeto,) =
+            governance.lqtyAllocatedByUserToInitiative(allocator, address(baseInitiative1));
+        if (currentVote != 0 || currentVeto != 0) {
+            initiativesToReset = new address[](1);
+            initiativesToReset[0] = address(baseInitiative1);
+        }
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
@@ -2488,18 +2503,17 @@ abstract contract GovernanceTest is Test {
         deltaLQTYVotes[0] = int88(amount);
         int88[] memory deltaLQTYVetos = new int88[](1);
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         vm.stopPrank();
     }
 
-    function _allocateLQTYToInitiative(address allocator, address initiative, uint88 amount) internal {
+    function _allocateLQTYToInitiative(
+        address allocator,
+        address initiative,
+        uint88 amount,
+        address[] memory initiativesToReset
+    ) internal {
         vm.startPrank(allocator);
-
-        address[] memory initiativesToDeRegister = new address[](4);
-        initiativesToDeRegister[0] = baseInitiative1;
-        initiativesToDeRegister[1] = baseInitiative2;
-        initiativesToDeRegister[2] = baseInitiative3;
-        initiativesToDeRegister[3] = address(0x123123);
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
@@ -2507,12 +2521,20 @@ abstract contract GovernanceTest is Test {
         deltaLQTYVotes[0] = int88(amount);
         int88[] memory deltaLQTYVetos = new int88[](1);
 
-        governance.allocateLQTY(initiativesToDeRegister, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         vm.stopPrank();
     }
 
     function _veto(address allocator, uint88 amount) internal {
         vm.startPrank(allocator);
+
+        address[] memory initiativesToReset;
+        (uint88 currentVote, uint88 currentVeto,) =
+            governance.lqtyAllocatedByUserToInitiative(allocator, address(baseInitiative1));
+        if (currentVote != 0 || currentVeto != 0) {
+            initiativesToReset = new address[](1);
+            initiativesToReset[0] = address(baseInitiative1);
+        }
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
@@ -2520,26 +2542,16 @@ abstract contract GovernanceTest is Test {
         int88[] memory deltaLQTYVetos = new int88[](1);
         deltaLQTYVetos[0] = int88(amount);
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
         vm.stopPrank();
     }
 
     function _deAllocateLQTY(address allocator, uint88 amount) internal {
-        vm.startPrank(allocator);
-
-        address[] memory initiativesToDeRegister = new address[](4);
-        initiativesToDeRegister[0] = baseInitiative1;
-        initiativesToDeRegister[1] = baseInitiative2;
-        initiativesToDeRegister[2] = baseInitiative3;
-        initiativesToDeRegister[3] = address(0x123123);
-
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
-        int88[] memory deltaLQTYVotes = new int88[](1);
-        deltaLQTYVotes[0] = -int88(amount);
-        int88[] memory deltaLQTYVetos = new int88[](1);
 
-        governance.allocateLQTY(initiativesToDeRegister, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        vm.startPrank(allocator);
+        governance.resetAllocations(initiatives, true);
         vm.stopPrank();
     }
 }

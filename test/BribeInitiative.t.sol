@@ -299,7 +299,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         _depositBribe(1e18, 1e18, governance.epoch());
         _allocateLQTY(user1, 1e18, 0);
         _allocateLQTY(user2, 1, 0);
-        _allocateLQTY(user2, 0, 0);
+        _resetAllocation(user2);
 
         // =========== epoch 2 ==================
         vm.warp(block.timestamp + EPOCH_DURATION); // Needs to cause rounding error
@@ -309,8 +309,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         // user should receive bribe from their allocated stake
         (uint256 boldAmount, uint256 bribeTokenAmount) = _claimBribe(user1, 2, 2, 2);
-        assertEq(boldAmount, 1e18);
-        assertEq(bribeTokenAmount, 1e18);
+        assertEq(boldAmount, 1e18, "BOLD amount mismatch");
+        assertEq(bribeTokenAmount, 1e18, "Bribe token amount mismatch");
     }
 
     // check that bribes deposited after user votes can be claimed
@@ -600,7 +600,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         assertEq(bribeTokenAmount, 1e18);
 
         // decrease user allocation for the initiative
-        _allocateLQTY(user1, 0, 0);
+        _resetAllocation(user1);
 
         // check if user can still receive bribes after removing votes
         claimEpoch = governance.epoch() - 1; // claim for epoch 4
@@ -674,7 +674,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         _claimBribe(user1, governance.epoch(), governance.epoch() - 1, governance.epoch() - 1, true);
 
         // decrease user allocation for the initiative
-        _allocateLQTY(user1, 0, 0);
+        _resetAllocation(user1);
 
         (userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         (totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
@@ -829,7 +829,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         vm.warp(block.timestamp + EPOCH_DURATION);
 
-        _allocateLQTY(user1, 0, 0);
+        _tryAllocateNothing(user1);
 
         (uint88 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         (uint88 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
@@ -863,7 +863,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         vm.warp(block.timestamp + EPOCH_DURATION);
 
-        _allocateLQTY(user1, 0, 0);
+        _tryAllocateNothing(user1);
 
         (uint88 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         (uint88 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
@@ -890,7 +890,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
     /**
      * Helpers
      */
-    function _stakeLQTY(address staker, uint88 amount) public {
+    function _stakeLQTY(address staker, uint88 amount) internal {
         vm.startPrank(staker);
         address userProxy = governance.deriveUserProxyAddress(staker);
         lqty.approve(address(userProxy), amount);
@@ -898,19 +898,26 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         vm.stopPrank();
     }
 
-    function _allocateLQTY(address staker, int88 deltaVoteLQTYAmt, int88 deltaVetoLQTYAmt) public {
+    function _allocateLQTY(address staker, int88 absoluteVoteLQTYAmt, int88 absoluteVetoLQTYAmt) internal {
         vm.startPrank(staker);
+        address[] memory initiativesToReset;
+        (uint88 currentVote, uint88 currentVeto,) =
+            governance.lqtyAllocatedByUserToInitiative(staker, address(bribeInitiative));
+        if (currentVote != 0 || currentVeto != 0) {
+            initiativesToReset = new address[](1);
+            initiativesToReset[0] = address(bribeInitiative);
+        }
+
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
 
-        // voting in favor of the  initiative with half of user1's stake
-        int88[] memory deltaVoteLQTY = new int88[](1);
-        deltaVoteLQTY[0] = deltaVoteLQTYAmt;
+        int88[] memory absoluteVoteLQTY = new int88[](1);
+        absoluteVoteLQTY[0] = absoluteVoteLQTYAmt;
 
-        int88[] memory deltaVetoLQTY = new int88[](1);
-        deltaVetoLQTY[0] = deltaVetoLQTYAmt;
+        int88[] memory absoluteVetoLQTY = new int88[](1);
+        absoluteVetoLQTY[0] = absoluteVetoLQTYAmt;
 
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, absoluteVoteLQTY, absoluteVetoLQTY);
         vm.stopPrank();
     }
 
@@ -919,13 +926,37 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
-        int88[] memory deltaLQTYVotes = new int88[](1);
-        deltaLQTYVotes[0] = votes;
-        int88[] memory deltaLQTYVetos = new int88[](1);
-        deltaLQTYVetos[0] = vetos;
+        int88[] memory absoluteLQTYVotes = new int88[](1);
+        absoluteLQTYVotes[0] = votes;
+        int88[] memory absoluteLQTYVetos = new int88[](1);
+        absoluteLQTYVetos[0] = vetos;
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiatives, initiatives, absoluteLQTYVotes, absoluteLQTYVetos);
 
+        vm.stopPrank();
+    }
+
+    function _tryAllocateNothing(address staker) internal {
+        vm.startPrank(staker);
+        address[] memory initiativesToReset;
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = address(bribeInitiative);
+
+        int88[] memory absoluteVoteLQTY = new int88[](1);
+        int88[] memory absoluteVetoLQTY = new int88[](1);
+
+        vm.expectRevert("Governance: voting nothing");
+        governance.allocateLQTY(initiativesToReset, initiatives, absoluteVoteLQTY, absoluteVetoLQTY);
+        vm.stopPrank();
+    }
+
+    function _resetAllocation(address staker) internal {
+        vm.startPrank(staker);
+        address[] memory initiativesToReset = new address[](1);
+        initiativesToReset[0] = address(bribeInitiative);
+
+        governance.resetAllocations(initiativesToReset, true);
         vm.stopPrank();
     }
 
