@@ -24,8 +24,8 @@ abstract contract TargetFunctions is GovernanceTargets, BribeInitiativeTargets {
     }
 
     // helper to simulate bold accrual in Governance contract
-    function helper_accrueBold(uint88 boldAmount) public withChecks {
-        boldAmount = uint88(boldAmount % lusd.balanceOf(user));
+    function helper_accrueBold(uint256 boldAmount) public withChecks {
+        boldAmount = uint256(boldAmount % lusd.balanceOf(user));
         // target contract is the user so it can transfer directly
         lusd.transfer(address(governance), boldAmount);
     }

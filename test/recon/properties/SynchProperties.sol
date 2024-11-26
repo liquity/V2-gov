@@ -17,11 +17,11 @@ abstract contract SynchProperties is BeforeAfter {
         // For all strategies
         for (uint256 i; i < deployedInitiatives.length; i++) {
             for (uint256 j; j < users.length; j++) {
-                (uint88 votes,, uint16 epoch) =
+                (uint256 votes,, uint256 epoch) =
                     governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
 
                 // Grab epoch from initiative
-                (uint88 lqtyAllocatedByUserAtEpoch, uint120 ts) =
+                (uint256 lqtyAllocatedByUserAtEpoch, uint256 ts) =
                     IBribeInitiative(deployedInitiatives[i]).lqtyAllocatedByUserAtEpoch(users[j], epoch);
 
                 // Check that TS matches (only for votes)
@@ -30,7 +30,7 @@ abstract contract SynchProperties is BeforeAfter {
                 if (votes != 0) {
                     // if we're voting and the votes are different from 0
                     // then we check user TS
-                    (, uint120 averageStakingTimestamp) = governance.userStates(users[j]);
+                    (, uint256 averageStakingTimestamp) = governance.userStates(users[j]);
 
                     eq(averageStakingTimestamp, ts, "Timestamp must be most recent when it's non zero");
                 } else {

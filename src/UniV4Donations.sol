@@ -20,7 +20,7 @@ contract UniV4Donations is BribeInitiative, BaseHook {
     using PoolIdLibrary for PoolKey;
 
     event DonateToPool(uint256 amount);
-    event RestartVesting(uint16 epoch, uint240 amount);
+    event RestartVesting(uint256 epoch, uint256 amount);
 
     uint256 public immutable VESTING_EPOCH_START;
     uint256 public immutable VESTING_EPOCH_DURATION;
@@ -31,8 +31,8 @@ contract UniV4Donations is BribeInitiative, BaseHook {
     int24 private immutable tickSpacing;
 
     struct Vesting {
-        uint240 amount;
-        uint16 epoch;
+        uint256 amount;
+        uint256 epoch;
         uint256 released;
     }
 
@@ -63,19 +63,19 @@ contract UniV4Donations is BribeInitiative, BaseHook {
         tickSpacing = _tickSpacing;
     }
 
-    function vestingEpoch() public view returns (uint16) {
-        return uint16(((block.timestamp - VESTING_EPOCH_START) / VESTING_EPOCH_DURATION)) + 1;
+    function vestingEpoch() public view returns (uint256) {
+        return ((block.timestamp - VESTING_EPOCH_START) / VESTING_EPOCH_DURATION) + 1;
     }
 
     function vestingEpochStart() public view returns (uint256) {
         return VESTING_EPOCH_START + ((vestingEpoch() - 1) * VESTING_EPOCH_DURATION);
     }
 
-    function _restartVesting(uint240 claimed) internal returns (Vesting memory) {
-        uint16 epoch = vestingEpoch();
+    function _restartVesting(uint256 claimed) internal returns (Vesting memory) {
+        uint256 epoch = vestingEpoch();
         Vesting memory _vesting = vesting;
         if (_vesting.epoch < epoch) {
-            _vesting.amount = claimed + _vesting.amount - uint240(_vesting.released); // roll over unclaimed amount
+            _vesting.amount = claimed + _vesting.amount - uint256(_vesting.released); // roll over unclaimed amount
             _vesting.epoch = epoch;
             _vesting.released = 0;
             vesting = _vesting;
@@ -88,7 +88,7 @@ contract UniV4Donations is BribeInitiative, BaseHook {
     uint256 public received;
 
     /// @notice On claim we deposit the rewards - This is to prevent a griefing
-    function onClaimForInitiative(uint16, uint256 _bold) external override onlyGovernance {
+    function onClaimForInitiative(uint256, uint256 _bold) external override onlyGovernance {
         received += _bold;
     }
 
@@ -106,7 +106,7 @@ contract UniV4Donations is BribeInitiative, BaseHook {
         received = 0;
 
         // Rest of logic
-        Vesting memory _vesting = _restartVesting(uint240(toUse));
+        Vesting memory _vesting = _restartVesting(toUse);
         uint256 amount =
             (_vesting.amount * (block.timestamp - vestingEpochStart()) / VESTING_EPOCH_DURATION) - _vesting.released;
 

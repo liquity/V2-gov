@@ -10,24 +10,24 @@ contract DoubleLinkedListWrapper {
 
     DoubleLinkedList.List list;
 
-    function getHead() public view returns (uint16) {
+    function getHead() public view returns (uint256) {
         return list.getHead();
     }
 
-    function getTail() public view returns (uint16) {
+    function getTail() public view returns (uint256) {
         return list.getTail();
     }
 
-    function getNext(uint16 id) public view returns (uint16) {
+    function getNext(uint256 id) public view returns (uint256) {
         return list.getNext(id);
     }
 
-    function getPrev(uint16 id) public view returns (uint16) {
+    function getPrev(uint256 id) public view returns (uint256) {
         return list.getPrev(id);
     }
 
-    function insert(uint16 id, uint16 next) public {
-        list.insert(id, 1, next);
+    function insert(uint256 id, uint256 next) public {
+        list.insert(id, 1, 1, next);
     }
 }
 

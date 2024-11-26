@@ -19,16 +19,16 @@ contract ForkedE2ETests is Test {
     address private constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
 
-    uint128 private constant REGISTRATION_FEE = 1e18;
-    uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
-    uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint16 private constant REGISTRATION_WARM_UP_PERIOD = 4;
-    uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
-    uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint88 private constant MIN_CLAIM = 500e18;
-    uint88 private constant MIN_ACCRUAL = 1000e18;
-    uint32 private constant EPOCH_DURATION = 604800;
-    uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 private constant REGISTRATION_FEE = 1e18;
+    uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint256 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint256 private constant REGISTRATION_WARM_UP_PERIOD = 4;
+    uint256 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
+    uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint256 private constant MIN_CLAIM = 500e18;
+    uint256 private constant MIN_ACCRUAL = 1000e18;
+    uint256 private constant EPOCH_DURATION = 604800;
+    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -49,7 +49,7 @@ contract ForkedE2ETests is Test {
             votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
             minClaim: MIN_CLAIM,
             minAccrual: MIN_ACCRUAL,
-            epochStart: uint32(block.timestamp - EPOCH_DURATION),
+            epochStart: uint256(block.timestamp - EPOCH_DURATION),
             /// @audit KEY
             epochDuration: EPOCH_DURATION,
             epochVotingCutoff: EPOCH_VOTING_CUTOFF
@@ -312,14 +312,14 @@ contract ForkedE2ETests is Test {
         assertEq(uint256(Governance.InitiativeStatus.CLAIMABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE");
     }
 
-    function _deposit(uint88 amt) internal {
+    function _deposit(uint256 amt) internal {
         address userProxy = governance.deployUserProxy();
 
         lqty.approve(address(userProxy), amt);
         governance.depositLQTY(amt);
     }
 
-    function _allocate(address initiative, int88 votes, int88 vetos) internal {
+    function _allocate(address initiative, int256 votes, int256 vetos) internal {
         address[] memory initiativesToDeRegister = new address[](5);
         initiativesToDeRegister[0] = baseInitiative1;
         initiativesToDeRegister[1] = baseInitiative2;
@@ -329,15 +329,15 @@ contract ForkedE2ETests is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
-        int88[] memory deltaLQTYVotes = new int88[](1);
+        int256[] memory deltaLQTYVotes = new int256[](1);
         deltaLQTYVotes[0] = votes;
-        int88[] memory deltaLQTYVetos = new int88[](1);
+        int256[] memory deltaLQTYVetos = new int256[](1);
         deltaLQTYVetos[0] = vetos;
 
         governance.allocateLQTY(initiativesToDeRegister, initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 
-    function _allocate(address[] memory initiatives, int88[] memory votes, int88[] memory vetos) internal {
+    function _allocate(address[] memory initiatives, int256[] memory votes, int256[] memory vetos) internal {
         address[] memory initiativesToDeRegister = new address[](5);
         initiativesToDeRegister[0] = baseInitiative1;
         initiativesToDeRegister[1] = baseInitiative2;
