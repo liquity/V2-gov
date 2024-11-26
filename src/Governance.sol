@@ -572,7 +572,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         registeredInitiatives[_initiative] = currentEpoch;
 
         /// @audit This ensures that the initiatives has UNREGISTRATION_AFTER_EPOCHS even after the first epoch
-        initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
+        initiativeStates[_initiative].lastEpochClaim = currentEpoch - 1;
 
         emit RegisterInitiative(_initiative, msg.sender, currentEpoch);
 
