@@ -339,7 +339,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         return max(_votes * VOTING_THRESHOLD_FACTOR / WAD, minVotes);
     }
 
-    // Snapshots votes for the previous epoch and accrues funds for the current epoch
+    // Snapshots votes at the end of the previous epoch
+    // Accrues funds until the first activity of the current epoch, which are valid throughout all of the current epoch
     function _snapshotVotes() internal returns (VoteSnapshot memory snapshot, GlobalState memory state) {
         bool shouldUpdate;
         (snapshot, state, shouldUpdate) = getTotalVotesAndState();
