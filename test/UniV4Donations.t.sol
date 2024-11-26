@@ -61,15 +61,15 @@ abstract contract UniV4DonationsTest is Test, Deployers {
     address internal constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
     address internal constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
 
-    uint128 private constant REGISTRATION_FEE = 1e18;
-    uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
-    uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
-    uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint88 private constant MIN_CLAIM = 500e18;
-    uint88 private constant MIN_ACCRUAL = 1000e18;
-    uint32 private constant EPOCH_DURATION = 604800;
-    uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 private constant REGISTRATION_FEE = 1e18;
+    uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint256 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint256 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
+    uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint256 private constant MIN_CLAIM = 500e18;
+    uint256 private constant MIN_ACCRUAL = 1000e18;
+    uint256 private constant EPOCH_DURATION = 604800;
+    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -145,7 +145,7 @@ abstract contract UniV4DonationsTest is Test, Deployers {
 
         vm.startPrank(lusdHolder);
         assertEq(uniV4Donations.donateToPool(), 0, "d");
-        (uint240 amount, uint16 epoch, uint256 released) = uniV4Donations.vesting();
+        (uint256 amount, uint256 epoch, uint256 released) = uniV4Donations.vesting();
         assertEq(amount, 1000e18, "amt");
         assertEq(epoch, 1, "epoch");
         assertEq(released, 0, "released");
@@ -196,7 +196,7 @@ abstract contract UniV4DonationsTest is Test, Deployers {
 
         vm.startPrank(lusdHolder);
         assertEq(uniV4Donations.donateToPool(), 0, "d");
-        (uint240 amount, uint16 epoch, uint256 released) = uniV4Donations.vesting();
+        (uint256 amount, uint256 epoch, uint256 released) = uniV4Donations.vesting();
         assertEq(amount, amt, "amt");
         assertEq(epoch, 1, "epoch");
         assertEq(released, 0, "released");

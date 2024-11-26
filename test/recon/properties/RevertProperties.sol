@@ -9,11 +9,11 @@ import {IBribeInitiative} from "src/interfaces/IBribeInitiative.sol";
 // The are view functions that should never revert
 abstract contract RevertProperties is BeforeAfter {
     function property_computingGlobalPowerNeverReverts() public {
-        (uint88 totalCountedLQTY, uint120 global_countedVoteLQTYAverageTimestamp) = governance.globalState();
+        (uint256 totalCountedLQTY, uint256 global_countedVoteLQTYAverageTimestamp) = governance.globalState();
 
         try governance.lqtyToVotes(
             totalCountedLQTY,
-            uint120(block.timestamp) * uint120(governance.TIMESTAMP_PRECISION()),
+            uint256(block.timestamp) * uint256(governance.TIMESTAMP_PRECISION()),
             global_countedVoteLQTYAverageTimestamp
         ) {} catch {
             t(false, "Should never revert");
@@ -24,10 +24,10 @@ abstract contract RevertProperties is BeforeAfter {
         uint256 votedPowerSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (
-                uint88 voteLQTY,
-                uint88 vetoLQTY,
-                uint120 averageStakingTimestampVoteLQTY,
-                uint120 averageStakingTimestampVetoLQTY,
+                uint256 voteLQTY,
+                uint256 vetoLQTY,
+                uint256 averageStakingTimestampVoteLQTY,
+                uint256 averageStakingTimestampVetoLQTY,
             ) = governance.initiativeStates(deployedInitiatives[i]);
 
             // Sum via projection
@@ -35,9 +35,9 @@ abstract contract RevertProperties is BeforeAfter {
             unchecked {
                 try governance.lqtyToVotes(
                     voteLQTY,
-                    uint120(block.timestamp) * uint120(governance.TIMESTAMP_PRECISION()),
+                    uint256(block.timestamp) * uint256(governance.TIMESTAMP_PRECISION()),
                     averageStakingTimestampVoteLQTY
-                ) returns (uint208 res) {
+                ) returns (uint256 res) {
                     votedPowerSum += res;
                 } catch {
                     t(false, "Should never revert");

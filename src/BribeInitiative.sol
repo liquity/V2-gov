@@ -24,9 +24,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     IERC20 public immutable bribeToken;
 
     /// @inheritdoc IBribeInitiative
-    mapping(uint16 => Bribe) public bribeByEpoch;
+    mapping(uint256 => Bribe) public bribeByEpoch;
     /// @inheritdoc IBribeInitiative
-    mapping(address => mapping(uint16 => bool)) public claimedBribeAtEpoch;
+    mapping(address => mapping(uint256 => bool)) public claimedBribeAtEpoch;
 
     /// Double linked list of the total LQTY allocated at a given epoch
     DoubleLinkedList.List internal totalLQTYAllocationByEpoch;
@@ -47,18 +47,18 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IBribeInitiative
-    function totalLQTYAllocatedByEpoch(uint16 _epoch) external view returns (uint88, uint120) {
+    function totalLQTYAllocatedByEpoch(uint256 _epoch) external view returns (uint256, uint256) {
         return _loadTotalLQTYAllocation(_epoch);
     }
 
     /// @inheritdoc IBribeInitiative
-    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch) external view returns (uint88, uint120) {
+    function lqtyAllocatedByUserAtEpoch(address _user, uint256 _epoch) external view returns (uint256, uint256) {
         return _loadLQTYAllocation(_user, _epoch);
     }
 
     /// @inheritdoc IBribeInitiative
-    function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external {
-        uint16 epoch = governance.epoch();
+    function depositBribe(uint256 _boldAmount, uint256 _bribeTokenAmount, uint256 _epoch) external {
+        uint256 epoch = governance.epoch();
         require(_epoch >= epoch, "BribeInitiative: now-or-future-epochs");
 
         Bribe memory bribe = bribeByEpoch[_epoch];
@@ -76,9 +76,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     function _claimBribe(
         address _user,
-        uint16 _epoch,
-        uint16 _prevLQTYAllocationEpoch,
-        uint16 _prevTotalLQTYAllocationEpoch
+        uint256 _epoch,
+        uint256 _prevLQTYAllocationEpoch,
+        uint256 _prevTotalLQTYAllocationEpoch
     ) internal returns (uint256 boldAmount, uint256 bribeTokenAmount) {
         require(_epoch < governance.epoch(), "BribeInitiative: cannot-claim-for-current-epoch");
         require(!claimedBribeAtEpoch[_user][_epoch], "BribeInitiative: already-claimed");
@@ -101,26 +101,26 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             "BribeInitiative: invalid-prev-total-lqty-allocation-epoch"
         );
 
-        (uint88 totalLQTY, uint120 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
-        require(totalLQTY > 0, "BribeInitiative: total-lqty-allocation-zero");
+        require(totalLQTYAllocation.lqty > 0, "BribeInitiative: total-lqty-allocation-zero");
 
         // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
-        uint120 scaledEpochEnd = (
-            uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())
-        ) * uint120(TIMESTAMP_PRECISION);
+        uint256 scaledEpochEnd = (
+            governance.EPOCH_START() + _epoch * governance.EPOCH_DURATION()
+        ) * TIMESTAMP_PRECISION;
 
-        assert(totalAverageTimestamp <= scaledEpochEnd);
+        /// @audit User Invariant
+        assert(totalLQTYAllocation.avgTimestamp <= scaledEpochEnd);
 
-        uint120 totalAverageAge = scaledEpochEnd - totalAverageTimestamp;
-        if (totalLQTY != 0 && totalAverageAge != 0) {
-            (uint88 lqty, uint120 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
-            require(lqty > 0, "BribeInitiative: lqty-allocation-zero");
+        uint256 totalVotes = governance.lqtyToVotes(totalLQTYAllocation.lqty, scaledEpochEnd, totalLQTYAllocation.avgTimestamp);
+        if (totalVotes != 0) {
+            require(lqtyAllocation.lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
-            assert(averageTimestamp <= scaledEpochEnd);
+            /// @audit Governance Invariant
+            assert(lqtyAllocation.avgTimestamp <= scaledEpochEnd);
 
-            uint120 averageAge = scaledEpochEnd - averageTimestamp;
-            boldAmount = uint256(bribe.boldAmount) * lqty / totalLQTY * averageAge / totalAverageAge;
-            bribeTokenAmount = uint256(bribe.bribeTokenAmount) * lqty / totalLQTY * averageAge / totalAverageAge;
+            uint256 votes = governance.lqtyToVotes(lqtyAllocation.lqty, scaledEpochEnd, lqtyAllocation.avgTimestamp);
+            boldAmount = bribe.boldAmount * votes / totalVotes;
+            bribeTokenAmount = bribe.bribeTokenAmount * votes / totalVotes;
         }
 
         claimedBribeAtEpoch[_user][_epoch] = true;
@@ -163,80 +163,76 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IInitiative
-    function onRegisterInitiative(uint16) external virtual override onlyGovernance {}
+    function onRegisterInitiative(uint256) external virtual override onlyGovernance {}
 
     /// @inheritdoc IInitiative
-    function onUnregisterInitiative(uint16) external virtual override onlyGovernance {}
+    function onUnregisterInitiative(uint256) external virtual override onlyGovernance {}
 
-    function _setTotalLQTYAllocationByEpoch(uint16 _epoch, uint88 _lqty, uint120 _averageTimestamp, bool _insert)
+    function _setTotalLQTYAllocationByEpoch(uint256 _epoch, uint256 _lqty, uint256 _averageTimestamp, bool _insert)
         private
     {
-        uint224 value = _encodeLQTYAllocation(_lqty, _averageTimestamp);
         if (_insert) {
-            totalLQTYAllocationByEpoch.insert(_epoch, value, 0);
+            totalLQTYAllocationByEpoch.insert(_epoch, _lqty, _averageTimestamp, 0);
         } else {
-            totalLQTYAllocationByEpoch.items[_epoch].value = value;
+            totalLQTYAllocationByEpoch.items[_epoch].lqty = _lqty;
+             totalLQTYAllocationByEpoch.items[_epoch].avgTimestamp = _averageTimestamp;
         }
         emit ModifyTotalLQTYAllocation(_epoch, _lqty, _averageTimestamp);
     }
 
     function _setLQTYAllocationByUserAtEpoch(
         address _user,
-        uint16 _epoch,
-        uint88 _lqty,
-        uint120 _averageTimestamp,
+        uint256 _epoch,
+        uint256 _lqty,
+        uint256 _averageTimestamp,
         bool _insert
     ) private {
-        uint224 value = _encodeLQTYAllocation(_lqty, _averageTimestamp);
         if (_insert) {
-            lqtyAllocationByUserAtEpoch[_user].insert(_epoch, value, 0);
+            lqtyAllocationByUserAtEpoch[_user].insert(_epoch, _lqty, _averageTimestamp, 0);
         } else {
-            lqtyAllocationByUserAtEpoch[_user].items[_epoch].value = value;
+            lqtyAllocationByUserAtEpoch[_user].items[_epoch].lqty = _lqty;
+            lqtyAllocationByUserAtEpoch[_user].items[_epoch].avgTimestamp = _averageTimestamp;
         }
         emit ModifyLQTYAllocation(_user, _epoch, _lqty, _averageTimestamp);
     }
 
-    function _encodeLQTYAllocation(uint88 _lqty, uint120 _averageTimestamp) private pure returns (uint224) {
-        return EncodingDecodingLib.encodeLQTYAllocation(_lqty, _averageTimestamp);
-    }
-
-    function _decodeLQTYAllocation(uint224 _value) private pure returns (uint88, uint120) {
-        return EncodingDecodingLib.decodeLQTYAllocation(_value);
-    }
-
-    function _loadTotalLQTYAllocation(uint16 _epoch) private view returns (uint88, uint120) {
+    function _loadTotalLQTYAllocation(uint256 _epoch) private view returns (uint256, uint256) {
         require(_epoch <= governance.epoch(), "No future Lookup");
-        return _decodeLQTYAllocation(totalLQTYAllocationByEpoch.items[_epoch].value);
+        DoubleLinkedList.Item memory totalLqtyAllocation = totalLQTYAllocationByEpoch.items[_epoch];
+        
+        return (totalLqtyAllocation.lqty, totalLqtyAllocation.avgTimestamp);
     }
 
-    function _loadLQTYAllocation(address _user, uint16 _epoch) private view returns (uint88, uint120) {
+    function _loadLQTYAllocation(address _user, uint256 _epoch) private view returns (uint256, uint256) {
         require(_epoch <= governance.epoch(), "No future Lookup");
-        return _decodeLQTYAllocation(lqtyAllocationByUserAtEpoch[_user].items[_epoch].value);
+        DoubleLinkedList.Item memory lqtyAllocation = lqtyAllocationByUserAtEpoch[_user].items[_epoch];
+
+        return (lqtyAllocation.lqty, lqtyAllocation.avgTimestamp);
     }
 
     /// @inheritdoc IBribeInitiative
-    function getMostRecentUserEpoch(address _user) external view returns (uint16) {
-        uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
+    function getMostRecentUserEpoch(address _user) external view returns (uint256) {
+        uint256 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
 
         return mostRecentUserEpoch;
     }
 
     /// @inheritdoc IBribeInitiative
-    function getMostRecentTotalEpoch() external view returns (uint16) {
-        uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
+    function getMostRecentTotalEpoch() external view returns (uint256) {
+        uint256 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
 
         return mostRecentTotalEpoch;
     }
 
     function onAfterAllocateLQTY(
-        uint16 _currentEpoch,
+        uint256 _currentEpoch,
         address _user,
         IGovernance.UserState calldata _userState,
         IGovernance.Allocation calldata _allocation,
         IGovernance.InitiativeState calldata _initiativeState
     ) external virtual onlyGovernance {
-        uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
-        uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
+        uint256 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
+        uint256 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
 
         _setTotalLQTYAllocationByEpoch(
             _currentEpoch,
@@ -255,5 +251,5 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IInitiative
-    function onClaimForInitiative(uint16, uint256) external virtual override onlyGovernance {}
+    function onClaimForInitiative(uint256, uint256) external virtual override onlyGovernance {}
 }

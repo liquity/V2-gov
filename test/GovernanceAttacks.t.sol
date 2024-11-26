@@ -26,15 +26,15 @@ abstract contract GovernanceAttacksTest is Test {
     address internal constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
     address internal constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
 
-    uint128 private constant REGISTRATION_FEE = 1e18;
-    uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
-    uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
-    uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint88 private constant MIN_CLAIM = 500e18;
-    uint88 private constant MIN_ACCRUAL = 1000e18;
-    uint32 private constant EPOCH_DURATION = 604800;
-    uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 private constant REGISTRATION_FEE = 1e18;
+    uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint256 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint256 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
+    uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint256 private constant MIN_CLAIM = 500e18;
+    uint256 private constant MIN_ACCRUAL = 1000e18;
+    uint256 private constant EPOCH_DURATION = 604800;
+    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -59,7 +59,7 @@ abstract contract GovernanceAttacksTest is Test {
             minClaim: MIN_CLAIM,
             minAccrual: MIN_ACCRUAL,
             // backdate by 2 epochs to ensure new initiatives can be registered from the start
-            epochStart: uint32(block.timestamp - 2 * EPOCH_DURATION),
+            epochStart: uint256(block.timestamp - 2 * EPOCH_DURATION),
             epochDuration: EPOCH_DURATION,
             epochVotingCutoff: EPOCH_VOTING_CUTOFF
         });
@@ -80,7 +80,7 @@ abstract contract GovernanceAttacksTest is Test {
         // deploy and deposit 1 LQTY
         governance.depositLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
-        (uint88 allocatedLQTY, uint120 averageStakingTimestamp) = governance.userStates(user);
+        (uint256 allocatedLQTY, uint256 averageStakingTimestamp) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         // first deposit should have an averageStakingTimestamp if block.timestamp
         assertEq(averageStakingTimestamp, block.timestamp * 1e26); // TODO: Normalize
@@ -139,10 +139,10 @@ abstract contract GovernanceAttacksTest is Test {
         address[] memory initiatives = new address[](2);
         initiatives[0] = address(maliciousInitiative2);
         initiatives[1] = address(eoaInitiative);
-        int88[] memory deltaVoteLQTY = new int88[](2);
+        int256[] memory deltaVoteLQTY = new int256[](2);
         deltaVoteLQTY[0] = 5e17;
         deltaVoteLQTY[1] = 5e17;
-        int88[] memory deltaVetoLQTY = new int88[](2);
+        int256[] memory deltaVetoLQTY = new int256[](2);
 
         /// === Allocate LQTY REVERTS === ///
         uint256 allocateSnapshot = vm.snapshotState();
@@ -221,9 +221,9 @@ abstract contract GovernanceAttacksTest is Test {
         initiativesToReset[1] = address(eoaInitiative);
         initiatives = new address[](1);
         initiatives[0] = address(maliciousInitiative1);
-        deltaVoteLQTY = new int88[](1);
+        deltaVoteLQTY = new int256[](1);
         deltaVoteLQTY[0] = 5e17;
-        deltaVetoLQTY = new int88[](1);
+        deltaVetoLQTY = new int256[](1);
         governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
 
         (Governance.VoteSnapshot memory v, Governance.InitiativeVoteSnapshot memory initData) =

@@ -26,15 +26,15 @@ abstract contract VotingPowerTest is Test {
     address internal constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
     address internal constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
 
-    uint128 private constant REGISTRATION_FEE = 1e18;
-    uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
-    uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
-    uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint88 private constant MIN_CLAIM = 500e18;
-    uint88 private constant MIN_ACCRUAL = 1000e18;
-    uint32 private constant EPOCH_DURATION = 604800;
-    uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 private constant REGISTRATION_FEE = 1e18;
+    uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint256 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint256 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
+    uint256 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint256 private constant MIN_CLAIM = 500e18;
+    uint256 private constant MIN_ACCRUAL = 1000e18;
+    uint256 private constant EPOCH_DURATION = 604800;
+    uint256 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     Governance private governance;
     address[] private initialInitiatives;
@@ -71,7 +71,7 @@ abstract contract VotingPowerTest is Test {
         // Or use 8 times more amt
         uint8 multiplier = 2;
 
-        uint88 lqtyAmount = 1e18;
+        uint256 lqtyAmount = 1e18;
 
         uint256 powerInTheFuture = governance.lqtyToVotes(lqtyAmount, multiplier + 1, 1);
         // Amt when delta is 1
@@ -84,7 +84,7 @@ abstract contract VotingPowerTest is Test {
 
     function test_math_soundness_fuzz(uint32 multiplier) public view {
         vm.assume(multiplier < type(uint32).max - 1);
-        uint88 lqtyAmount = 1e10;
+        uint256 lqtyAmount = 1e10;
 
         uint256 powerInTheFuture = governance.lqtyToVotes(lqtyAmount, multiplier + 1, 1);
 
@@ -104,27 +104,27 @@ abstract contract VotingPowerTest is Test {
     function _calculateAverageTimestamp(
         uint32 _prevOuterAverageTimestamp,
         uint32 _newInnerAverageTimestamp,
-        uint88 _prevLQTYBalance,
-        uint88 _newLQTYBalance
+        uint256 _prevLQTYBalance,
+        uint256 _newLQTYBalance
     ) internal view returns (uint32) {
         if (_newLQTYBalance == 0) return 0;
 
         uint32 prevOuterAverageAge = _averageAge(uint32(block.timestamp), _prevOuterAverageTimestamp);
         uint32 newInnerAverageAge = _averageAge(uint32(block.timestamp), _newInnerAverageTimestamp);
 
-        uint88 newOuterAverageAge;
+        uint256 newOuterAverageAge;
         if (_prevLQTYBalance <= _newLQTYBalance) {
-            uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
-            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
-            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
-            uint240 votes = prevVotes + newVotes;
-            newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
+            uint256 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
+            uint256 prevVotes = uint256(_prevLQTYBalance) * uint256(prevOuterAverageAge);
+            uint256 newVotes = uint256(deltaLQTY) * uint256(newInnerAverageAge);
+            uint256 votes = prevVotes + newVotes;
+            newOuterAverageAge = uint32(votes / uint256(_newLQTYBalance));
         } else {
-            uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
-            uint240 prevVotes = uint240(_prevLQTYBalance) * uint240(prevOuterAverageAge);
-            uint240 newVotes = uint240(deltaLQTY) * uint240(newInnerAverageAge);
-            uint240 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
-            newOuterAverageAge = uint32(votes / uint240(_newLQTYBalance));
+            uint256 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
+            uint256 prevVotes = uint256(_prevLQTYBalance) * uint256(prevOuterAverageAge);
+            uint256 newVotes = uint256(deltaLQTY) * uint256(newInnerAverageAge);
+            uint256 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
+            newOuterAverageAge = uint32(votes / uint256(_newLQTYBalance));
         }
 
         if (newOuterAverageAge > block.timestamp) return 0;
@@ -140,13 +140,13 @@ abstract contract VotingPowerTest is Test {
     //     // State at X
     //     // State made of X and Y
     //     uint32 time = current_time - 124;
-    //     uint88 votes = 124;
-    //     uint240 power = governance.lqtyToVotes(votes, current_time, time);
+    //     uint256 votes = 124;
+    //     uint256 power = governance.lqtyToVotes(votes, current_time, time);
 
     //     assertEq(power, (_averageAge(current_time, time)) * votes, "simple product");
 
     //     // if it's a simple product we have the properties of multiplication, we can get back the value by dividing the tiem
-    //     uint88 resultingVotes = uint88(power / _averageAge(current_time, time));
+    //     uint256 resultingVotes = uint256(power / _averageAge(current_time, time));
 
     //     assertEq(resultingVotes, votes, "We can get it back");
 
@@ -155,16 +155,16 @@ abstract contract VotingPowerTest is Test {
 
     //     // // But how do we sum stuff with different TS?
     //     // // We need to sum the total and sum the % of average ts
-    //     uint88 votes_2 = 15;
+    //     uint256 votes_2 = 15;
     //     uint32 time_2 = current_time - 15;
 
-    //     uint240 power_2 = governance.lqtyToVotes(votes_2, current_time, time_2);
+    //     uint256 power_2 = governance.lqtyToVotes(votes_2, current_time, time_2);
 
-    //     uint240 total_power = power + power_2;
+    //     uint256 total_power = power + power_2;
 
-    //     assertLe(total_power, uint240(type(uint88).max), "LT");
+    //     assertLe(total_power, uint256(type(uint256).max), "LT");
 
-    //     uint88 total_liquity = votes + votes_2;
+    //     uint256 total_liquity = votes + votes_2;
 
     //     uint32 avgTs = _calculateAverageTimestamp(time, time_2, votes, total_liquity);
 
@@ -214,7 +214,7 @@ abstract contract VotingPowerTest is Test {
     //     assertEq(total_power, total_power_from_avg, "Sums up");
 
     //     // From those we can find the average timestamp
-    //     uint88 resultingReturnedVotes = uint88(total_power_from_avg / _averageAge(current_time, time));
+    //     uint256 resultingReturnedVotes = uint256(total_power_from_avg / _averageAge(current_time, time));
     //     assertEq(resultingReturnedVotes, total_liquity, "Lqty matches");
     // }
 
@@ -286,7 +286,7 @@ abstract contract VotingPowerTest is Test {
 
         console.log("0?");
 
-        uint256 currentMagnifiedTs = uint120(block.timestamp) * uint120(1e26);
+        uint256 currentMagnifiedTs = uint256(block.timestamp) * uint256(1e26);
 
         vm.startPrank(user2);
         _allocate(address(baseInitiative1), 15, 0);
@@ -342,16 +342,16 @@ abstract contract VotingPowerTest is Test {
         vm.startPrank(user);
         // =========== epoch 1 ==================
         // 1. user stakes lqty
-        int88 lqtyAmount = 2e18;
-        _stakeLQTY(user, uint88(lqtyAmount / 2));
+        int256 lqtyAmount = 2e18;
+        _stakeLQTY(user, uint256(lqtyAmount / 2));
 
         // user allocates to baseInitiative1
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-        (uint88 allocatedLQTY,) = governance.userStates(user);
-        assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "half");
+        (uint256 allocatedLQTY,) = governance.userStates(user);
+        assertEq(allocatedLQTY, uint256(lqtyAmount / 2), "half");
 
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-        assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "still half, the math is absolute now");
+        assertEq(allocatedLQTY, uint256(lqtyAmount / 2), "still half, the math is absolute now");
     }
 
     // forge test --match-test test_cutoff_logic -vv
@@ -359,13 +359,13 @@ abstract contract VotingPowerTest is Test {
         vm.startPrank(user);
         // =========== epoch 1 ==================
         // 1. user stakes lqty
-        int88 lqtyAmount = 2e18;
-        _stakeLQTY(user, uint88(lqtyAmount));
+        int256 lqtyAmount = 2e18;
+        _stakeLQTY(user, uint256(lqtyAmount));
 
         // user allocates to baseInitiative1
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-        (uint88 allocatedLQTY,) = governance.userStates(user);
-        assertEq(allocatedLQTY, uint88(lqtyAmount / 2), "Half");
+        (uint256 allocatedLQTY,) = governance.userStates(user);
+        assertEq(allocatedLQTY, uint256(lqtyAmount / 2), "Half");
 
         // Go to Cutoff
         // See that you can reduce
@@ -401,12 +401,12 @@ abstract contract VotingPowerTest is Test {
     // The weights are the avg time * the number
 
     function _getAverageTS(address initiative) internal view returns (uint256) {
-        (,, uint120 averageStakingTimestampVoteLQTY,,) = governance.initiativeStates(initiative);
+        (,, uint256 averageStakingTimestampVoteLQTY,,) = governance.initiativeStates(initiative);
 
         return averageStakingTimestampVoteLQTY;
     }
 
-    function _stakeLQTY(address _user, uint88 amount) internal {
+    function _stakeLQTY(address _user, uint256 amount) internal {
         address userProxy = governance.deriveUserProxyAddress(_user);
         lqty.approve(address(userProxy), amount);
 

@@ -22,7 +22,7 @@ contract CurveV2GaugeRewards is BribeInitiative {
 
     /// @notice Governance transfers Bold, and we deposit it into the gauge
     /// @dev Doing this allows anyone to trigger the claim
-    function onClaimForInitiative(uint16, uint256 _bold) external override onlyGovernance {
+    function onClaimForInitiative(uint256, uint256 _bold) external override onlyGovernance {
         _depositIntoGauge(_bold);
     }
 
