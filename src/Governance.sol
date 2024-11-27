@@ -474,8 +474,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             /// By definition it has zero rewards
         }
 
+        uint16 currentEpoch = epoch();
+
         // == Just Registered Condition == //
-        if (registeredInitiatives[_initiative] == epoch()) {
+        if (registeredInitiatives[_initiative] == currentEpoch) {
             return (InitiativeStatus.WARM_UP, 0, 0);
             /// Was registered this week, cannot have rewards
         }
@@ -490,7 +492,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         }
 
         // == Already Claimed Condition == //
-        if (lastEpochClaim >= epoch() - 1) {
+        if (lastEpochClaim >= currentEpoch - 1) {
             // early return, we have already claimed
             return (InitiativeStatus.CLAIMED, lastEpochClaim, claimableAmount);
         }
@@ -528,7 +530,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         // == Unregister Condition == //
         // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the 4th epoch flip that would result in SKIP, will result in the initiative being `UNREGISTERABLE`
         if (
-            (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
+            (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < currentEpoch - 1)
                 || upscaledInitiativeVetos > upscaledInitiativeVotes
                     && upscaledInitiativeVetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
