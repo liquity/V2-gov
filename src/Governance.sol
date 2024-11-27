@@ -50,8 +50,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
     /// @inheritdoc IGovernance
     uint256 public immutable UNREGISTRATION_THRESHOLD_FACTOR;
     /// @inheritdoc IGovernance
-    uint256 public immutable REGISTRATION_WARM_UP_PERIOD;
-    /// @inheritdoc IGovernance
     uint256 public immutable UNREGISTRATION_AFTER_EPOCHS;
     /// @inheritdoc IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
@@ -102,8 +100,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         // Unregistration must be X times above the `votingThreshold`
         require(_config.unregistrationThresholdFactor > WAD, "Gov: unregistration-config");
         UNREGISTRATION_THRESHOLD_FACTOR = _config.unregistrationThresholdFactor;
-
-        REGISTRATION_WARM_UP_PERIOD = _config.registrationWarmUpPeriod;
         UNREGISTRATION_AFTER_EPOCHS = _config.unregistrationAfterEpochs;
 
         // Voting threshold must be below 100% of votes

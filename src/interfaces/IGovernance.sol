@@ -24,7 +24,6 @@ interface IGovernance {
         uint128 registrationFee;
         uint128 registrationThresholdFactor;
         uint128 unregistrationThresholdFactor;
-        uint16 registrationWarmUpPeriod;
         uint16 unregistrationAfterEpochs;
         uint128 votingThresholdFactor;
         uint88 minClaim;
@@ -71,9 +70,6 @@ interface IGovernance {
     /// @notice Multiple of the voting threshold in vetos that are necessary to unregister an initiative
     /// @return unregistrationThresholdFactor Unregistration threshold factor
     function UNREGISTRATION_THRESHOLD_FACTOR() external view returns (uint256 unregistrationThresholdFactor);
-    /// @notice Number of epochs an initiative has to exist before it can be unregistered
-    /// @return registrationWarmUpPeriod Number of epochs
-    function REGISTRATION_WARM_UP_PERIOD() external view returns (uint256 registrationWarmUpPeriod);
     /// @notice Number of epochs an initiative has to be inactive before it can be unregistered
     /// @return unregistrationAfterEpochs Number of epochs
     function UNREGISTRATION_AFTER_EPOCHS() external view returns (uint256 unregistrationAfterEpochs);

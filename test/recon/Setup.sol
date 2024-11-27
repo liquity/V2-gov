@@ -32,7 +32,6 @@ abstract contract Setup is BaseSetup, MockStakingV1Deployer {
     uint128 internal constant REGISTRATION_FEE = 1e18;
     uint128 internal constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
     uint128 internal constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint16 internal constant REGISTRATION_WARM_UP_PERIOD = 4;
     uint16 internal constant UNREGISTRATION_AFTER_EPOCHS = 4;
     uint128 internal constant VOTING_THRESHOLD_FACTOR = 0.04e18;
     uint88 internal constant MIN_CLAIM = 500e18;
@@ -64,7 +63,6 @@ abstract contract Setup is BaseSetup, MockStakingV1Deployer {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
