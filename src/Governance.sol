@@ -315,17 +315,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         return calculateVotingThreshold(snapshotVotes);
     }
 
-    /// @dev Returns the most up to date voting threshold
-    /// In contrast to `getLatestVotingThreshold` this function updates the snapshot
-    /// This ensures that the value returned is always the latest
+    /// @inheritdoc IGovernance
     function calculateVotingThreshold() public returns (uint256) {
         (VoteSnapshot memory snapshot,) = _snapshotVotes();
 
         return calculateVotingThreshold(snapshot.votes);
     }
 
-    /// @dev Utility function to compute the threshold votes without recomputing the snapshot
-    /// Note that `boldAccrued` is a cached value, this function works correctly only when called after an accrual
+    /// @inheritdoc IGovernance
     function calculateVotingThreshold(uint256 _votes) public view returns (uint256) {
         if (_votes == 0) return 0;
 
@@ -351,8 +348,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         }
     }
 
-    /// @notice Return the most up to date global snapshot and state as well as a flag to notify whether the state can be updated
-    /// This is a convenience function to always retrieve the most up to date state values
+    /// @inheritdoc IGovernance
     function getTotalVotesAndState()
         public
         view
@@ -389,8 +385,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         }
     }
 
-    /// @dev Given an initiative address, return it's most up to date snapshot and state as well as a flag to notify whether the state can be updated
-    /// This is a convenience function to always retrieve the most up to date state values
+    /// @inheritdoc IGovernance
     function getInitiativeSnapshotAndState(address _initiative)
         public
         view

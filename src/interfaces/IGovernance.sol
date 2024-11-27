@@ -222,6 +222,33 @@ interface IGovernance {
         pure
         returns (uint208);
 
+    /// @dev Returns the most up to date voting threshold
+    /// In contrast to `getLatestVotingThreshold` this function updates the snapshot
+    /// This ensures that the value returned is always the latest
+    function calculateVotingThreshold() external returns (uint256);
+
+    /// @dev Utility function to compute the threshold votes without recomputing the snapshot
+    /// Note that `boldAccrued` is a cached value, this function works correctly only when called after an accrual
+    function calculateVotingThreshold(uint256 _votes) external view returns (uint256);
+
+    /// @notice Return the most up to date global snapshot and state as well as a flag to notify whether the state can be updated
+    /// This is a convenience function to always retrieve the most up to date state values
+    function getTotalVotesAndState()
+        external
+        view
+        returns (VoteSnapshot memory snapshot, GlobalState memory state, bool shouldUpdate);
+
+    /// @dev Given an initiative address, return it's most up to date snapshot and state as well as a flag to notify whether the state can be updated
+    /// This is a convenience function to always retrieve the most up to date state values
+    function getInitiativeSnapshotAndState(address _initiative)
+        external
+        view
+        returns (
+            InitiativeVoteSnapshot memory initiativeSnapshot,
+            InitiativeState memory initiativeState,
+            bool shouldUpdate
+        );
+
     /// @notice Voting threshold is the max. of either:
     ///   - 4% of the total voting LQTY in the previous epoch
     ///   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
