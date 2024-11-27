@@ -125,8 +125,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
     function registerInitialInitiatives(address[] memory _initiatives) public onlyOwner {
         for (uint256 i = 0; i < _initiatives.length; i++) {
-            initiativeStates[_initiatives[i]] = InitiativeState(0, 0, 0, 0, 0);
-
             // Register initial initiatives in the earliest possible epoch, which lets us make them votable immediately
             // post-deployment if we so choose, by backdating the first epoch at least EPOCH_DURATION in the past.
             registeredInitiatives[_initiatives[i]] = 1;
@@ -575,7 +573,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         registeredInitiatives[_initiative] = currentEpoch;
 
         /// @audit This ensures that the initiatives has UNREGISTRATION_AFTER_EPOCHS even after the first epoch
-        initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
+        initiativeStates[_initiative].lastEpochClaim = currentEpoch - 1;
 
         emit RegisterInitiative(_initiative, msg.sender, currentEpoch);
 
