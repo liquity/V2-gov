@@ -101,7 +101,7 @@ abstract contract UniV4DonationsTest is Test, Deployers {
             address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), initialInitiatives
         );
 
-        manager = new PoolManager(500000);
+        manager = new PoolManager(address(this));
         modifyLiquidityRouter = new PoolModifyLiquidityTest(manager);
 
         UniV4DonationsImpl impl = new UniV4DonationsImpl(
@@ -129,13 +129,13 @@ abstract contract UniV4DonationsTest is Test, Deployers {
     }
 
     function test_afterInitializeState() public {
-        manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
+        manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1);
     }
 
     //// TODO: e2e test - With real governance and proposals
 
     function test_modifyPositionFuzz() public {
-        manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
+        manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1);
 
         vm.startPrank(lusdHolder);
         lusd.transfer(address(uniV4Donations), 1000e18);
@@ -188,7 +188,7 @@ abstract contract UniV4DonationsTest is Test, Deployers {
     }
 
     function test_modifyPositionFuzz(uint128 amt) public {
-        manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1, ZERO_BYTES);
+        manager.initialize(uniV4Donations.poolKey(), SQRT_PRICE_1_1);
 
         deal(address(lusd), address(uniV4Donations), amt);
 

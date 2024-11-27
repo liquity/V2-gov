@@ -75,15 +75,11 @@ abstract contract BaseHook is IHooks, SafeCallback {
         }
     }
 
-    function beforeInitialize(address, PoolKey calldata, uint160, bytes calldata) external virtual returns (bytes4) {
+    function beforeInitialize(address, PoolKey calldata, uint160) external virtual returns (bytes4) {
         revert HookNotImplemented();
     }
 
-    function afterInitialize(address, PoolKey calldata, uint160, int24, bytes calldata)
-        external
-        virtual
-        returns (bytes4)
-    {
+    function afterInitialize(address, PoolKey calldata, uint160, int24) external virtual returns (bytes4) {
         revert HookNotImplemented();
     }
 
@@ -109,6 +105,7 @@ abstract contract BaseHook is IHooks, SafeCallback {
         PoolKey calldata,
         IPoolManager.ModifyLiquidityParams calldata,
         BalanceDelta,
+        BalanceDelta,
         bytes calldata
     ) external virtual returns (bytes4, BalanceDelta) {
         revert HookNotImplemented();
@@ -118,6 +115,7 @@ abstract contract BaseHook is IHooks, SafeCallback {
         address,
         PoolKey calldata,
         IPoolManager.ModifyLiquidityParams calldata,
+        BalanceDelta,
         BalanceDelta,
         bytes calldata
     ) external virtual returns (bytes4, BalanceDelta) {
