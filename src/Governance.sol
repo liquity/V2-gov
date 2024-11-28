@@ -129,7 +129,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             // post-deployment if we so choose, by backdating the first epoch at least EPOCH_DURATION in the past.
             registeredInitiatives[_initiatives[i]] = 1;
 
-            emit RegisterInitiative(_initiatives[i], msg.sender, 1);
+            bool success = safeCallWithMinGas(
+                _initiatives[i], MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onRegisterInitiative, (1))
+            );
+
+            emit RegisterInitiative(_initiatives[i], msg.sender, 1, success);
         }
 
         _renounceOwnership();
@@ -347,7 +351,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             votesSnapshot = snapshot;
             uint256 boldBalance = bold.balanceOf(address(this));
             boldAccrued = (boldBalance < MIN_ACCRUAL) ? 0 : boldBalance;
-            emit SnapshotVotes(snapshot.votes, snapshot.forEpoch);
+            emit SnapshotVotes(snapshot.votes, snapshot.forEpoch, boldAccrued);
         }
     }
 
@@ -374,8 +378,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         }
     }
 
-    // Snapshots votes for an initiative for the previous epoch but only count the votes
-    // if the received votes meet the voting threshold
+    // Snapshots votes for an initiative for the previous epoch
     function _snapshotVotesForInitiative(address _initiative)
         internal
         returns (InitiativeVoteSnapshot memory initiativeSnapshot, InitiativeState memory initiativeState)
@@ -385,7 +388,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         if (shouldUpdate) {
             votesForInitiativeSnapshot[_initiative] = initiativeSnapshot;
-            emit SnapshotVotesForInitiative(_initiative, initiativeSnapshot.votes, initiativeSnapshot.forEpoch);
+            emit SnapshotVotesForInitiative(
+                _initiative, initiativeSnapshot.votes, initiativeSnapshot.vetos, initiativeSnapshot.forEpoch
+            );
         }
     }
 
@@ -575,12 +580,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         /// @audit This ensures that the initiatives has UNREGISTRATION_AFTER_EPOCHS even after the first epoch
         initiativeStates[_initiative].lastEpochClaim = currentEpoch - 1;
 
-        emit RegisterInitiative(_initiative, msg.sender, currentEpoch);
-
         // Replaces try / catch | Enforces sufficient gas is passed
-        safeCallWithMinGas(
+        bool success = safeCallWithMinGas(
             _initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onRegisterInitiative, (currentEpoch))
         );
+
+        emit RegisterInitiative(_initiative, msg.sender, currentEpoch, success);
     }
 
     struct ResetInitiativeData {
@@ -707,6 +712,14 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         _allocateLQTY(_initiatives, _absoluteLQTYVotes, _absoluteLQTYVetos);
     }
 
+    // Avoid "stack too deep" by placing these variables in memory
+    struct AllocateLQTYVars {
+        VoteSnapshot votesSnapshot_;
+        GlobalState state;
+        uint16 currentEpoch;
+        UserState userState;
+    }
+
     /// @dev For each given initiative applies relative changes to the allocation
     /// NOTE: Given the current usage the function either: Resets the value to 0, or sets the value to a new value
     ///     Review the flows as the function could be used in many ways, but it ends up being used in just those 2 ways
@@ -720,154 +733,162 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             "Governance: array-length-mismatch"
         );
 
-        (VoteSnapshot memory votesSnapshot_, GlobalState memory state) = _snapshotVotes();
-        uint16 currentEpoch = epoch();
-        UserState memory userState = userStates[msg.sender];
+        AllocateLQTYVars memory vars;
+        (vars.votesSnapshot_, vars.state) = _snapshotVotes();
+        vars.currentEpoch = epoch();
+        vars.userState = userStates[msg.sender];
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
-            address initiative = _initiatives[i];
-            int88 deltaLQTYVotes = _deltaLQTYVotes[i];
-            int88 deltaLQTYVetos = _deltaLQTYVetos[i];
-            assert(deltaLQTYVotes != 0 || deltaLQTYVetos != 0);
-
-            /// === Check FSM === ///
-            // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states
-            // Force to remove votes if disabled
-            // Can remove votes and vetos in every stage
-            (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
-                _snapshotVotesForInitiative(initiative);
-
-            (InitiativeStatus status,,) =
-                getInitiativeState(initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
-
-            if (deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
-                /// @audit You cannot vote on `unregisterable` but a vote may have been there
-                require(
-                    status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE
-                        || status == InitiativeStatus.CLAIMED,
-                    "Governance: active-vote-fsm"
-                );
-            }
-
-            if (status == InitiativeStatus.DISABLED) {
-                require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
-            }
-
-            /// === UPDATE ACCOUNTING === ///
-            // == INITIATIVE STATE == //
-
-            // deep copy of the initiative's state before the allocation
-            InitiativeState memory prevInitiativeState = InitiativeState(
-                initiativeState.voteLQTY,
-                initiativeState.vetoLQTY,
-                initiativeState.averageStakingTimestampVoteLQTY,
-                initiativeState.averageStakingTimestampVetoLQTY,
-                initiativeState.lastEpochClaim
-            );
-
-            // update the average staking timestamp for the initiative based on the user's average staking timestamp
-            initiativeState.averageStakingTimestampVoteLQTY = _calculateAverageTimestamp(
-                initiativeState.averageStakingTimestampVoteLQTY,
-                userState.averageStakingTimestamp,
-                /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
-                initiativeState.voteLQTY,
-                add(initiativeState.voteLQTY, deltaLQTYVotes)
-            );
-            initiativeState.averageStakingTimestampVetoLQTY = _calculateAverageTimestamp(
-                initiativeState.averageStakingTimestampVetoLQTY,
-                userState.averageStakingTimestamp,
-                /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
-                initiativeState.vetoLQTY,
-                add(initiativeState.vetoLQTY, deltaLQTYVetos)
-            );
-
-            // allocate the voting and vetoing LQTY to the initiative
-            initiativeState.voteLQTY = add(initiativeState.voteLQTY, deltaLQTYVotes);
-            initiativeState.vetoLQTY = add(initiativeState.vetoLQTY, deltaLQTYVetos);
-
-            // update the initiative's state
-            initiativeStates[initiative] = initiativeState;
-
-            // == GLOBAL STATE == //
-
-            // TODO: Veto reducing total votes logic change
-            // TODO: Accounting invariants
-            // TODO: Let's say I want to cap the votes vs weights
-            // Then by definition, I add the effective LQTY
-            // And the effective TS
-            // I remove the previous one
-            // and add the next one
-            // Veto > Vote
-            // Reduce down by Vote (cap min)
-            // If Vote > Veto
-            // Increase by Veto - Veto (reduced max)
-
-            // update the average staking timestamp for all counted voting LQTY
-            /// Discount previous only if the initiative was not unregistered
-
-            /// @audit We update the state only for non-disabled initiaitives
-            /// Disabled initiaitves have had their totals subtracted already
-            /// Math is also non associative so we cannot easily compare values
-            if (status != InitiativeStatus.DISABLED) {
-                /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
-                /// Removing votes from state desynchs the state until all users remove their votes from the initiative
-                /// The invariant that holds is: the one that removes the initiatives that have been unregistered
-                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                    state.countedVoteLQTYAverageTimestamp,
-                    prevInitiativeState.averageStakingTimestampVoteLQTY,
-                    /// @audit We don't have a test that fails when this line is changed
-                    state.countedVoteLQTY,
-                    state.countedVoteLQTY - prevInitiativeState.voteLQTY
-                );
-                assert(state.countedVoteLQTY >= prevInitiativeState.voteLQTY);
-                /// @audit INVARIANT: Never overflows
-                state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
-
-                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                    state.countedVoteLQTYAverageTimestamp,
-                    initiativeState.averageStakingTimestampVoteLQTY,
-                    state.countedVoteLQTY,
-                    state.countedVoteLQTY + initiativeState.voteLQTY
-                );
-
-                state.countedVoteLQTY += initiativeState.voteLQTY;
-            }
-
-            // == USER ALLOCATION == //
-
-            // allocate the voting and vetoing LQTY to the initiative
-            Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
-            allocation.voteLQTY = add(allocation.voteLQTY, deltaLQTYVotes);
-            allocation.vetoLQTY = add(allocation.vetoLQTY, deltaLQTYVetos);
-            allocation.atEpoch = currentEpoch;
-            require(!(allocation.voteLQTY != 0 && allocation.vetoLQTY != 0), "Governance: vote-and-veto");
-            lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
-
-            // == USER STATE == //
-
-            userState.allocatedLQTY = add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
-
-            emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
-
-            // Replaces try / catch | Enforces sufficient gas is passed
-            safeCallWithMinGas(
-                initiative,
-                MIN_GAS_TO_HOOK,
-                0,
-                abi.encodeCall(
-                    IInitiative.onAfterAllocateLQTY, (currentEpoch, msg.sender, userState, allocation, initiativeState)
-                )
-            );
+            _allocateLQTYToInitiative(_initiatives[i], _deltaLQTYVotes[i], _deltaLQTYVetos[i], vars);
         }
 
         require(
-            userState.allocatedLQTY == 0
-                || userState.allocatedLQTY <= uint88(stakingV1.stakes(deriveUserProxyAddress(msg.sender))),
+            vars.userState.allocatedLQTY == 0
+                || vars.userState.allocatedLQTY <= uint88(stakingV1.stakes(deriveUserProxyAddress(msg.sender))),
             "Governance: insufficient-or-allocated-lqty"
         );
 
-        globalState = state;
-        userStates[msg.sender] = userState;
+        globalState = vars.state;
+        userStates[msg.sender] = vars.userState;
+    }
+
+    function _allocateLQTYToInitiative(
+        address initiative,
+        int88 deltaLQTYVotes,
+        int88 deltaLQTYVetos,
+        AllocateLQTYVars memory vars
+    ) internal {
+        assert(deltaLQTYVotes != 0 || deltaLQTYVetos != 0);
+
+        /// === Check FSM === ///
+        // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states
+        // Force to remove votes if disabled
+        // Can remove votes and vetos in every stage
+        (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
+            _snapshotVotesForInitiative(initiative);
+
+        (InitiativeStatus status,,) =
+            getInitiativeState(initiative, vars.votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
+
+        if (deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
+            /// @audit You cannot vote on `unregisterable` but a vote may have been there
+            require(
+                status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE
+                    || status == InitiativeStatus.CLAIMED,
+                "Governance: active-vote-fsm"
+            );
+        }
+
+        if (status == InitiativeStatus.DISABLED) {
+            require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
+        }
+
+        /// === UPDATE ACCOUNTING === ///
+        // == INITIATIVE STATE == //
+
+        // deep copy of the initiative's state before the allocation
+        InitiativeState memory prevInitiativeState = InitiativeState(
+            initiativeState.voteLQTY,
+            initiativeState.vetoLQTY,
+            initiativeState.averageStakingTimestampVoteLQTY,
+            initiativeState.averageStakingTimestampVetoLQTY,
+            initiativeState.lastEpochClaim
+        );
+
+        // update the average staking timestamp for the initiative based on the user's average staking timestamp
+        initiativeState.averageStakingTimestampVoteLQTY = _calculateAverageTimestamp(
+            initiativeState.averageStakingTimestampVoteLQTY,
+            vars.userState.averageStakingTimestamp,
+            /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
+            initiativeState.voteLQTY,
+            add(initiativeState.voteLQTY, deltaLQTYVotes)
+        );
+        initiativeState.averageStakingTimestampVetoLQTY = _calculateAverageTimestamp(
+            initiativeState.averageStakingTimestampVetoLQTY,
+            vars.userState.averageStakingTimestamp,
+            /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
+            initiativeState.vetoLQTY,
+            add(initiativeState.vetoLQTY, deltaLQTYVetos)
+        );
+
+        // allocate the voting and vetoing LQTY to the initiative
+        initiativeState.voteLQTY = add(initiativeState.voteLQTY, deltaLQTYVotes);
+        initiativeState.vetoLQTY = add(initiativeState.vetoLQTY, deltaLQTYVetos);
+
+        // update the initiative's state
+        initiativeStates[initiative] = initiativeState;
+
+        // == GLOBAL STATE == //
+
+        // TODO: Veto reducing total votes logic change
+        // TODO: Accounting invariants
+        // TODO: Let's say I want to cap the votes vs weights
+        // Then by definition, I add the effective LQTY
+        // And the effective TS
+        // I remove the previous one
+        // and add the next one
+        // Veto > Vote
+        // Reduce down by Vote (cap min)
+        // If Vote > Veto
+        // Increase by Veto - Veto (reduced max)
+
+        // update the average staking timestamp for all counted voting LQTY
+        /// Discount previous only if the initiative was not unregistered
+
+        /// @audit We update the state only for non-disabled initiaitives
+        /// Disabled initiaitves have had their totals subtracted already
+        /// Math is also non associative so we cannot easily compare values
+        if (status != InitiativeStatus.DISABLED) {
+            /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
+            /// Removing votes from state desynchs the state until all users remove their votes from the initiative
+            /// The invariant that holds is: the one that removes the initiatives that have been unregistered
+            vars.state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                vars.state.countedVoteLQTYAverageTimestamp,
+                prevInitiativeState.averageStakingTimestampVoteLQTY,
+                /// @audit We don't have a test that fails when this line is changed
+                vars.state.countedVoteLQTY,
+                vars.state.countedVoteLQTY - prevInitiativeState.voteLQTY
+            );
+            assert(vars.state.countedVoteLQTY >= prevInitiativeState.voteLQTY);
+            /// @audit INVARIANT: Never overflows
+            vars.state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
+
+            vars.state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
+                vars.state.countedVoteLQTYAverageTimestamp,
+                initiativeState.averageStakingTimestampVoteLQTY,
+                vars.state.countedVoteLQTY,
+                vars.state.countedVoteLQTY + initiativeState.voteLQTY
+            );
+
+            vars.state.countedVoteLQTY += initiativeState.voteLQTY;
+        }
+
+        // == USER ALLOCATION == //
+
+        // allocate the voting and vetoing LQTY to the initiative
+        Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
+        allocation.voteLQTY = add(allocation.voteLQTY, deltaLQTYVotes);
+        allocation.vetoLQTY = add(allocation.vetoLQTY, deltaLQTYVetos);
+        allocation.atEpoch = vars.currentEpoch;
+        require(!(allocation.voteLQTY != 0 && allocation.vetoLQTY != 0), "Governance: vote-and-veto");
+        lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
+
+        // == USER STATE == //
+
+        vars.userState.allocatedLQTY = add(vars.userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
+
+        // Replaces try / catch | Enforces sufficient gas is passed
+        bool success = safeCallWithMinGas(
+            initiative,
+            MIN_GAS_TO_HOOK,
+            0,
+            abi.encodeCall(
+                IInitiative.onAfterAllocateLQTY,
+                (vars.currentEpoch, msg.sender, vars.userState, allocation, initiativeState)
+            )
+        );
+
+        emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, vars.currentEpoch, success);
     }
 
     /// @inheritdoc IGovernance
@@ -909,12 +930,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
         registeredInitiatives[_initiative] = UNREGISTERED_INITIATIVE;
 
-        emit UnregisterInitiative(_initiative, currentEpoch);
-
         // Replaces try / catch | Enforces sufficient gas is passed
-        safeCallWithMinGas(
+        bool success = safeCallWithMinGas(
             _initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onUnregisterInitiative, (currentEpoch))
         );
+
+        emit UnregisterInitiative(_initiative, currentEpoch, success);
     }
 
     /// @inheritdoc IGovernance
@@ -950,15 +971,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         bold.safeTransfer(_initiative, claimableAmount);
 
-        emit ClaimForInitiative(_initiative, claimableAmount, votesSnapshot_.forEpoch);
-
         // Replaces try / catch | Enforces sufficient gas is passed
-        safeCallWithMinGas(
+        bool success = safeCallWithMinGas(
             _initiative,
             MIN_GAS_TO_HOOK,
             0,
             abi.encodeCall(IInitiative.onClaimForInitiative, (votesSnapshot_.forEpoch, claimableAmount))
         );
+
+        emit ClaimForInitiative(_initiative, claimableAmount, votesSnapshot_.forEpoch, success);
 
         return claimableAmount;
     }

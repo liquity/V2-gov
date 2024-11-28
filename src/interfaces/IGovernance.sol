@@ -8,17 +8,17 @@ import {ILQTYStaking} from "./ILQTYStaking.sol";
 import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
-    event DepositLQTY(address user, uint256 depositedLQTY);
-    event WithdrawLQTY(address user, uint256 withdrawnLQTY, uint256 accruedLUSD, uint256 accruedETH);
+    event DepositLQTY(address indexed user, uint256 depositedLQTY);
+    event WithdrawLQTY(address indexed user, uint256 withdrawnLQTY, uint256 accruedLUSD, uint256 accruedETH);
 
-    event SnapshotVotes(uint240 votes, uint16 forEpoch);
-    event SnapshotVotesForInitiative(address initiative, uint240 votes, uint16 forEpoch);
+    event SnapshotVotes(uint256 votes, uint256 forEpoch, uint256 boldAccrued);
+    event SnapshotVotesForInitiative(address indexed initiative, uint256 votes, uint256 vetos, uint256 forEpoch);
 
-    event RegisterInitiative(address initiative, address registrant, uint16 atEpoch);
-    event UnregisterInitiative(address initiative, uint16 atEpoch);
+    event RegisterInitiative(address initiative, address registrant, uint256 atEpoch, bool hookSuccess);
+    event UnregisterInitiative(address initiative, uint256 atEpoch, bool hookSuccess);
 
-    event AllocateLQTY(address user, address initiative, int256 deltaVoteLQTY, int256 deltaVetoLQTY, uint16 atEpoch);
-    event ClaimForInitiative(address initiative, uint256 bold, uint256 forEpoch);
+    event AllocateLQTY(address indexed user, address indexed initiative, int256 deltaVoteLQTY, int256 deltaVetoLQTY, uint256 atEpoch, bool hookSuccess);
+    event ClaimForInitiative(address indexed initiative, uint256 bold, uint256 forEpoch, bool hookSuccess);
 
     struct Configuration {
         uint128 registrationFee;
