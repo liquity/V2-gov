@@ -17,7 +17,14 @@ interface IGovernance {
     event RegisterInitiative(address initiative, address registrant, uint256 atEpoch, bool hookSuccess);
     event UnregisterInitiative(address initiative, uint256 atEpoch, bool hookSuccess);
 
-    event AllocateLQTY(address indexed user, address indexed initiative, int256 deltaVoteLQTY, int256 deltaVetoLQTY, uint256 atEpoch, bool hookSuccess);
+    event AllocateLQTY(
+        address indexed user,
+        address indexed initiative,
+        int256 deltaVoteLQTY,
+        int256 deltaVetoLQTY,
+        uint256 atEpoch,
+        bool hookSuccess
+    );
     event ClaimForInitiative(address indexed initiative, uint256 bold, uint256 forEpoch, bool hookSuccess);
 
     struct Configuration {
