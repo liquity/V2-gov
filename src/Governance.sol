@@ -50,8 +50,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
     /// @inheritdoc IGovernance
     uint256 public immutable UNREGISTRATION_THRESHOLD_FACTOR;
     /// @inheritdoc IGovernance
-    uint256 public immutable REGISTRATION_WARM_UP_PERIOD;
-    /// @inheritdoc IGovernance
     uint256 public immutable UNREGISTRATION_AFTER_EPOCHS;
     /// @inheritdoc IGovernance
     uint256 public immutable VOTING_THRESHOLD_FACTOR;
@@ -102,8 +100,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         // Unregistration must be X times above the `votingThreshold`
         require(_config.unregistrationThresholdFactor > WAD, "Gov: unregistration-config");
         UNREGISTRATION_THRESHOLD_FACTOR = _config.unregistrationThresholdFactor;
-
-        REGISTRATION_WARM_UP_PERIOD = _config.registrationWarmUpPeriod;
         UNREGISTRATION_AFTER_EPOCHS = _config.unregistrationAfterEpochs;
 
         // Voting threshold must be below 100% of votes
@@ -478,8 +474,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             /// By definition it has zero rewards
         }
 
+        uint16 currentEpoch = epoch();
+
         // == Just Registered Condition == //
-        if (registeredInitiatives[_initiative] == epoch()) {
+        if (registeredInitiatives[_initiative] == currentEpoch) {
             return (InitiativeStatus.WARM_UP, 0, 0);
             /// Was registered this week, cannot have rewards
         }
@@ -494,7 +492,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         }
 
         // == Already Claimed Condition == //
-        if (lastEpochClaim >= epoch() - 1) {
+        if (lastEpochClaim >= currentEpoch - 1) {
             // early return, we have already claimed
             return (InitiativeStatus.CLAIMED, lastEpochClaim, claimableAmount);
         }
@@ -532,7 +530,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         // == Unregister Condition == //
         // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the 4th epoch flip that would result in SKIP, will result in the initiative being `UNREGISTERABLE`
         if (
-            (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < epoch() - 1)
+            (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < currentEpoch - 1)
                 || upscaledInitiativeVetos > upscaledInitiativeVotes
                     && upscaledInitiativeVetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
