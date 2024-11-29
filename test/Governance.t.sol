@@ -81,7 +81,6 @@ abstract contract GovernanceTest is Test {
         initialInitiatives.push(baseInitiative1);
         initialInitiatives.push(baseInitiative2);
         governance.registerInitialInitiatives(initialInitiatives);
-
     }
 
     // forge test --match-test test_depositLQTY_withdrawLQTY -vv
