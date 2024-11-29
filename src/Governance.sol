@@ -108,6 +108,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         MIN_CLAIM = _config.minClaim;
         MIN_ACCRUAL = _config.minAccrual;
+        require(_config.epochStart <= block.timestamp, "Gov: cannot-start-in-future");
         EPOCH_START = _config.epochStart;
         require(_config.epochDuration > 0, "Gov: epoch-duration-zero");
         EPOCH_DURATION = _config.epochDuration;
@@ -132,48 +133,23 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
     }
 
     function _averageAge(uint120 _currentTimestamp, uint120 _averageTimestamp) internal pure returns (uint120) {
-        if (_averageTimestamp == 0 || _currentTimestamp < _averageTimestamp) return 0;
+        // Due to rounding error, _averageTimestamp can sometimes be higher than _currentTimestamp
+        if (_currentTimestamp < _averageTimestamp) return 0;
         return _currentTimestamp - _averageTimestamp;
     }
 
     function _calculateAverageTimestamp(
-        uint120 _prevOuterAverageTimestamp,
-        uint120 _newInnerAverageTimestamp,
-        uint88 _prevLQTYBalance,
-        uint88 _newLQTYBalance
-    ) internal view returns (uint120) {
+        uint256 _prevOuterAverageTimestamp,
+        uint256 _newInnerAverageTimestamp,
+        uint256 _prevLQTYBalance,
+        uint256 _newLQTYBalance
+    ) internal pure returns (uint120) {
         if (_newLQTYBalance == 0) return 0;
 
-        // NOTE: Truncation
-        // NOTE: u32 -> u120
-        // While we upscale the Timestamp, the system will stop working at type(uint32).max
-        // Because the rest of the type is used for precision
-        uint120 currentTime = uint120(uint32(block.timestamp)) * uint120(TIMESTAMP_PRECISION);
-
-        uint120 prevOuterAverageAge = _averageAge(currentTime, _prevOuterAverageTimestamp);
-        uint120 newInnerAverageAge = _averageAge(currentTime, _newInnerAverageTimestamp);
-
-        // 120 for timestamps = 2^32 * 1e18 | 2^32 * 1e26
-        // 208 for voting power = 2^120 * 2^88
-        // NOTE: 208 / X can go past u120!
-        // Therefore we keep `newOuterAverageAge` as u208
-        uint208 newOuterAverageAge;
-        if (_prevLQTYBalance <= _newLQTYBalance) {
-            uint88 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
-            uint208 prevVotes = uint208(_prevLQTYBalance) * uint208(prevOuterAverageAge);
-            uint208 newVotes = uint208(deltaLQTY) * uint208(newInnerAverageAge);
-            uint208 votes = prevVotes + newVotes;
-            newOuterAverageAge = votes / _newLQTYBalance;
-        } else {
-            uint88 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
-            uint208 prevVotes = uint208(_prevLQTYBalance) * uint208(prevOuterAverageAge);
-            uint208 newVotes = uint208(deltaLQTY) * uint208(newInnerAverageAge);
-            uint208 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
-            newOuterAverageAge = votes / _newLQTYBalance;
-        }
-
-        if (newOuterAverageAge > currentTime) return 0;
-        return uint120(currentTime - newOuterAverageAge);
+        return uint120(
+            _newInnerAverageTimestamp + _prevOuterAverageTimestamp * _prevLQTYBalance / _newLQTYBalance
+                - _newInnerAverageTimestamp * _prevLQTYBalance / _newLQTYBalance
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -271,22 +247,16 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
     /// @inheritdoc IGovernance
     function epoch() public view returns (uint16) {
-        if (block.timestamp < EPOCH_START) {
-            return 0;
-        }
         return uint16(((block.timestamp - EPOCH_START) / EPOCH_DURATION) + 1);
     }
 
     /// @inheritdoc IGovernance
     function epochStart() public view returns (uint32) {
-        uint16 currentEpoch = epoch();
-        if (currentEpoch == 0) return 0;
-        return uint32(EPOCH_START + (currentEpoch - 1) * EPOCH_DURATION);
+        return uint32(EPOCH_START + (epoch() - 1) * EPOCH_DURATION);
     }
 
     /// @inheritdoc IGovernance
     function secondsWithinEpoch() public view returns (uint32) {
-        if (block.timestamp < EPOCH_START) return 0;
         return uint32((block.timestamp - EPOCH_START) % EPOCH_DURATION);
     }
 

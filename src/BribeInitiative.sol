@@ -235,8 +235,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         IGovernance.Allocation calldata _allocation,
         IGovernance.InitiativeState calldata _initiativeState
     ) external virtual onlyGovernance {
-        if (_currentEpoch == 0) return;
-
         uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
         uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
 
