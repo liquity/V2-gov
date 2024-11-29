@@ -699,7 +699,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             assert(deltaLQTYVotes != 0 || deltaLQTYVetos != 0);
 
             /// === Check FSM === ///
-            // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states
+            // Can vote positively in SKIP, CLAIMABLE and CLAIMED states
             // Force to remove votes if disabled
             // Can remove votes and vetos in every stage
             (InitiativeVoteSnapshot memory votesForInitiativeSnapshot_, InitiativeState memory initiativeState) =
