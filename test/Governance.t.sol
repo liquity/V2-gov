@@ -39,7 +39,10 @@ contract GovernanceTester is Governance {
         votesSnapshot = _votesSnapshot;
     }
 
-    function tester_setVotesForInitiativeSnapshot(address _initiative, InitiativeVoteSnapshot calldata _votesForInitiativeSnapshot) external {
+    function tester_setVotesForInitiativeSnapshot(
+        address _initiative,
+        InitiativeVoteSnapshot calldata _votesForInitiativeSnapshot
+    ) external {
         votesForInitiativeSnapshot[_initiative] = _votesForInitiativeSnapshot;
     }
 
