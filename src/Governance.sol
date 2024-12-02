@@ -788,18 +788,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
             // == GLOBAL STATE == //
 
-            // TODO: Veto reducing total votes logic change
-            // TODO: Accounting invariants
-            // TODO: Let's say I want to cap the votes vs weights
-            // Then by definition, I add the effective LQTY
-            // And the effective TS
-            // I remove the previous one
-            // and add the next one
-            // Veto > Vote
-            // Reduce down by Vote (cap min)
-            // If Vote > Veto
-            // Increase by Veto - Veto (reduced max)
-
             // update the average staking timestamp for all counted voting LQTY
             /// Discount previous only if the initiative was not unregistered
 
