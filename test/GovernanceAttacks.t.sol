@@ -58,7 +58,8 @@ abstract contract GovernanceAttacksTest is Test {
             votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
             minClaim: MIN_CLAIM,
             minAccrual: MIN_ACCRUAL,
-            epochStart: uint32(block.timestamp),
+            // backdate by 2 epochs to ensure new initiatives can be registered from the start
+            epochStart: uint32(block.timestamp - 2 * EPOCH_DURATION),
             epochDuration: EPOCH_DURATION,
             epochVotingCutoff: EPOCH_VOTING_CUTOFF
         });
@@ -70,8 +71,6 @@ abstract contract GovernanceAttacksTest is Test {
 
     // All calls should never revert due to malicious initiative
     function test_all_revert_attacks_hardcoded() public {
-        vm.warp(block.timestamp + governance.EPOCH_DURATION());
-
         vm.startPrank(user);
 
         // should not revert if the user doesn't have a UserProxy deployed yet
