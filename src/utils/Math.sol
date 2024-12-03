@@ -5,7 +5,7 @@ function add(uint88 a, int88 b) pure returns (uint88) {
     if (b < 0) {
         return a - abs(b);
     }
-    return a + b;
+    return a + uint88(b);
 }
 
 function max(uint256 a, uint256 b) pure returns (uint256) {
