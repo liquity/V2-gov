@@ -51,32 +51,6 @@ contract GovernanceTester is Governance {
     }
 }
 
-contract GovernanceInternal is Governance {
-    constructor(
-        address _lqty,
-        address _lusd,
-        address _stakingV1,
-        address _bold,
-        Configuration memory _config,
-        address[] memory _initiatives
-    ) Governance(_lqty, _lusd, _stakingV1, _bold, _config, msg.sender, _initiatives) {}
-
-    function averageAge(uint120 _currentTimestamp, uint120 _averageTimestamp) external pure returns (uint120) {
-        return _averageAge(_currentTimestamp, _averageTimestamp);
-    }
-
-    function calculateAverageTimestamp(
-        uint120 _prevOuterAverageTimestamp,
-        uint120 _newInnerAverageTimestamp,
-        uint88 _prevLQTYBalance,
-        uint88 _newLQTYBalance
-    ) external view returns (uint208) {
-        return _calculateAverageTimestamp(
-            _prevOuterAverageTimestamp, _newInnerAverageTimestamp, _prevLQTYBalance, _newLQTYBalance
-        );
-    }
-}
-
 abstract contract GovernanceTest is Test {
     ILQTY internal lqty;
     ILUSD internal lusd;
@@ -97,7 +71,6 @@ abstract contract GovernanceTest is Test {
     uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     GovernanceTester private governance;
-    GovernanceInternal private governanceInternal;
     address[] private initialInitiatives;
 
     address private baseInitiative2;
@@ -135,36 +108,6 @@ abstract contract GovernanceTest is Test {
         initialInitiatives.push(baseInitiative1);
         initialInitiatives.push(baseInitiative2);
         governance.registerInitialInitiatives(initialInitiatives);
-
-        governanceInternal = new GovernanceInternal(
-            address(lqty), address(lusd), address(stakingV1), address(lusd), config, initialInitiatives
-        );
-    }
-
-    // should not revert under any input
-    function test_averageAge(uint120 _currentTimestamp, uint120 _timestamp) public {
-        uint120 averageAge = governanceInternal.averageAge(_currentTimestamp, _timestamp);
-        if (_timestamp == 0 || _currentTimestamp < _timestamp) {
-            assertEq(averageAge, 0);
-        } else {
-            assertEq(averageAge, _currentTimestamp - _timestamp);
-        }
-    }
-
-    // should not revert under any input
-    function test_calculateAverageTimestamp(
-        uint32 _prevOuterAverageTimestamp,
-        uint32 _newInnerAverageTimestamp,
-        uint88 _prevLQTYBalance,
-        uint88 _newLQTYBalance
-    ) public {
-        uint32 highestTimestamp = (_prevOuterAverageTimestamp > _newInnerAverageTimestamp)
-            ? _prevOuterAverageTimestamp
-            : _newInnerAverageTimestamp;
-        if (highestTimestamp > block.timestamp) vm.warp(highestTimestamp);
-        governanceInternal.calculateAverageTimestamp(
-            _prevOuterAverageTimestamp, _newInnerAverageTimestamp, _prevLQTYBalance, _newLQTYBalance
-        );
     }
 
     // forge test --match-test test_depositLQTY_withdrawLQTY -vv
@@ -342,7 +285,7 @@ abstract contract GovernanceTest is Test {
 
     // should not revert under any block.timestamp >= EPOCH_START
     function test_epoch_fuzz(uint32 _timestamp) public {
-        vm.warp(_timestamp);
+        vm.warp(governance.EPOCH_START() + _timestamp);
         governance.epoch();
     }
 
@@ -355,7 +298,7 @@ abstract contract GovernanceTest is Test {
 
     // should not revert under any block.timestamp >= EPOCH_START
     function test_epochStart_fuzz(uint32 _timestamp) public {
-        vm.warp(_timestamp);
+        vm.warp(governance.EPOCH_START() + _timestamp);
         governance.epochStart();
     }
 
@@ -374,7 +317,7 @@ abstract contract GovernanceTest is Test {
 
     // should not revert under any block.timestamp
     function test_secondsWithinEpoch_fuzz(uint32 _timestamp) public {
-        vm.warp(_timestamp);
+        vm.warp(governance.EPOCH_START() + _timestamp);
         governance.secondsWithinEpoch();
     }
 
