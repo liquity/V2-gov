@@ -93,7 +93,7 @@ contract DeploymentTest is MockStakingV1Deployer {
         vm.warp(block.timestamp + EPOCH_DURATION);
 
         governance.claimForInitiative(initialInitiative);
-        assertEqDecimal(bold.balanceOf(initialInitiative), boldAccrued, 18, "Initiative should received accrued BOLD");
+        assertEqDecimal(bold.balanceOf(initialInitiative), boldAccrued, 18, "Initiative should have received BOLD");
     }
 
     function test_AtStart_CannotRegisterNewInitiative() external {
