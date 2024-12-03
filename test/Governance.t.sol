@@ -24,29 +24,30 @@ import {MockStakingV1} from "./mocks/MockStakingV1.sol";
 import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
 import "./constants.sol";
 
-contract GovernanceInternal is Governance {
+contract GovernanceTester is Governance {
     constructor(
         address _lqty,
         address _lusd,
         address _stakingV1,
         address _bold,
         Configuration memory _config,
+        address _owner,
         address[] memory _initiatives
-    ) Governance(_lqty, _lusd, _stakingV1, _bold, _config, msg.sender, _initiatives) {}
+    ) Governance(_lqty, _lusd, _stakingV1, _bold, _config, _owner, _initiatives) {}
 
-    function averageAge(uint120 _currentTimestamp, uint120 _averageTimestamp) external pure returns (uint120) {
-        return _averageAge(_currentTimestamp, _averageTimestamp);
+    function tester_setVotesSnapshot(VoteSnapshot calldata _votesSnapshot) external {
+        votesSnapshot = _votesSnapshot;
     }
 
-    function calculateAverageTimestamp(
-        uint120 _prevOuterAverageTimestamp,
-        uint120 _newInnerAverageTimestamp,
-        uint88 _prevLQTYBalance,
-        uint88 _newLQTYBalance
-    ) external view returns (uint208) {
-        return _calculateAverageTimestamp(
-            _prevOuterAverageTimestamp, _newInnerAverageTimestamp, _prevLQTYBalance, _newLQTYBalance
-        );
+    function tester_setVotesForInitiativeSnapshot(
+        address _initiative,
+        InitiativeVoteSnapshot calldata _votesForInitiativeSnapshot
+    ) external {
+        votesForInitiativeSnapshot[_initiative] = _votesForInitiativeSnapshot;
+    }
+
+    function tester_setBoldAccrued(uint256 _boldAccrued) external {
+        boldAccrued = _boldAccrued;
     }
 }
 
@@ -62,7 +63,6 @@ abstract contract GovernanceTest is Test {
     uint128 private constant REGISTRATION_FEE = 1e18;
     uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
     uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint16 private constant REGISTRATION_WARM_UP_PERIOD = 4;
     uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
     uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
     uint88 private constant MIN_CLAIM = 500e18;
@@ -70,8 +70,7 @@ abstract contract GovernanceTest is Test {
     uint32 private constant EPOCH_DURATION = 604800;
     uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
-    Governance private governance;
-    GovernanceInternal private governanceInternal;
+    GovernanceTester private governance;
     address[] private initialInitiatives;
 
     address private baseInitiative2;
@@ -89,7 +88,6 @@ abstract contract GovernanceTest is Test {
             registrationFee: REGISTRATION_FEE,
             registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
             unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-            registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
             unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
             votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
             minClaim: MIN_CLAIM,
@@ -99,7 +97,7 @@ abstract contract GovernanceTest is Test {
             epochVotingCutoff: EPOCH_VOTING_CUTOFF
         });
 
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), new address[](0)
         );
 
@@ -110,36 +108,6 @@ abstract contract GovernanceTest is Test {
         initialInitiatives.push(baseInitiative1);
         initialInitiatives.push(baseInitiative2);
         governance.registerInitialInitiatives(initialInitiatives);
-
-        governanceInternal = new GovernanceInternal(
-            address(lqty), address(lusd), address(stakingV1), address(lusd), config, initialInitiatives
-        );
-    }
-
-    // should not revert under any input
-    function test_averageAge(uint120 _currentTimestamp, uint120 _timestamp) public {
-        uint120 averageAge = governanceInternal.averageAge(_currentTimestamp, _timestamp);
-        if (_timestamp == 0 || _currentTimestamp < _timestamp) {
-            assertEq(averageAge, 0);
-        } else {
-            assertEq(averageAge, _currentTimestamp - _timestamp);
-        }
-    }
-
-    // should not revert under any input
-    function test_calculateAverageTimestamp(
-        uint32 _prevOuterAverageTimestamp,
-        uint32 _newInnerAverageTimestamp,
-        uint88 _prevLQTYBalance,
-        uint88 _newLQTYBalance
-    ) public {
-        uint32 highestTimestamp = (_prevOuterAverageTimestamp > _newInnerAverageTimestamp)
-            ? _prevOuterAverageTimestamp
-            : _newInnerAverageTimestamp;
-        if (highestTimestamp > block.timestamp) vm.warp(highestTimestamp);
-        governanceInternal.calculateAverageTimestamp(
-            _prevOuterAverageTimestamp, _newInnerAverageTimestamp, _prevLQTYBalance, _newLQTYBalance
-        );
     }
 
     // forge test --match-test test_depositLQTY_withdrawLQTY -vv
@@ -317,7 +285,7 @@ abstract contract GovernanceTest is Test {
 
     // should not revert under any block.timestamp >= EPOCH_START
     function test_epoch_fuzz(uint32 _timestamp) public {
-        vm.warp(_timestamp);
+        vm.warp(governance.EPOCH_START() + _timestamp);
         governance.epoch();
     }
 
@@ -330,7 +298,7 @@ abstract contract GovernanceTest is Test {
 
     // should not revert under any block.timestamp >= EPOCH_START
     function test_epochStart_fuzz(uint32 _timestamp) public {
-        vm.warp(_timestamp);
+        vm.warp(governance.EPOCH_START() + _timestamp);
         governance.epochStart();
     }
 
@@ -349,7 +317,7 @@ abstract contract GovernanceTest is Test {
 
     // should not revert under any block.timestamp
     function test_secondsWithinEpoch_fuzz(uint32 _timestamp) public {
-        vm.warp(_timestamp);
+        vm.warp(governance.EPOCH_START() + _timestamp);
         governance.secondsWithinEpoch();
     }
 
@@ -359,7 +327,7 @@ abstract contract GovernanceTest is Test {
     }
 
     function test_getLatestVotingThreshold() public {
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -368,7 +336,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -386,23 +353,15 @@ abstract contract GovernanceTest is Test {
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
-        vm.store(
-            address(governance),
-            bytes32(uint256(3)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
-        );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 1e18);
-        assertEq(forEpoch, 1);
+        governance.tester_setVotesSnapshot(snapshot);
 
         uint256 boldAccrued = 1000e18;
-        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encode(boldAccrued)));
-        assertEq(governance.boldAccrued(), 1000e18);
+        governance.tester_setBoldAccrued(boldAccrued);
 
         assertEq(governance.getLatestVotingThreshold(), MIN_CLAIM / 1000);
 
         // check that votingThreshold is 4% of votes of previous epoch
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -411,7 +370,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: 10e18,
@@ -425,18 +383,10 @@ abstract contract GovernanceTest is Test {
         );
 
         snapshot = IGovernance.VoteSnapshot(10000e18, 1);
-        vm.store(
-            address(governance),
-            bytes32(uint256(3)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
-        );
-        (votes, forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 10000e18);
-        assertEq(forEpoch, 1);
+        governance.tester_setVotesSnapshot(snapshot);
 
         boldAccrued = 1000e18;
-        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encode(boldAccrued)));
-        assertEq(governance.boldAccrued(), 1000e18);
+        governance.tester_setBoldAccrued(boldAccrued);
 
         assertEq(governance.getLatestVotingThreshold(), 10000e18 * 0.04);
     }
@@ -451,7 +401,7 @@ abstract contract GovernanceTest is Test {
     ) public {
         _votingThresholdFactor = _votingThresholdFactor % 1e18;
         /// Clamp to prevent misconfig
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -460,7 +410,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: _votingThresholdFactor,
                 minClaim: _minClaim,
@@ -474,17 +423,8 @@ abstract contract GovernanceTest is Test {
         );
 
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(_votes, _forEpoch);
-        vm.store(
-            address(governance),
-            bytes32(uint256(3)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
-        );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
-        assertEq(votes, _votes);
-        assertEq(forEpoch, _forEpoch);
-
-        vm.store(address(governance), bytes32(uint256(2)), bytes32(abi.encode(_boldAccrued)));
-        assertEq(governance.boldAccrued(), _boldAccrued);
+        governance.tester_setVotesSnapshot(snapshot);
+        governance.tester_setBoldAccrued(_boldAccrued);
 
         governance.getLatestVotingThreshold();
     }
@@ -495,13 +435,7 @@ abstract contract GovernanceTest is Test {
         address userProxy = governance.deployUserProxy();
 
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
-        vm.store(
-            address(governance),
-            bytes32(uint256(3)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
-        );
-        (uint240 votes,) = governance.votesSnapshot();
-        assertEq(votes, 1e18);
+        governance.tester_setVotesSnapshot(snapshot);
 
         // should revert if the `REGISTRATION_FEE` > `lusd.balanceOf(msg.sender)`
         _expectInsufficientAllowanceAndBalance();
@@ -550,14 +484,7 @@ abstract contract GovernanceTest is Test {
         address userProxy = governance.deployUserProxy();
 
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
-        vm.store(
-            address(governance),
-            bytes32(uint256(3)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
-        );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 1e18);
-        assertEq(forEpoch, 1);
+        governance.tester_setVotesSnapshot(snapshot);
 
         vm.stopPrank();
 
@@ -592,14 +519,7 @@ abstract contract GovernanceTest is Test {
         governance.unregisterInitiative(baseInitiative3);
 
         snapshot = IGovernance.VoteSnapshot(1e18, governance.epoch() - 1);
-        vm.store(
-            address(governance),
-            bytes32(uint256(3)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
-        );
-        (votes, forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 1e18);
-        assertEq(forEpoch, governance.epoch() - 1);
+        governance.tester_setVotesSnapshot(snapshot);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() * UNREGISTRATION_AFTER_EPOCHS);
 
@@ -1548,14 +1468,7 @@ abstract contract GovernanceTest is Test {
         address userProxy = governance.deployUserProxy();
 
         IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
-        vm.store(
-            address(governance),
-            bytes32(uint256(3)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
-        );
-        (uint240 votes, uint16 forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 1e18);
-        assertEq(forEpoch, 1);
+        governance.tester_setVotesSnapshot(snapshot);
 
         vm.startPrank(lusdHolder);
         lusd.transfer(user, 2e18);
@@ -1583,54 +1496,18 @@ abstract contract GovernanceTest is Test {
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
         snapshot = IGovernance.VoteSnapshot(1, governance.epoch() - 1);
-        vm.store(
-            address(governance),
-            bytes32(uint256(3)),
-            bytes32(abi.encodePacked(uint16(snapshot.forEpoch), uint240(snapshot.votes)))
-        );
-        (votes, forEpoch) = governance.votesSnapshot();
-        assertEq(votes, 1);
-        assertEq(forEpoch, governance.epoch() - 1);
+        governance.tester_setVotesSnapshot(snapshot);
 
         IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot =
             IGovernance.InitiativeVoteSnapshot(1, governance.epoch() - 1, governance.epoch() - 1, 0);
-        vm.store(
-            address(governance),
-            keccak256(abi.encode(address(mockInitiative), uint256(4))),
-            bytes32(
-                abi.encodePacked(
-                    uint16(initiativeSnapshot.lastCountedEpoch),
-                    uint16(initiativeSnapshot.forEpoch),
-                    uint224(initiativeSnapshot.votes)
-                )
-            )
-        );
-        (uint224 votes_, uint16 forEpoch_, uint16 lastCountedEpoch,) =
-            governance.votesForInitiativeSnapshot(address(mockInitiative));
-        assertEq(votes_, 1);
-        assertEq(forEpoch_, governance.epoch() - 1);
-        assertEq(lastCountedEpoch, governance.epoch() - 1);
+        governance.tester_setVotesForInitiativeSnapshot(address(mockInitiative), initiativeSnapshot);
 
         governance.claimForInitiative(address(mockInitiative));
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         initiativeSnapshot = IGovernance.InitiativeVoteSnapshot(0, governance.epoch() - 1, 0, 0);
-        vm.store(
-            address(governance),
-            keccak256(abi.encode(address(mockInitiative), uint256(4))),
-            bytes32(
-                abi.encodePacked(
-                    uint16(initiativeSnapshot.lastCountedEpoch),
-                    uint16(initiativeSnapshot.forEpoch),
-                    uint224(initiativeSnapshot.votes)
-                )
-            )
-        );
-        (votes_, forEpoch_, lastCountedEpoch,) = governance.votesForInitiativeSnapshot(address(mockInitiative));
-        assertEq(votes_, 0, "votes");
-        assertEq(forEpoch_, governance.epoch() - 1, "forEpoch_");
-        assertEq(lastCountedEpoch, 0, "lastCountedEpoch");
+        governance.tester_setVotesForInitiativeSnapshot(address(mockInitiative), initiativeSnapshot);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION() * 4);
 
@@ -1671,7 +1548,7 @@ abstract contract GovernanceTest is Test {
 
     function test_voting_power_increase() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -1680,7 +1557,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -1801,7 +1677,7 @@ abstract contract GovernanceTest is Test {
     // increase in user voting power and initiative voting power should be equivalent
     function test_voting_power_in_same_epoch_as_allocation() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -1810,7 +1686,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -1891,7 +1766,7 @@ abstract contract GovernanceTest is Test {
     // |====== epoch 1=====|==== epoch 2 =====|==== epoch 3 ====|
     function test_voting_power_increase_in_an_epoch() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -1900,7 +1775,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -1952,7 +1826,7 @@ abstract contract GovernanceTest is Test {
     // checking that voting power calculated from lqtyAllocatedByUserToInitiative is equivalent to the voting power using values returned by userStates
     function test_voting_power_lqtyAllocatedByUserToInitiative() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -1961,7 +1835,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -2002,7 +1875,7 @@ abstract contract GovernanceTest is Test {
     // checking if allocating to a different initiative in a different epoch modifies the avgStakingTimestamp
     function test_average_timestamp() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -2011,7 +1884,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -2055,7 +1927,7 @@ abstract contract GovernanceTest is Test {
     // forge test --match-test test_average_timestamp_same_initiative -vv
     function test_average_timestamp_same_initiative() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -2064,7 +1936,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -2106,7 +1977,7 @@ abstract contract GovernanceTest is Test {
     // checking if allocating to same initiative modifies the average timestamp
     function test_average_timestamp_allocate_same_initiative_fuzz(uint256 allocateAmount) public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -2115,7 +1986,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -2163,7 +2033,7 @@ abstract contract GovernanceTest is Test {
 
     function test_voting_snapshot_start_vs_end_epoch() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -2172,7 +2042,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -2239,7 +2108,7 @@ abstract contract GovernanceTest is Test {
     // checks that there's no difference to resulting voting power from allocating at start or end of epoch
     function test_voting_power_no_difference_in_allocating_start_or_end_of_epoch() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -2248,7 +2117,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -2312,7 +2180,7 @@ abstract contract GovernanceTest is Test {
     // deallocating is correctly reflected in voting power for next epoch
     function test_voting_power_decreases_next_epoch() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -2321,7 +2189,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -2375,7 +2242,7 @@ abstract contract GovernanceTest is Test {
     // checking if deallocating changes the averageStakingTimestamp
     function test_deallocating_decreases_avg_timestamp() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -2384,7 +2251,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
@@ -2423,7 +2289,7 @@ abstract contract GovernanceTest is Test {
     // vetoing shouldn't affect voting power of the initiative
     function test_vote_and_veto() public {
         // =========== epoch 1 ==================
-        governance = new Governance(
+        governance = new GovernanceTester(
             address(lqty),
             address(lusd),
             address(stakingV1),
@@ -2432,7 +2298,6 @@ abstract contract GovernanceTest is Test {
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
