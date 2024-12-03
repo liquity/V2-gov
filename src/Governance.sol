@@ -438,8 +438,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         InitiativeVoteSnapshot memory _votesForInitiativeSnapshot,
         InitiativeState memory _initiativeState
     ) public view returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount) {
+        uint16 initiativeRegistrationEpoch = registeredInitiatives[_initiative];
+
         // == Non existent Condition == //
-        if (registeredInitiatives[_initiative] == 0) {
+        if (initiativeRegistrationEpoch == 0) {
             return (InitiativeStatus.NONEXISTENT, 0, 0);
             /// By definition it has zero rewards
         }
@@ -447,7 +449,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         uint16 currentEpoch = epoch();
 
         // == Just Registered Condition == //
-        if (registeredInitiatives[_initiative] == currentEpoch) {
+        if (initiativeRegistrationEpoch == currentEpoch) {
             return (InitiativeStatus.WARM_UP, 0, 0);
             /// Was registered this week, cannot have rewards
         }
@@ -456,7 +458,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         lastEpochClaim = initiativeStates[_initiative].lastEpochClaim;
 
         // == Disabled Condition == //
-        if (registeredInitiatives[_initiative] == UNREGISTERED_INITIATIVE) {
+        if (initiativeRegistrationEpoch == UNREGISTERED_INITIATIVE) {
             return (InitiativeStatus.DISABLED, lastEpochClaim, 0);
             /// By definition it has zero rewards
         }
@@ -847,8 +849,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         (InitiativeStatus status,,) =
             getInitiativeState(_initiative, votesSnapshot_, votesForInitiativeSnapshot_, initiativeState);
-        require(status != InitiativeStatus.NONEXISTENT, "Governance: initiative-not-registered");
-        require(status != InitiativeStatus.WARM_UP, "Governance: initiative-in-warm-up");
         require(status == InitiativeStatus.UNREGISTERABLE, "Governance: cannot-unregister-initiative");
 
         // Remove weight from current state
