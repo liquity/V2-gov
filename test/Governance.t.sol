@@ -568,7 +568,7 @@ abstract contract GovernanceTest is Test {
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
         // should revert if the initiative isn't registered
-        vm.expectRevert("Governance: initiative-not-registered");
+        vm.expectRevert("Governance: cannot-unregister-initiative");
         governance.unregisterInitiative(baseInitiative3);
 
         governance.registerInitiative(baseInitiative3);
@@ -576,7 +576,7 @@ abstract contract GovernanceTest is Test {
         assertEq(atEpoch, governance.epoch());
 
         // should revert if the initiative is still in the registration warm up period
-        vm.expectRevert("Governance: initiative-in-warm-up");
+        vm.expectRevert("Governance: cannot-unregister-initiative");
         /// @audit should fail due to not waiting enough time
         governance.unregisterInitiative(baseInitiative3);
 
