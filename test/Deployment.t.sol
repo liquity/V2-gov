@@ -108,9 +108,9 @@ contract DeploymentTest is MockStakingV1Deployer {
     function test_OneEpochLater_WhenSomeoneVotedDuringEpoch2_CannotRegisterNewInitiativeWithNoLQTY() external {
         _voteOnInitiative();
         vm.warp(block.timestamp + EPOCH_DURATION);
-        _registerNewInitiative({ expectRevertReason: "Governance: insufficient-lqty" });
+        _registerNewInitiative({expectRevertReason: "Governance: insufficient-lqty"});
         _depositLQTY(); // Only LQTY deposited during previous epoch counts
-        _registerNewInitiative({ expectRevertReason: "Governance: insufficient-lqty" });
+        _registerNewInitiative({expectRevertReason: "Governance: insufficient-lqty"});
     }
 
     function test_OneEpochLater_WhenSomeoneVotedDuringEpoch2_CanRegisterNewInitiativeWithSufficientLQTY() external {

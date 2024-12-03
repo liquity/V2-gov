@@ -539,7 +539,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             "Governance: insufficient-lqty"
         );
 
-
         registeredInitiatives[_initiative] = currentEpoch;
 
         /// @audit This ensures that the initiatives has UNREGISTRATION_AFTER_EPOCHS even after the first epoch

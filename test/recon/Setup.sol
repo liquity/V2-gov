@@ -68,7 +68,7 @@ abstract contract Setup is BaseSetup, MockStakingV1Deployer {
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
                 // backdate by 2 epochs to ensure new initiatives can be registered from the start
-                epochStart: uint32(block.timestamp - 2 * EPOCH_DURATION), 
+                epochStart: uint32(block.timestamp - 2 * EPOCH_DURATION),
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
