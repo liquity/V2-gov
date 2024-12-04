@@ -285,7 +285,9 @@ interface IGovernance {
 
     }
 
-    function getInitiativeState(address _initiative) external returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
+    function getInitiativeState(address _initiative)
+        external
+        returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
 
     function getInitiativeState(
         address _initiative,
