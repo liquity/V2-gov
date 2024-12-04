@@ -64,7 +64,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
         for (uint256 i; i < deployedInitiatives.length; i++) {
             IBribeInitiative initiative = IBribeInitiative(deployedInitiatives[i]);
 
-            (uint256 voteLQTY,, uint256 epoch) = governance.lqtyAllocatedByUserToInitiative(user, deployedInitiatives[i]);
+            (uint256 voteLQTY,,,,uint256 epoch) = governance.lqtyAllocatedByUserToInitiative(user, deployedInitiatives[i]);
 
             try initiative.lqtyAllocatedByUserAtEpoch(user, epoch) returns (uint256 amt, uint256) {
                 eq(voteLQTY, amt, "Allocation must match");

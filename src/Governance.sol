@@ -12,7 +12,7 @@ import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 import {UserProxy} from "./UserProxy.sol";
 import {UserProxyFactory} from "./UserProxyFactory.sol";
 
-import {add, max} from "./utils/Math.sol";
+import {add, sub, max} from "./utils/Math.sol";
 import {_requireNoDuplicates, _requireNoNegatives} from "./utils/UniqueArray.sol";
 import {Multicall} from "./utils/Multicall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
@@ -137,61 +137,17 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         _renounceOwnership();
     }
 
-    function _averageAge(uint256 _currentTimestamp, uint256 _averageTimestamp) internal pure returns (uint256) {
-        if (_averageTimestamp == 0 || _currentTimestamp < _averageTimestamp) return 0;
-        return _currentTimestamp - _averageTimestamp;
-    }
-
-    function _calculateAverageTimestamp(
-        uint256 _prevOuterAverageTimestamp,
-        uint256 _newInnerAverageTimestamp,
-        uint256 _prevLQTYBalance,
-        uint256 _newLQTYBalance
-    ) internal view returns (uint256) {
-        if (_newLQTYBalance == 0) return 0;
-
-        // NOTE: Truncation
-        // NOTE: u32 -> u120
-        // While we upscale the Timestamp, the system will stop working at type(uint256).max
-        // Because the rest of the type is used for precision
-        uint256 currentTime = block.timestamp * TIMESTAMP_PRECISION;
-
-        uint256 prevOuterAverageAge = _averageAge(currentTime, _prevOuterAverageTimestamp);
-        uint256 newInnerAverageAge = _averageAge(currentTime, _newInnerAverageTimestamp);
-
-        // 120 for timestamps = 2^32 * 1e18 | 2^32 * 1e26
-        // 208 for voting power = 2^120 * 2^88
-        // NOTE: 208 / X can go past u120!
-        // Therefore we keep `newOuterAverageAge` as u208
-        uint256 newOuterAverageAge;
-        if (_prevLQTYBalance <= _newLQTYBalance) {
-            uint256 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
-            uint256 prevVotes = _prevLQTYBalance * prevOuterAverageAge;
-            uint256 newVotes = deltaLQTY * newInnerAverageAge;
-            uint256 votes = prevVotes + newVotes;
-            newOuterAverageAge = votes / _newLQTYBalance;
-        } else {
-            uint256 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
-            uint256 prevVotes = _prevLQTYBalance * prevOuterAverageAge;
-            uint256 newVotes = deltaLQTY * newInnerAverageAge;
-            uint256 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
-            newOuterAverageAge = votes / _newLQTYBalance;
-        }
-
-        if (newOuterAverageAge > currentTime) return 0;
-        return currentTime - newOuterAverageAge;
-    }
-
     /*//////////////////////////////////////////////////////////////
                                 STAKING
     //////////////////////////////////////////////////////////////*/
 
-    function _updateUserTimestamp(uint256 _lqtyAmount) private returns (UserProxy) {
+    function _increaseUserVoteTrackers(uint256 _lqtyAmount) private returns (UserProxy) {
         require(_lqtyAmount > 0, "Governance: zero-lqty-amount");
 
         // Assert that we have resetted here
+        // TODO: Remove, as now unecessary
         UserState memory userState = userStates[msg.sender];
-        require(userState.allocatedLQTY == 0, "Governance: must-be-zero-allocation");
+        require(userState.unallocatedLQTY == 0, "Governance: must-be-zero-allocation");
 
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
@@ -201,17 +157,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         UserProxy userProxy = UserProxy(payable(userProxyAddress));
 
-        uint256 lqtyStaked = stakingV1.stakes(userProxyAddress);
+        // update the vote power trackers
+        userState.unallocatedLQTY += _lqtyAmount;
+        userState.unallocatedOffset += block.timestamp * _lqtyAmount;
 
-        // update the average staked timestamp for LQTY staked by the user
-
-        // NOTE: Upscale user TS by `TIMESTAMP_PRECISION`
-        userState.averageStakingTimestamp = _calculateAverageTimestamp(
-            userState.averageStakingTimestamp,
-            block.timestamp * TIMESTAMP_PRECISION,
-            lqtyStaked,
-            lqtyStaked + _lqtyAmount
-        );
         userStates[msg.sender] = userState;
 
         emit DepositLQTY(msg.sender, _lqtyAmount);
@@ -221,13 +170,13 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
     /// @inheritdoc IGovernance
     function depositLQTY(uint256 _lqtyAmount) external nonReentrant {
-        UserProxy userProxy = _updateUserTimestamp(_lqtyAmount);
+        UserProxy userProxy = _increaseUserVoteTrackers(_lqtyAmount);
         userProxy.stake(_lqtyAmount, msg.sender);
     }
 
     /// @inheritdoc IGovernance
     function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams calldata _permitParams) external nonReentrant {
-        UserProxy userProxy = _updateUserTimestamp(_lqtyAmount);
+        UserProxy userProxy = _increaseUserVoteTrackers(_lqtyAmount);
         userProxy.stakeViaPermit(_lqtyAmount, msg.sender, _permitParams);
     }
 
@@ -240,7 +189,19 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         require(address(userProxy).code.length != 0, "Governance: user-proxy-not-deployed");
 
-        uint256 lqtyStaked = stakingV1.stakes(address(userProxy));
+         // Update the offset tracker
+        if (_lqtyAmount < userState.unallocatedLQTY) {
+            // The offset decrease is proportional to the partial lqty decrease
+            uint256 offsetDecrease = _lqtyAmount * userState.unallocatedOffset / userState.unallocatedLQTY;
+            userState.unallocatedOffset -= offsetDecrease;
+        } else { // if _lqtyAmount == userState.unallocatedLqty, zero the offset tracker 
+            userState.unallocatedOffset = 0;
+        }
+
+        // Update the user's LQTY tracker
+        userState.unallocatedLQTY -= _lqtyAmount;
+
+        userStates[msg.sender] = userState;
 
         (uint256 accruedLUSD, uint256 accruedETH) = userProxy.unstake(_lqtyAmount, msg.sender);
 
@@ -280,12 +241,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
     }
 
     /// @inheritdoc IGovernance
-    function lqtyToVotes(uint256 _lqtyAmount, uint256 _currentTimestamp, uint256 _averageTimestamp)
+    function lqtyToVotes(uint256 _lqtyAmount, uint256 _timestamp, uint256 _offset)
         public
         pure
         returns (uint256)
     {
-        return _lqtyAmount * _averageAge(_currentTimestamp, _averageTimestamp);
+        return (_lqtyAmount * _timestamp - _offset);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -352,7 +313,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             snapshot.votes = lqtyToVotes(
                 state.countedVoteLQTY,
                 epochStart() * TIMESTAMP_PRECISION,
-                state.countedVoteLQTYAverageTimestamp
+                state.countedVoteOffset
             );
             snapshot.forEpoch = currentEpoch - 1;
         }
@@ -394,9 +355,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
             uint256 start = epochStart() * TIMESTAMP_PRECISION;
             uint256 votes =
-                lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.averageStakingTimestampVoteLQTY);
+                lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.voteOffset);
             uint256 vetos =
-                lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.averageStakingTimestampVetoLQTY);
+                lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.vetoOffset);
             // NOTE: Upscaling to u224 is safe
             initiativeSnapshot.votes = votes;
             initiativeSnapshot.vetos = vetos;
@@ -542,12 +503,15 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
         // than the registration threshold derived from the previous epoch's total global votes
 
-        uint256 upscaledSnapshotVotes = uint256(snapshot.votes);
+        uint256 upscaledSnapshotVotes = snapshot.votes;
+
+        uint256 totalUserOffset = userState.allocatedOffset + userState.unallocatedOffset;
         require(
+            // Check against the user's total voting power, so include both allocated and unallocated LQTY
             lqtyToVotes(
                 stakingV1.stakes(userProxyAddress),
                 epochStart() * TIMESTAMP_PRECISION,
-                userState.averageStakingTimestamp
+                totalUserOffset
             ) >= upscaledSnapshotVotes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );
@@ -571,6 +535,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         address initiative;
         int256 LQTYVotes;
         int256 LQTYVetos;
+        int256 OffsetVotes; 
+        int256 OffsetVetos;
     }
 
     /// @dev Resets an initiative and return the previous votes
@@ -584,6 +550,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         int256[] memory deltaLQTYVotes = new int256[](_initiativesToReset.length);
         int256[] memory deltaLQTYVetos = new int256[](_initiativesToReset.length);
+        int256[] memory deltaOffsetVotes = new int256[](_initiativesToReset.length);
+        int256[] memory deltaOffsetVetos = new int256[](_initiativesToReset.length);
 
         // Prepare reset data
         for (uint256 i; i < _initiativesToReset.length; i++) {
@@ -596,16 +564,20 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             cachedData[i] = ResetInitiativeData({
                 initiative: _initiativesToReset[i],
                 LQTYVotes: int256(alloc.voteLQTY),
-                LQTYVetos: int256(alloc.vetoLQTY)
+                LQTYVetos: int256(alloc.vetoLQTY),
+                OffsetVotes: int256(alloc.voteOffset),
+                OffsetVetos: int256(alloc.vetoOffset)
             });
 
             // -0 is still 0, so its fine to flip both
-            deltaLQTYVotes[i] = -int256(cachedData[i].LQTYVotes);
-            deltaLQTYVetos[i] = -int256(cachedData[i].LQTYVetos);
+            deltaLQTYVotes[i] = -(cachedData[i].LQTYVotes);
+            deltaLQTYVetos[i] = -(cachedData[i].LQTYVetos);
+            deltaOffsetVotes[i] = -(cachedData[i].OffsetVotes);
+            deltaOffsetVetos[i] = -(cachedData[i].OffsetVetos);
         }
 
         // RESET HERE || All initiatives will receive most updated data and 0 votes / vetos
-        _allocateLQTY(_initiativesToReset, deltaLQTYVotes, deltaLQTYVetos);
+        _allocateLQTY(_initiativesToReset, deltaLQTYVotes, deltaLQTYVetos, deltaOffsetVotes, deltaOffsetVetos);
 
         return cachedData;
     }
@@ -681,8 +653,17 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             }
         }
 
+        int256[] memory absoluteOffsetVotes;
+        int256[] memory absoluteOffsetVetos;
+
+        // Calculate the offset portions that correspond to each LQTY vote and veto portion
+        for (uint256 x; x < _initiatives.length; x++) {
+            absoluteOffsetVotes[x] = _absoluteLQTYVotes[x] * int256(userState.unallocatedOffset) / int256(userState.unallocatedLQTY);
+            absoluteOffsetVetos[x] = _absoluteLQTYVetos[x] * int256(userState.unallocatedOffset) / int256(userState.unallocatedLQTY);
+        }
+
         // Vote here, all values are now absolute changes
-        _allocateLQTY(_initiatives, _absoluteLQTYVotes, _absoluteLQTYVetos);
+        _allocateLQTY(_initiatives, _absoluteLQTYVotes, _absoluteLQTYVetos, absoluteOffsetVotes, absoluteOffsetVetos);
     }
 
     /// @dev For each given initiative applies relative changes to the allocation
@@ -691,7 +672,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
     function _allocateLQTY(
         address[] memory _initiatives,
         int256[] memory _deltaLQTYVotes,
-        int256[] memory _deltaLQTYVetos
+        int256[] memory _deltaLQTYVetos,
+        int256[] memory _deltaOffsetVotes,
+        int256[] memory _deltaOffsetVetos
+
     ) internal {
         require(
             _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
@@ -706,6 +690,8 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             address initiative = _initiatives[i];
             int256 deltaLQTYVotes = _deltaLQTYVotes[i];
             int256 deltaLQTYVetos = _deltaLQTYVetos[i];
+            int256 deltaOffsetVotes = _deltaOffsetVotes[i];
+            int256 deltaOffsetVetos = _deltaOffsetVetos[i];
 
             /// === Check FSM === ///
             // Can vote positively in SKIP, CLAIMABLE, CLAIMED and UNREGISTERABLE states
@@ -736,93 +722,65 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             // deep copy of the initiative's state before the allocation
             InitiativeState memory prevInitiativeState = InitiativeState(
                 initiativeState.voteLQTY,
+                  initiativeState.voteOffset,
                 initiativeState.vetoLQTY,
-                initiativeState.averageStakingTimestampVoteLQTY,
-                initiativeState.averageStakingTimestampVetoLQTY,
+                initiativeState.vetoOffset,
                 initiativeState.lastEpochClaim
-            );
-
-            // update the average staking timestamp for the initiative based on the user's average staking timestamp
-            initiativeState.averageStakingTimestampVoteLQTY = _calculateAverageTimestamp(
-                initiativeState.averageStakingTimestampVoteLQTY,
-                userState.averageStakingTimestamp,
-                /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
-                initiativeState.voteLQTY,
-                add(initiativeState.voteLQTY, deltaLQTYVotes)
-            );
-            initiativeState.averageStakingTimestampVetoLQTY = _calculateAverageTimestamp(
-                initiativeState.averageStakingTimestampVetoLQTY,
-                userState.averageStakingTimestamp,
-                /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
-                initiativeState.vetoLQTY,
-                add(initiativeState.vetoLQTY, deltaLQTYVetos)
             );
 
             // allocate the voting and vetoing LQTY to the initiative
             initiativeState.voteLQTY = add(initiativeState.voteLQTY, deltaLQTYVotes);
             initiativeState.vetoLQTY = add(initiativeState.vetoLQTY, deltaLQTYVetos);
 
+            // Update the initiative's vote and veto offsets
+            initiativeState.voteOffset = add(initiativeState.voteOffset, deltaOffsetVotes);
+            initiativeState.vetoOffset = add(initiativeState.vetoOffset, deltaOffsetVetos);
+
             // update the initiative's state
             initiativeStates[initiative] = initiativeState;
 
             // == GLOBAL STATE == //
 
-            // TODO: Veto reducing total votes logic change
-            // TODO: Accounting invariants
-            // TODO: Let's say I want to cap the votes vs weights
-            // Then by definition, I add the effective LQTY
-            // And the effective TS
-            // I remove the previous one
-            // and add the next one
-            // Veto > Vote
-            // Reduce down by Vote (cap min)
-            // If Vote > Veto
-            // Increase by Veto - Veto (reduced max)
-
-            // update the average staking timestamp for all counted voting LQTY
-            /// Discount previous only if the initiative was not unregistered
-
-            /// @audit We update the state only for non-disabled initiaitives
-            /// Disabled initiaitves have had their totals subtracted already
-            /// Math is also non associative so we cannot easily compare values
+            /// We update the state only for non-disabled initiatives
+            /// Disabled initiatves have had their totals subtracted already
             if (status != InitiativeStatus.DISABLED) {
-                /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
-                /// Removing votes from state desynchs the state until all users remove their votes from the initiative
-                /// The invariant that holds is: the one that removes the initiatives that have been unregistered
-                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                    state.countedVoteLQTYAverageTimestamp,
-                    prevInitiativeState.averageStakingTimestampVoteLQTY,
-                    /// @audit We don't have a test that fails when this line is changed
-                    state.countedVoteLQTY,
-                    state.countedVoteLQTY - prevInitiativeState.voteLQTY
-                );
                 assert(state.countedVoteLQTY >= prevInitiativeState.voteLQTY);
-                /// @audit INVARIANT: Never overflows
+               
+                // Remove old initative LQTY and offset from global count
                 state.countedVoteLQTY -= prevInitiativeState.voteLQTY;
+                state.countedVoteOffset -= prevInitiativeState.voteOffset;
 
-                state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-                    state.countedVoteLQTYAverageTimestamp,
-                    initiativeState.averageStakingTimestampVoteLQTY,
-                    state.countedVoteLQTY,
-                    state.countedVoteLQTY + initiativeState.voteLQTY
-                );
-
+                // Add new initative LQTY and offset to global count
                 state.countedVoteLQTY += initiativeState.voteLQTY;
+                state.countedVoteOffset += initiativeState.voteOffset;
             }
 
-            // == USER ALLOCATION == //
+            // == USER ALLOCATION TO INITIATIVE == //
 
-            // allocate the voting and vetoing LQTY to the initiative
+            // Record the vote and veto LQTY and offsets by user to initative
             Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
+            // Update offsets
+            allocation.voteOffset = add(allocation.voteOffset, deltaOffsetVotes);
+            allocation.vetoOffset = add(allocation.vetoOffset, deltaOffsetVetos);
+
+            // Update votes and vetos
             allocation.voteLQTY = add(allocation.voteLQTY, deltaLQTYVotes);
             allocation.vetoLQTY = add(allocation.vetoLQTY, deltaLQTYVetos);
+           
             allocation.atEpoch = currentEpoch;
+
             require(!(allocation.voteLQTY != 0 && allocation.vetoLQTY != 0), "Governance: vote-and-veto");
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = allocation;
 
             // == USER STATE == //
 
-            userState.allocatedLQTY = add(userState.allocatedLQTY, deltaLQTYVotes + deltaLQTYVetos);
+            // Remove from the user's unallocated LQTY and offset
+            userState.unallocatedLQTY = sub(userState.unallocatedLQTY, (deltaLQTYVotes + deltaLQTYVetos));
+            userState.unallocatedOffset = sub(userState.unallocatedLQTY, (deltaOffsetVotes + deltaOffsetVetos));
+
+            // Add to the user's allocated LQTY and offset
+            userState.allocatedLQTY = add(userState.allocatedLQTY, (deltaLQTYVotes + deltaLQTYVetos));
+            userState.allocatedOffset = add(userState.allocatedOffset, (deltaOffsetVotes + deltaOffsetVetos));
 
             emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
 
@@ -866,20 +824,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         /// @audit Invariant: Must only claim once or unregister
         // NOTE: Safe to remove | See `check_claim_soundness`
         assert(initiativeState.lastEpochClaim < currentEpoch - 1);
-
-        // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
-        /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
-        // Removing votes from state desynchs the state until all users remove their votes from the initiative
-
-        state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
-            state.countedVoteLQTYAverageTimestamp,
-            initiativeState.averageStakingTimestampVoteLQTY,
-            state.countedVoteLQTY,
-            state.countedVoteLQTY - initiativeState.voteLQTY
-        );
+      
         assert(state.countedVoteLQTY >= initiativeState.voteLQTY);
-        /// RECON: Overflow
+        assert(state.countedVoteOffset >= initiativeState.voteOffset);
+
         state.countedVoteLQTY -= initiativeState.voteLQTY;
+        state.countedVoteOffset -= initiativeState.voteOffset;
 
         globalState = state;
 

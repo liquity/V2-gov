@@ -224,8 +224,7 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
         console.log("snapshot.votes", snapshot.votes);
 
         console.log("state.countedVoteLQTY", state.countedVoteLQTY);
-        console.log("state.countedVoteLQTYAverageTimestamp", state.countedVoteLQTYAverageTimestamp);
-
+        
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (
                 IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot,
@@ -233,9 +232,6 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
             ) = governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
 
             console.log("initiativeState.voteLQTY", initiativeState.voteLQTY);
-            console.log(
-                "initiativeState.averageStakingTimestampVoteLQTY", initiativeState.averageStakingTimestampVoteLQTY
-            );
 
             assertEq(snapshot.forEpoch, initiativeSnapshot.forEpoch, "No desynch");
             console.log("initiativeSnapshot.votes", initiativeSnapshot.votes);
