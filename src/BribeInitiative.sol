@@ -108,17 +108,11 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             governance.EPOCH_START() + _epoch * governance.EPOCH_DURATION()
         ) * TIMESTAMP_PRECISION;
 
-        /// @audit User Invariant
-        assert(totalLQTYAllocation.avgTimestamp <= scaledEpochEnd);
-
-        uint256 totalVotes = governance.lqtyToVotes(totalLQTYAllocation.lqty, scaledEpochEnd, totalLQTYAllocation.avgTimestamp);
+        uint256 totalVotes = governance.lqtyToVotes(totalLQTYAllocation.lqty, scaledEpochEnd, totalLQTYAllocation.offset);
         if (totalVotes != 0) {
             require(lqtyAllocation.lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
-            /// @audit Governance Invariant
-            assert(lqtyAllocation.avgTimestamp <= scaledEpochEnd);
-
-            uint256 votes = governance.lqtyToVotes(lqtyAllocation.lqty, scaledEpochEnd, lqtyAllocation.avgTimestamp);
+            uint256 votes = governance.lqtyToVotes(lqtyAllocation.lqty, scaledEpochEnd, lqtyAllocation.offset);
             boldAmount = bribe.boldAmount * votes / totalVotes;
             bribeTokenAmount = bribe.bribeTokenAmount * votes / totalVotes;
         }
@@ -142,9 +136,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             bribeTokenAmount += bribeTokenAmount_;
         }
 
-        // NOTE: Due to rounding errors in the `averageTimestamp` bribes may slightly overpay compared to what they have allocated
+        // NOTE: Due to rounding errors, bribes may slightly overpay compared to what they have allocated
         // We cap to the available amount for this reason
-        // The error should be below 10 LQTY per annum, in the worst case
         if (boldAmount != 0) {
             uint256 max = bold.balanceOf(address(this));
             if (boldAmount > max) {
@@ -168,46 +161,46 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     /// @inheritdoc IInitiative
     function onUnregisterInitiative(uint256) external virtual override onlyGovernance {}
 
-    function _setTotalLQTYAllocationByEpoch(uint256 _epoch, uint256 _lqty, uint256 _averageTimestamp, bool _insert)
+    function _setTotalLQTYAllocationByEpoch(uint256 _epoch, uint256 _lqty, uint256 _offset, bool _insert)
         private
     {
         if (_insert) {
-            totalLQTYAllocationByEpoch.insert(_epoch, _lqty, _averageTimestamp, 0);
+            totalLQTYAllocationByEpoch.insert(_epoch, _lqty, _offset, 0);
         } else {
             totalLQTYAllocationByEpoch.items[_epoch].lqty = _lqty;
-             totalLQTYAllocationByEpoch.items[_epoch].avgTimestamp = _averageTimestamp;
+             totalLQTYAllocationByEpoch.items[_epoch].offset = _offset;
         }
-        emit ModifyTotalLQTYAllocation(_epoch, _lqty, _averageTimestamp);
+        emit ModifyTotalLQTYAllocation(_epoch, _lqty, _offset);
     }
 
     function _setLQTYAllocationByUserAtEpoch(
         address _user,
         uint256 _epoch,
         uint256 _lqty,
-        uint256 _averageTimestamp,
+        uint256 _offset,
         bool _insert
     ) private {
         if (_insert) {
-            lqtyAllocationByUserAtEpoch[_user].insert(_epoch, _lqty, _averageTimestamp, 0);
+            lqtyAllocationByUserAtEpoch[_user].insert(_epoch, _lqty, _offset, 0);
         } else {
             lqtyAllocationByUserAtEpoch[_user].items[_epoch].lqty = _lqty;
-            lqtyAllocationByUserAtEpoch[_user].items[_epoch].avgTimestamp = _averageTimestamp;
+            lqtyAllocationByUserAtEpoch[_user].items[_epoch].offset = _offset;
         }
-        emit ModifyLQTYAllocation(_user, _epoch, _lqty, _averageTimestamp);
+        emit ModifyLQTYAllocation(_user, _epoch, _lqty, _offset);
     }
 
     function _loadTotalLQTYAllocation(uint256 _epoch) private view returns (uint256, uint256) {
         require(_epoch <= governance.epoch(), "No future Lookup");
         DoubleLinkedList.Item memory totalLqtyAllocation = totalLQTYAllocationByEpoch.items[_epoch];
         
-        return (totalLqtyAllocation.lqty, totalLqtyAllocation.avgTimestamp);
+        return (totalLqtyAllocation.lqty, totalLqtyAllocation.offset);
     }
 
     function _loadLQTYAllocation(address _user, uint256 _epoch) private view returns (uint256, uint256) {
         require(_epoch <= governance.epoch(), "No future Lookup");
         DoubleLinkedList.Item memory lqtyAllocation = lqtyAllocationByUserAtEpoch[_user].items[_epoch];
 
-        return (lqtyAllocation.lqty, lqtyAllocation.avgTimestamp);
+        return (lqtyAllocation.lqty, lqtyAllocation.offset);
     }
 
     /// @inheritdoc IBribeInitiative
@@ -237,7 +230,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         _setTotalLQTYAllocationByEpoch(
             _currentEpoch,
             _initiativeState.voteLQTY,
-            _initiativeState.averageStakingTimestampVoteLQTY,
+            _initiativeState.voteOffset,
             mostRecentTotalEpoch != _currentEpoch // Insert if current > recent
         );
 
@@ -245,7 +238,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             _user,
             _currentEpoch,
             _allocation.voteLQTY,
-            _userState.averageStakingTimestamp,
+            _userState.allocatedOffset,
             mostRecentUserEpoch != _currentEpoch // Insert if user current > recent
         );
     }

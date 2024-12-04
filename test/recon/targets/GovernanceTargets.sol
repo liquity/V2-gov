@@ -116,12 +116,12 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
             t(false, "must never revert");
         }
 
-        (uint256 user_allocatedLQTY,) = governance.userStates(user);
+        (,,uint256 user_allocatedLQTY,) = governance.userStates(user);
 
         eq(user_allocatedLQTY, 0, "User has 0 allocated on a reset");
     }
 
-    function depositTsIsRational(uint256 lqtyAmount) public withChecks {
+    function offsetIsRational(uint256 lqtyAmount) public withChecks {
         uint256 stakedAmount = IUserProxy(governance.deriveUserProxyAddress(user)).staked(); // clamp using the user's staked balance
 
         // Deposit on zero
@@ -129,23 +129,23 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
             lqtyAmount = uint256(lqtyAmount % lqty.balanceOf(user));
             governance.depositLQTY(lqtyAmount);
 
-            // assert that user TS is now * WAD
-            (, uint256 ts) = governance.userStates(user);
-            eq(ts, block.timestamp * 1e26, "User TS is scaled by WAD");
+            // assert that user's offset TS is now * deposited LQTY
+            (,uint256 offset,,) = governance.userStates(user);
+            eq(offset, block.timestamp * lqtyAmount, "User unallocated offset is now * lqty deposited");
         } else {
             // Make sure the TS can never bo before itself
-            (, uint256 ts_b4) = governance.userStates(user);
+            (,uint256 offset_b4,,) = governance.userStates(user);
             lqtyAmount = uint256(lqtyAmount % lqty.balanceOf(user));
             governance.depositLQTY(lqtyAmount);
 
-            (, uint256 ts_after) = governance.userStates(user);
+            (,uint256 offset_after,,) = governance.userStates(user);
 
-            gte(ts_after, ts_b4, "User TS must always increase");
+            gte(offset_after, offset_b4, "User unallocated offset must always increase");
         }
     }
 
     function depositMustFailOnNonZeroAlloc(uint256 lqtyAmount) public withChecks {
-        (uint256 user_allocatedLQTY,) = governance.userStates(user);
+        (uint256 user_allocatedLQTY,,,) = governance.userStates(user);
 
         require(user_allocatedLQTY != 0, "0 alloc");
 
@@ -156,7 +156,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
     }
 
     function withdrwaMustFailOnNonZeroAcc(uint256 _lqtyAmount) public withChecks {
-        (uint256 user_allocatedLQTY,) = governance.userStates(user);
+        (uint256 user_allocatedLQTY,,,) = governance.userStates(user);
 
         require(user_allocatedLQTY != 0);
 

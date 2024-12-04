@@ -7,7 +7,7 @@ pragma solidity ^0.8.24;
 library DoubleLinkedList {
     struct Item {
         uint256 lqty;
-        uint256 avgTimestamp;
+        uint256 offset;
         uint256 prev;
         uint256 next;
     }
@@ -53,9 +53,10 @@ library DoubleLinkedList {
     /// @notice Returns the value of item `id`
     /// @param list Linked list which contains the item
     /// @param id Id of the item
-    /// @return _ Value of the item
-    function getLQTYAndAvgTimestamp(List storage list, uint256 id) internal view returns (uint256, uint256) {
-        return (list.items[id].lqty, list.items[id].avgTimestamp); 
+    /// @return LQTY associated with the item
+    /// @return Offset associated with the item's LQTY
+    function getLQTYAndOffset(List storage list, uint256 id) internal view returns (uint256, uint256) {
+        return (list.items[id].lqty, list.items[id].offset); 
     }
 
     /// @notice Returns the item `id`
@@ -81,9 +82,9 @@ library DoubleLinkedList {
     /// @param list Linked list which contains the next item and into which the new item will be inserted
     /// @param id Id of the item to insert
     /// @param lqty amount of LQTY
-    /// @param avgTimestamp of the item
+    /// @param offset associated with the LQTY amount 
     /// @param next Id of the item which should follow item `id`
-    function insert(List storage list, uint256 id, uint256 lqty, uint256 avgTimestamp, uint256 next) internal {
+    function insert(List storage list, uint256 id, uint256 lqty, uint256 offset, uint256 next) internal {
         if (contains(list, id)) revert ItemInList();
         if (next != 0 && !contains(list, next)) revert ItemNotInList();
         uint256 prev = list.items[next].prev;
@@ -92,6 +93,6 @@ library DoubleLinkedList {
         list.items[id].prev = prev;
         list.items[id].next = next;
         list.items[id].lqty = lqty;
-        list.items[id].lqty = avgTimestamp;
+        list.items[id].offset = offset;
     }
 }

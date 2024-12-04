@@ -63,7 +63,7 @@ abstract contract GovernanceProperties is BeforeAfter {
             address userProxyAddress = governance.deriveUserProxyAddress(users[i]);
             uint256 stake = MockStakingV1(stakingV1).stakes(userProxyAddress);
 
-            (uint256 user_allocatedLQTY,) = governance.userStates(users[i]);
+            (,,uint256 user_allocatedLQTY,) = governance.userStates(users[i]);
             lte(user_allocatedLQTY, stake, "User can never allocated more than stake");
         }
     }
@@ -154,7 +154,7 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         uint256 totalUserCountedLQTY;
         for (uint256 i; i < users.length; i++) {
-            (uint256 user_allocatedLQTY,) = governance.userStates(users[i]);
+            (,,uint256 user_allocatedLQTY,) = governance.userStates(users[i]);
             totalUserCountedLQTY += user_allocatedLQTY;
         }
 
@@ -236,19 +236,18 @@ abstract contract GovernanceProperties is BeforeAfter {
         for (uint256 i; i < deployedInitiatives.length; i++) {
             uint256 userWeightAccumulatorForInitiative;
             for (uint256 j; j < users.length; j++) {
-                (uint256 userVoteLQTY,,) = governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
-                // TODO: double check that okay to use this average timestamp
-                (, uint256 averageStakingTimestamp) = governance.userStates(users[j]);
+                (uint256 userVoteLQTY,,,,) = governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
+                (,,uint256 allocatedOffset,) = governance.userStates(users[j]);
                 // add the weight calculated for each user's allocation to the accumulator
                 userWeightAccumulatorForInitiative += governance.lqtyToVotes(
-                    userVoteLQTY, uint256(block.timestamp) * uint256(1e18), averageStakingTimestamp
+                    userVoteLQTY, uint256(block.timestamp), allocatedOffset
                 );
             }
 
-            (uint256 initiativeVoteLQTY,, uint256 initiativeAverageStakingTimestampVoteLQTY,,) =
+            (uint256 initiativeVoteLQTY, uint256 initiativeVoteOffset,,,) =
                 governance.initiativeStates(deployedInitiatives[i]);
             uint256 initiativeWeight = governance.lqtyToVotes(
-                initiativeVoteLQTY, uint256(block.timestamp) * uint256(1e18), initiativeAverageStakingTimestampVoteLQTY
+                initiativeVoteLQTY, uint256(block.timestamp) , initiativeVoteOffset
             );
 
             acc[i].userSum = userWeightAccumulatorForInitiative;
@@ -458,12 +457,12 @@ abstract contract GovernanceProperties is BeforeAfter {
         view
         returns (uint256 votes, uint256 vetos)
     {
-        (votes, vetos,) = governance.lqtyAllocatedByUserToInitiative(theUser, initiative);
+        (votes, vetos,,,) = governance.lqtyAllocatedByUserToInitiative(theUser, initiative);
     }
 
     function _getAllUserAllocations(address theUser, bool skipDisabled) internal returns (uint256 votes, uint256 vetos) {
         for (uint256 i; i < deployedInitiatives.length; i++) {
-            (uint256 allocVotes, uint256 allocVetos,) =
+            (uint256 allocVotes, uint256 allocVetos,,,) =
                 governance.lqtyAllocatedByUserToInitiative(theUser, deployedInitiatives[i]);
             if (skipDisabled) {
                 (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
@@ -499,12 +498,12 @@ abstract contract GovernanceProperties is BeforeAfter {
         }
 
         // GET state and initiative data before allocation
-        (uint256 totalCountedLQTY, uint256 user_countedVoteLQTYAverageTimestamp) = governance.globalState();
+        (uint256 totalCountedLQTY, uint256 user_countedVoteOffset) = governance.globalState();
         (
             uint256 voteLQTY,
+            uint256 voteOffset,
             uint256 vetoLQTY,
-            uint256 averageStakingTimestampVoteLQTY,
-            uint256 averageStakingTimestampVetoLQTY,
+            uint256 vetoOffset,
         ) = governance.initiativeStates(targetInitiative);
 
         // Allocate
@@ -523,13 +522,13 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         // Deposit (Changes total LQTY an hopefully also changes ts)
         {
-            (, uint256 averageStakingTimestamp1) = governance.userStates(user);
+            (,uint256 unallocatedOffset1,,) = governance.userStates(user);
 
             lqtyAmount = uint256(lqtyAmount % lqty.balanceOf(user));
             governance.depositLQTY(lqtyAmount);
-            (, uint256 averageStakingTimestamp2) = governance.userStates(user);
+            (,uint256 unallocatedOffset2,,) = governance.userStates(user);
 
-            require(averageStakingTimestamp2 > averageStakingTimestamp1, "Must have changed");
+            require(unallocatedOffset2 > unallocatedOffset1, "Must have changed");
         }
 
         // REMOVE STUFF to remove the user data
@@ -540,22 +539,22 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         // Check total allocation and initiative allocation
         {
-            (uint256 after_totalCountedLQTY, uint256 after_user_countedVoteLQTYAverageTimestamp) =
+            (uint256 after_totalCountedLQTY, uint256 after_user_countedVoteOffset) =
                 governance.globalState();
             (
                 uint256 after_voteLQTY,
+                uint256 after_voteOffset,
                 uint256 after_vetoLQTY,
-                uint256 after_averageStakingTimestampVoteLQTY,
-                uint256 after_averageStakingTimestampVetoLQTY,
+                uint256 after_vetoOffset,
             ) = governance.initiativeStates(targetInitiative);
 
             eq(voteLQTY, after_voteLQTY, "Same vote");
             eq(vetoLQTY, after_vetoLQTY, "Same veto");
-            eq(averageStakingTimestampVoteLQTY, after_averageStakingTimestampVoteLQTY, "Same ts vote");
-            eq(averageStakingTimestampVetoLQTY, after_averageStakingTimestampVetoLQTY, "Same ts veto");
+            eq(voteOffset, after_voteOffset, "Same vote offset");
+            eq(vetoOffset, after_vetoOffset, "Same veto offset");
 
             eq(totalCountedLQTY, after_totalCountedLQTY, "Same total LQTY");
-            eq(user_countedVoteLQTYAverageTimestamp, after_user_countedVoteLQTYAverageTimestamp, "Same total ts");
+            eq(user_countedVoteOffset, after_user_countedVoteOffset, "Same total ts");
         }
     }
 }

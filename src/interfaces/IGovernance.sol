@@ -151,64 +151,82 @@ interface IGovernance {
 
     struct Allocation {
         uint256 voteLQTY; // LQTY allocated vouching for the initiative
+        uint256 voteOffset; // Offset associated with LQTY vouching for the initiative
         uint256 vetoLQTY; // LQTY vetoing the initiative
+        uint256 vetoOffset; // Offset associated with LQTY vetoing the initiative
         uint256 atEpoch; // Epoch at which the allocation was last updated
     }
 
     struct UserState {
-        uint256 allocatedLQTY; // LQTY allocated by the user
-        uint256 averageStakingTimestamp; // Average timestamp at which LQTY was staked by the user
+        uint256 unallocatedLQTY; // LQTY deposited and unallocated
+        uint256 unallocatedOffset; // The offset sum corresponding to the unallocated LQTY
+        uint256 allocatedLQTY; // LQTY allocated by the user to initatives
+        uint256 allocatedOffset; // The offset sum corresponding to the allocated LQTY
     }
 
     struct InitiativeState {
         uint256 voteLQTY; // LQTY allocated vouching for the initiative
+        uint256 voteOffset; // Offset associated with LQTY vouching for to the initative
         uint256 vetoLQTY; // LQTY allocated vetoing the initiative
-        uint256 averageStakingTimestampVoteLQTY; // Average staking timestamp of the voting LQTY for the initiative
-        uint256 averageStakingTimestampVetoLQTY; // Average staking timestamp of the vetoing LQTY for the initiative
+        uint256 vetoOffset; // Offset associated with LQTY veoting the initative
         uint256 lastEpochClaim;
     }
 
     struct GlobalState {
         uint256 countedVoteLQTY; // Total LQTY that is included in vote counting
-        uint256 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
+        uint256 countedVoteOffset;  // Offset associated with the counted vote LQTY
     }
 
     /// @notice Returns the user's state
-    /// @param _user Address of the user
-    /// @return allocatedLQTY LQTY allocated by the user
-    /// @return averageStakingTimestamp Average timestamp at which LQTY was staked (deposited) by the user
-    function userStates(address _user) external view returns (uint256 allocatedLQTY, uint256 averageStakingTimestamp);
+    /// @return unallocatedLQTY LQTY deposited and unallocated  
+    /// @return unallocatedOffset Offset associated with unallocated LQTY
+    /// @return allocatedLQTY allocated by the user to initatives
+    /// @return allocatedOffset Offset associated with allocated LQTY
+    function userStates(address _user) external view returns (
+        uint256 unallocatedLQTY,
+        uint256 unallocatedOffset,
+        uint256 allocatedLQTY,
+        uint256 allocatedOffset
+    );
     /// @notice Returns the initiative's state
     /// @param _initiative Address of the initiative
     /// @return voteLQTY LQTY allocated vouching for the initiative
+    /// @return voteOffset Offset associated with voteLQTY
     /// @return vetoLQTY LQTY allocated vetoing the initiative
-    /// @return averageStakingTimestampVoteLQTY // Average staking timestamp of the voting LQTY for the initiative
-    /// @return averageStakingTimestampVetoLQTY // Average staking timestamp of the vetoing LQTY for the initiative
+    /// @return vetoOffset Offset associated with vetoLQTY
     /// @return lastEpochClaim // Last epoch at which rewards were claimed
     function initiativeStates(address _initiative)
         external
         view
         returns (
             uint256 voteLQTY,
+            uint256 voteOffset,
             uint256 vetoLQTY,
-            uint256 averageStakingTimestampVoteLQTY,
-            uint256 averageStakingTimestampVetoLQTY,
+            uint256 vetoOffset,
             uint256 lastEpochClaim
         );
     /// @notice Returns the global state
     /// @return countedVoteLQTY Total LQTY that is included in vote counting
-    /// @return countedVoteLQTYAverageTimestamp Average timestamp: derived initiativeAllocation.averageTimestamp
-    function globalState() external view returns (uint256 countedVoteLQTY, uint256 countedVoteLQTYAverageTimestamp);
+    /// @return countedVoteOffset Offset associated with countedVoteLQTY
+    function globalState() external view returns (uint256 countedVoteLQTY, uint256 countedVoteOffset);
     /// @notice Returns the amount of voting and vetoing LQTY a user allocated to an initiative
     /// @param _user Address of the user
     /// @param _initiative Address of the initiative
     /// @return voteLQTY LQTY allocated vouching for the initiative
-    /// @return vetoLQTY LQTY allocated vetoing the initiative
+    /// @return voteOffset The offset associated with voteLQTY
+    /// @return vetoLQTY allocated vetoing the initiative
+    /// @return vetoOffset the offset associated with vetoLQTY
     /// @return atEpoch Epoch at which the allocation was last updated
     function lqtyAllocatedByUserToInitiative(address _user, address _initiative)
         external
         view
-        returns (uint256 voteLQTY, uint256 vetoLQTY, uint256 atEpoch);
+        returns (
+            uint256 voteLQTY, 
+            uint256 voteOffset,
+            uint256 vetoLQTY,
+            uint256 vetoOffset,
+            uint256 atEpoch
+        );
 
     /// @notice Returns when an initiative was registered
     /// @param _initiative Address of the initiative
@@ -278,12 +296,13 @@ interface IGovernance {
     /// @notice Returns the number of seconds that have gone by since the current epoch started
     /// @return secondsWithinEpoch Seconds within the current epoch
     function secondsWithinEpoch() external view returns (uint256 secondsWithinEpoch);
-    /// @notice Returns the number of votes per LQTY for a user
-    /// @param _lqtyAmount Amount of LQTY to convert to votes
-    /// @param _currentTimestamp Current timestamp
-    /// @param _averageTimestamp Average timestamp at which the LQTY was staked
+    
+    /// @notice Returns the voting power for an entity (i.e. user or initiative) at a given timestamp
+    /// @param _lqtyAmount Amount of LQTY associated with the entity
+    /// @param _timestamp Timestamp at which to calculate voting power
+    /// @param _offset The entity's offset sum
     /// @return votes Number of votes
-    function lqtyToVotes(uint256 _lqtyAmount, uint256 _currentTimestamp, uint256 _averageTimestamp)
+    function lqtyToVotes(uint256 _lqtyAmount, uint256 _timestamp, uint256 _offset)
         external
         pure
         returns (uint256);
