@@ -45,7 +45,7 @@ abstract contract OptimizationProperties is GovernanceProperties {
         uint256 claimableSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
             // NOTE: Non view so it accrues state
-            (Governance.InitiativeStatus status,, uint256 claimableAmount) =
+            (IGovernance.InitiativeStatus status,, uint256 claimableAmount) =
                 governance.getInitiativeState(deployedInitiatives[i]);
 
             claimableSum += claimableAmount;
@@ -68,7 +68,7 @@ abstract contract OptimizationProperties is GovernanceProperties {
         uint256 claimableSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
             // NOTE: Non view so it accrues state
-            (Governance.InitiativeStatus status,, uint256 claimableAmount) =
+            (IGovernance.InitiativeStatus status,, uint256 claimableAmount) =
                 governance.getInitiativeState(deployedInitiatives[i]);
 
             claimableSum += claimableAmount;

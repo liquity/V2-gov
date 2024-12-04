@@ -9,7 +9,7 @@ import {console2} from "forge-std/Test.sol";
 import {Properties} from "../Properties.sol";
 import {MaliciousInitiative} from "../../mocks/MaliciousInitiative.sol";
 import {BribeInitiative} from "src/BribeInitiative.sol";
-import {Governance} from "src/Governance.sol";
+import {IGovernance} from "src/interfaces/IGovernance.sol";
 import {ILQTYStaking} from "src/interfaces/ILQTYStaking.sol";
 import {IInitiative} from "src/interfaces/IInitiative.sol";
 import {IUserProxy} from "src/interfaces/IUserProxy.sol";
@@ -45,7 +45,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         // StateB4
         (uint88 b4_global_allocatedLQTY,) = governance.globalState();
 
-        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiatives[0]);
+        (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(initiatives[0]);
 
         try governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotesArray, deltaLQTYVetosArray) {
             t(deltaLQTYVotesArray[0] == 0 || deltaLQTYVetosArray[0] == 0, "One alloc must be zero");
@@ -64,7 +64,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         // (uint88 after_user_allocatedLQTY,) = governance.userStates(user); // TODO
         (uint88 after_global_allocatedLQTY,) = governance.globalState();
 
-        if (status == Governance.InitiativeStatus.DISABLED) {
+        if (status == IGovernance.InitiativeStatus.DISABLED) {
             // NOTE: It could be 0
             lte(after_global_allocatedLQTY, b4_global_allocatedLQTY, "Alloc can only be strictly decreasing");
         }

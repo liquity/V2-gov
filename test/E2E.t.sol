@@ -156,7 +156,7 @@ contract ForkedE2ETests is Test {
 
         address newInitiative = address(0x123123);
         governance.registerInitiative(newInitiative);
-        assertEq(uint256(Governance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative), "Cooldown");
+        assertEq(uint256(IGovernance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative), "Cooldown");
 
         uint256 skipCount;
 
@@ -165,25 +165,25 @@ contract ForkedE2ETests is Test {
         // Whereas in next week it will work
         vm.warp(block.timestamp + EPOCH_DURATION); // 1
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         // Cooldown on epoch Staert
         vm.warp(block.timestamp + EPOCH_DURATION); // 2
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 3
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 3
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 4
         ++skipCount;
         assertEq(
-            uint256(Governance.InitiativeStatus.UNREGISTERABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE"
+            uint256(IGovernance.InitiativeStatus.UNREGISTERABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE"
         );
 
         /// 4 + 1 ??
@@ -205,8 +205,8 @@ contract ForkedE2ETests is Test {
         address newInitiative2 = address(0x1231234);
         governance.registerInitiative(newInitiative);
         governance.registerInitiative(newInitiative2);
-        assertEq(uint256(Governance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative), "Cooldown");
-        assertEq(uint256(Governance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative2), "Cooldown");
+        assertEq(uint256(IGovernance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative), "Cooldown");
+        assertEq(uint256(IGovernance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative2), "Cooldown");
 
         uint256 skipCount;
 
@@ -217,7 +217,7 @@ contract ForkedE2ETests is Test {
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 1
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         _allocate(newInitiative2, 1e18, 0);
 
@@ -226,24 +226,24 @@ contract ForkedE2ETests is Test {
         // Cooldown on epoch Staert
         vm.warp(block.timestamp + EPOCH_DURATION); // 2
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         // 3rd Week of SKIP
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 3
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         // 4th Week of SKIP | If it doesn't get any rewards it will be UNREGISTERABLE
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 3
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 4
         ++skipCount;
         assertEq(
-            uint256(Governance.InitiativeStatus.UNREGISTERABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE"
+            uint256(IGovernance.InitiativeStatus.UNREGISTERABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE"
         );
 
         /// It was SKIP for 4 EPOCHS, it is now UNREGISTERABLE
@@ -264,8 +264,8 @@ contract ForkedE2ETests is Test {
         address newInitiative2 = address(0x1231234);
         governance.registerInitiative(newInitiative);
         governance.registerInitiative(newInitiative2);
-        assertEq(uint256(Governance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative), "Cooldown");
-        assertEq(uint256(Governance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative2), "Cooldown");
+        assertEq(uint256(IGovernance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative), "Cooldown");
+        assertEq(uint256(IGovernance.InitiativeStatus.WARM_UP), _getInitiativeStatus(newInitiative2), "Cooldown");
 
         uint256 skipCount;
 
@@ -276,7 +276,7 @@ contract ForkedE2ETests is Test {
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 1
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         _allocate(newInitiative2, 1e18, 0);
 
@@ -285,19 +285,19 @@ contract ForkedE2ETests is Test {
         // Cooldown on epoch Staert
         vm.warp(block.timestamp + EPOCH_DURATION); // 2
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         // 3rd Week of SKIP
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 3
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         // 4th Week of SKIP | If it doesn't get any rewards it will be UNREGISTERABLE
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 3
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
+        assertEq(uint256(IGovernance.InitiativeStatus.SKIP), _getInitiativeStatus(newInitiative), "SKIP");
 
         // Allocating to it, saves it
         _reset(newInitiative2);
@@ -305,7 +305,7 @@ contract ForkedE2ETests is Test {
 
         vm.warp(block.timestamp + EPOCH_DURATION); // 4
         ++skipCount;
-        assertEq(uint256(Governance.InitiativeStatus.CLAIMABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE");
+        assertEq(uint256(IGovernance.InitiativeStatus.CLAIMABLE), _getInitiativeStatus(newInitiative), "UNREGISTERABLE");
     }
 
     function _deposit(uint88 amt) internal {
@@ -339,7 +339,7 @@ contract ForkedE2ETests is Test {
     }
 
     function _getInitiativeStatus(address _initiative) internal returns (uint256) {
-        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(_initiative);
+        (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(_initiative);
         return uint256(status);
     }
 }

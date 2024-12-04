@@ -1316,7 +1316,7 @@ abstract contract GovernanceTest is Test {
 
         assertEq(lusd.balanceOf(baseInitiative1), 15000e18);
 
-        (Governance.InitiativeStatus status,, uint256 claimable) = governance.getInitiativeState(baseInitiative2);
+        (IGovernance.InitiativeStatus status,, uint256 claimable) = governance.getInitiativeState(baseInitiative2);
         console.log("res", uint8(status));
         console.log("claimable", claimable);
         (uint224 votes,,, uint224 vetos) = governance.votesForInitiativeSnapshot(baseInitiative2);

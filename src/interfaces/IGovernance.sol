@@ -225,6 +225,33 @@ interface IGovernance {
         pure
         returns (uint208);
 
+    /// @dev Returns the most up to date voting threshold
+    /// In contrast to `getLatestVotingThreshold` this function updates the snapshot
+    /// This ensures that the value returned is always the latest
+    function calculateVotingThreshold() external returns (uint256);
+
+    /// @dev Utility function to compute the threshold votes without recomputing the snapshot
+    /// Note that `boldAccrued` is a cached value, this function works correctly only when called after an accrual
+    function calculateVotingThreshold(uint256 _votes) external view returns (uint256);
+
+    /// @notice Return the most up to date global snapshot and state as well as a flag to notify whether the state can be updated
+    /// This is a convenience function to always retrieve the most up to date state values
+    function getTotalVotesAndState()
+        external
+        view
+        returns (VoteSnapshot memory snapshot, GlobalState memory state, bool shouldUpdate);
+
+    /// @dev Given an initiative address, return it's most up to date snapshot and state as well as a flag to notify whether the state can be updated
+    /// This is a convenience function to always retrieve the most up to date state values
+    function getInitiativeSnapshotAndState(address _initiative)
+        external
+        view
+        returns (
+            InitiativeVoteSnapshot memory initiativeSnapshot,
+            InitiativeState memory initiativeState,
+            bool shouldUpdate
+        );
+
     /// @notice Voting threshold is the max. of either:
     ///   - 4% of the total voting LQTY in the previous epoch
     ///   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
@@ -239,6 +266,38 @@ interface IGovernance {
     function snapshotVotesForInitiative(address _initiative)
         external
         returns (VoteSnapshot memory voteSnapshot, InitiativeVoteSnapshot memory initiativeVoteSnapshot);
+
+    /*//////////////////////////////////////////////////////////////
+                                 FSM
+    //////////////////////////////////////////////////////////////*/
+
+    enum InitiativeStatus {
+        NONEXISTENT,
+        /// This Initiative Doesn't exist | This is never returned
+        WARM_UP,
+        /// This epoch was just registered
+        SKIP,
+        /// This epoch will result in no rewards and no unregistering
+        CLAIMABLE,
+        /// This epoch will result in claiming rewards
+        CLAIMED,
+        /// The rewards for this epoch have been claimed
+        UNREGISTERABLE,
+        /// Can be unregistered
+        DISABLED // It was already Unregistered
+
+    }
+
+    function getInitiativeState(address _initiative)
+        external
+        returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
+
+    function getInitiativeState(
+        address _initiative,
+        VoteSnapshot memory _votesSnapshot,
+        InitiativeVoteSnapshot memory _votesForInitiativeSnapshot,
+        InitiativeState memory _initiativeState
+    ) external view returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
 
     /// @notice Registers a new initiative
     /// @param _initiative Address of the initiative
