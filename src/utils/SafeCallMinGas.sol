@@ -16,8 +16,8 @@ function hasMinGas(uint256 _minGas, uint256 _reservedGas) view returns (bool) {
 function safeCallWithMinGas(address _target, uint256 _gas, uint256 _value, bytes memory _calldata)
     returns (bool success)
 {
-    /// @audit This is not necessary
-    ///     But this is basically a worst case estimate of mem exp cost + operations before the call
+    /// This is not necessary
+    /// But this is basically a worst case estimate of mem exp cost + operations before the call
     require(hasMinGas(_gas, 1_000), "Must have minGas");
 
     // dispatch message to recipient

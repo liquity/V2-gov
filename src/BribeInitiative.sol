@@ -107,7 +107,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())
         ) * uint120(TIMESTAMP_PRECISION);
 
-        /// @audit User Invariant
         assert(totalAverageTimestamp <= scaledEpochEnd);
 
         uint240 totalVotes = governance.lqtyToVotes(totalLQTY, scaledEpochEnd, totalAverageTimestamp);
@@ -115,7 +114,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             (uint88 lqty, uint120 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
             require(lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
-            /// @audit Governance Invariant
             assert(averageTimestamp <= scaledEpochEnd);
 
             uint240 votes = governance.lqtyToVotes(lqty, scaledEpochEnd, averageTimestamp);
