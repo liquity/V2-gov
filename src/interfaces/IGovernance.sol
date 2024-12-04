@@ -264,6 +264,36 @@ interface IGovernance {
         external
         returns (VoteSnapshot memory voteSnapshot, InitiativeVoteSnapshot memory initiativeVoteSnapshot);
 
+    /*//////////////////////////////////////////////////////////////
+                                 FSM
+    //////////////////////////////////////////////////////////////*/
+
+    enum InitiativeStatus {
+        NONEXISTENT,
+        /// This Initiative Doesn't exist | This is never returned
+        WARM_UP,
+        /// This epoch was just registered
+        SKIP,
+        /// This epoch will result in no rewards and no unregistering
+        CLAIMABLE,
+        /// This epoch will result in claiming rewards
+        CLAIMED,
+        /// The rewards for this epoch have been claimed
+        UNREGISTERABLE,
+        /// Can be unregistered
+        DISABLED // It was already Unregistered
+
+    }
+
+    function getInitiativeState(address _initiative) external returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
+
+    function getInitiativeState(
+        address _initiative,
+        VoteSnapshot memory _votesSnapshot,
+        InitiativeVoteSnapshot memory _votesForInitiativeSnapshot,
+        InitiativeState memory _initiativeState
+    ) external view returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
+
     /// @notice Registers a new initiative
     /// @param _initiative Address of the initiative
     function registerInitiative(address _initiative) external;

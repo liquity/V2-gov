@@ -201,9 +201,9 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot,,) =
                 governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
-            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+            (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
 
-            // if (status != Governance.InitiativeStatus.DISABLED) {
+            // if (status != IGovernance.InitiativeStatus.DISABLED) {
             // FIX: Only count total if initiative is not disabled
             initiativeVotesSum += initiativeSnapshot.votes;
             // }

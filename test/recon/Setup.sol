@@ -109,7 +109,7 @@ abstract contract Setup is BaseSetup, MockStakingV1Deployer {
     }
 
     function _getInitiativeStatus(address) internal returns (uint256) {
-        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(_getDeployedInitiative(0));
+        (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(_getDeployedInitiative(0));
         return uint256(status);
     }
 }

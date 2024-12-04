@@ -430,23 +430,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
                                  FSM
     //////////////////////////////////////////////////////////////*/
 
-    enum InitiativeStatus {
-        NONEXISTENT,
-        /// This Initiative Doesn't exist | This is never returned
-        WARM_UP,
-        /// This epoch was just registered
-        SKIP,
-        /// This epoch will result in no rewards and no unregistering
-        CLAIMABLE,
-        /// This epoch will result in claiming rewards
-        CLAIMED,
-        /// The rewards for this epoch have been claimed
-        UNREGISTERABLE,
-        /// Can be unregistered
-        DISABLED // It was already Unregistered
-
-    }
-
     /// @notice Given an inititive address, updates all snapshots and return the initiative state
     ///     See the view version of `getInitiativeState` for the underlying logic on Initatives FSM
     function getInitiativeState(address _initiative)
