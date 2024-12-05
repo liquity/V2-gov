@@ -35,12 +35,7 @@ contract UserProxy is IUserProxy {
     function stake(uint256 _amount, address _lqtyFrom, bool _doSendRewards, address _recipient)
         public
         onlyStakingV2
-        returns (
-            uint256 lusdReceived,
-            uint256 lusdSent,
-            uint256 ethReceived,
-            uint256 ethSent
-        )
+        returns (uint256 lusdReceived, uint256 lusdSent, uint256 ethReceived, uint256 ethSent)
     {
         uint256 initialLUSDAmount = lusd.balanceOf(address(this));
         uint256 initialETHAmount = address(this).balance;
@@ -64,16 +59,7 @@ contract UserProxy is IUserProxy {
         PermitParams calldata _permitParams,
         bool _doSendRewards,
         address _recipient
-    )
-        external
-        onlyStakingV2
-        returns (
-            uint256 lusdReceived,
-            uint256 lusdSent,
-            uint256 ethReceived,
-            uint256 ethSent
-        )
-    {
+    ) external onlyStakingV2 returns (uint256 lusdReceived, uint256 lusdSent, uint256 ethReceived, uint256 ethSent) {
         require(_lqtyFrom == _permitParams.owner, "UserProxy: owner-not-sender");
 
         try IERC20Permit(address(lqty)).permit(

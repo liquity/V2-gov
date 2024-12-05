@@ -17,7 +17,7 @@ interface IGovernance {
         uint256 ethReceived,
         uint256 ethSent
     );
-    
+
     event WithdrawLQTY(
         address indexed user,
         address recipient,
