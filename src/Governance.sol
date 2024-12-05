@@ -188,8 +188,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         );
         userStates[msg.sender] = userState;
 
-        emit DepositLQTY(msg.sender, _lqtyAmount);
-
         return userProxy;
     }
 
@@ -200,7 +198,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
     function depositLQTY(uint88 _lqtyAmount, bool _doSendRewards, address _recipient) public nonReentrant {
         UserProxy userProxy = _updateUserTimestamp(_lqtyAmount);
-        userProxy.stake(_lqtyAmount, msg.sender, _doSendRewards, _recipient);
+
+        (uint256 lusdReceived, uint256 lusdSent, uint256 ethReceived, uint256 ethSent) =
+            userProxy.stake(_lqtyAmount, msg.sender, _doSendRewards, _recipient);
+
+        emit DepositLQTY(msg.sender, _recipient, _lqtyAmount, lusdReceived, lusdSent, ethReceived, ethSent);
     }
 
     /// @inheritdoc IGovernance
@@ -215,7 +217,11 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         address _recipient
     ) public nonReentrant {
         UserProxy userProxy = _updateUserTimestamp(_lqtyAmount);
-        userProxy.stakeViaPermit(_lqtyAmount, msg.sender, _permitParams, _doSendRewards, _recipient);
+
+        (uint256 lusdReceived, uint256 lusdSent, uint256 ethReceived, uint256 ethSent) =
+            userProxy.stakeViaPermit(_lqtyAmount, msg.sender, _permitParams, _doSendRewards, _recipient);
+
+        emit DepositLQTY(msg.sender, _recipient, _lqtyAmount, lusdReceived, lusdSent, ethReceived, ethSent);
     }
 
     /// @inheritdoc IGovernance
@@ -231,18 +237,34 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         require(address(userProxy).code.length != 0, "Governance: user-proxy-not-deployed");
 
-        uint88 lqtyStaked = uint88(stakingV1.stakes(address(userProxy)));
+        (
+            uint256 lqtyReceived,
+            uint256 lqtySent,
+            uint256 lusdReceived,
+            uint256 lusdSent,
+            uint256 ethReceived,
+            uint256 ethSent
+        ) = userProxy.unstake(_lqtyAmount, _doSendRewards, _recipient);
 
-        (uint256 accruedLUSD, uint256 accruedETH) = userProxy.unstake(_lqtyAmount, _doSendRewards, _recipient);
-
-        emit WithdrawLQTY(msg.sender, _lqtyAmount, accruedLUSD, accruedETH);
+        emit WithdrawLQTY(msg.sender, _recipient, lqtyReceived, lqtySent, lusdReceived, lusdSent, ethReceived, ethSent);
     }
 
     /// @inheritdoc IGovernance
-    function claimFromStakingV1(address _rewardRecipient) external returns (uint256 accruedLUSD, uint256 accruedETH) {
+    function claimFromStakingV1(address _rewardRecipient) external returns (uint256 lusdSent, uint256 ethSent) {
         address payable userProxyAddress = payable(deriveUserProxyAddress(msg.sender));
         require(userProxyAddress.code.length != 0, "Governance: user-proxy-not-deployed");
-        return UserProxy(userProxyAddress).unstake(0, true, _rewardRecipient);
+
+        uint256 lqtyReceived;
+        uint256 lqtySent;
+        uint256 lusdReceived;
+        uint256 ethReceived;
+
+        (lqtyReceived, lqtySent, lusdReceived, lusdSent, ethReceived, ethSent) =
+            UserProxy(userProxyAddress).unstake(0, true, _rewardRecipient);
+
+        emit WithdrawLQTY(
+            msg.sender, _rewardRecipient, lqtyReceived, lqtySent, lusdReceived, lusdSent, ethReceived, ethSent
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

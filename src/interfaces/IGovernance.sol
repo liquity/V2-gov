@@ -8,8 +8,26 @@ import {ILQTYStaking} from "./ILQTYStaking.sol";
 import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
-    event DepositLQTY(address indexed user, uint256 depositedLQTY);
-    event WithdrawLQTY(address indexed user, uint256 withdrawnLQTY, uint256 accruedLUSD, uint256 accruedETH);
+    event DepositLQTY(
+        address indexed user,
+        address rewardRecipient,
+        uint256 lqtyAmount,
+        uint256 lusdReceived,
+        uint256 lusdSent,
+        uint256 ethReceived,
+        uint256 ethSent
+    );
+    
+    event WithdrawLQTY(
+        address indexed user,
+        address recipient,
+        uint256 lqtyReceived,
+        uint256 lqtySent,
+        uint256 lusdReceived,
+        uint256 lusdSent,
+        uint256 ethReceived,
+        uint256 ethSent
+    );
 
     event SnapshotVotes(uint256 votes, uint256 forEpoch, uint256 boldAccrued);
     event SnapshotVotesForInitiative(address indexed initiative, uint256 votes, uint256 vetos, uint256 forEpoch);
@@ -137,7 +155,6 @@ interface IGovernance {
         uint88 countedVoteLQTY; // Total LQTY that is included in vote counting
         uint120 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
     }
-    /// TODO: Bold balance? Prob cheaper
 
     /// @notice Returns the user's state
     /// @param _user Address of the user
@@ -186,21 +203,50 @@ interface IGovernance {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deposits LQTY
-    /// @dev The caller has to approve this contract to spend the LQTY tokens
+    /// @dev The caller has to approve their `UserProxy` address to spend the LQTY tokens
     /// @param _lqtyAmount Amount of LQTY to deposit
     function depositLQTY(uint88 _lqtyAmount) external;
+
+    /// @notice Deposits LQTY
+    /// @dev The caller has to approve their `UserProxy` address to spend the LQTY tokens
+    /// @param _lqtyAmount Amount of LQTY to deposit
+    /// @param _doSendRewards If true, send rewards claimed from LQTY staking
+    /// @param _recipient Address to which the tokens should be sent
+    function depositLQTY(uint88 _lqtyAmount, bool _doSendRewards, address _recipient) external;
+
     /// @notice Deposits LQTY via Permit
     /// @param _lqtyAmount Amount of LQTY to deposit
     /// @param _permitParams Permit parameters
-    function depositLQTYViaPermit(uint88 _lqtyAmount, PermitParams memory _permitParams) external;
+    function depositLQTYViaPermit(uint88 _lqtyAmount, PermitParams calldata _permitParams) external;
+
+    /// @notice Deposits LQTY via Permit
+    /// @param _lqtyAmount Amount of LQTY to deposit
+    /// @param _permitParams Permit parameters
+    /// @param _doSendRewards If true, send rewards claimed from LQTY staking
+    /// @param _recipient Address to which the tokens should be sent
+    function depositLQTYViaPermit(
+        uint88 _lqtyAmount,
+        PermitParams calldata _permitParams,
+        bool _doSendRewards,
+        address _recipient
+    ) external;
+
     /// @notice Withdraws LQTY and claims any accrued LUSD and ETH rewards from StakingV1
     /// @param _lqtyAmount Amount of LQTY to withdraw
     function withdrawLQTY(uint88 _lqtyAmount) external;
+
+    /// @notice Withdraws LQTY and claims any accrued LUSD and ETH rewards from StakingV1
+    /// @param _lqtyAmount Amount of LQTY to withdraw
+    /// @param _doSendRewards If true, send rewards claimed from LQTY staking
+    /// @param _recipient Address to which the tokens should be sent
+    function withdrawLQTY(uint88 _lqtyAmount, bool _doSendRewards, address _recipient) external;
+
     /// @notice Claims staking rewards from StakingV1 without unstaking
+    /// @dev Note: in the unlikely event that the caller's `UserProxy` holds any LQTY tokens, they will also be sent to `_rewardRecipient`
     /// @param _rewardRecipient Address that will receive the rewards
-    /// @return accruedLUSD Amount of LUSD accrued
-    /// @return accruedETH Amount of ETH accrued
-    function claimFromStakingV1(address _rewardRecipient) external returns (uint256 accruedLUSD, uint256 accruedETH);
+    /// @return lusdSent Amount of LUSD tokens sent to `_rewardRecipient` (may include previously received LUSD)
+    /// @return ethSent Amount of ETH sent to `_rewardRecipient` (may include previously received ETH)
+    function claimFromStakingV1(address _rewardRecipient) external returns (uint256 lusdSent, uint256 ethSent);
 
     /*//////////////////////////////////////////////////////////////
                                  VOTING
