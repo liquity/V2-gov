@@ -56,7 +56,7 @@ contract UserProxy is IUserProxy {
         PermitParams calldata _permitParams,
         bool _doSendRewards,
         address _recipient
-    ) public onlyStakingV2 returns (uint256 lusdAmount, uint256 ethAmount) {
+    ) external onlyStakingV2 returns (uint256 lusdAmount, uint256 ethAmount) {
         require(_lqtyFrom == _permitParams.owner, "UserProxy: owner-not-sender");
 
         uint256 initialLUSDAmount = lusd.balanceOf(address(this));
@@ -80,7 +80,7 @@ contract UserProxy is IUserProxy {
 
     /// @inheritdoc IUserProxy
     function unstake(uint256 _amount, bool _doSendRewards, address _recipient)
-        public
+        external
         onlyStakingV2
         returns (uint256 lusdAmount, uint256 ethAmount)
     {

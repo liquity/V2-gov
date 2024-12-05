@@ -10,7 +10,7 @@ import {Governance} from "src/Governance.sol";
 abstract contract BeforeAfter is Setup, Asserts {
     struct Vars {
         uint16 epoch;
-        mapping(address => Governance.InitiativeStatus) initiativeStatus;
+        mapping(address => IGovernance.InitiativeStatus) initiativeStatus;
         // initiative => user => epoch => claimed
         mapping(address => mapping(address => mapping(uint16 => bool))) claimedBribeForInitiativeAtEpoch;
         mapping(address user => uint128 lqtyBalance) userLqtyBalance;
@@ -31,7 +31,7 @@ abstract contract BeforeAfter is Setup, Asserts {
         _before.epoch = currentEpoch;
         for (uint8 i; i < deployedInitiatives.length; i++) {
             address initiative = deployedInitiatives[i];
-            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
+            (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
             _before.initiativeStatus[initiative] = status;
             _before.claimedBribeForInitiativeAtEpoch[initiative][user][currentEpoch] =
                 IBribeInitiative(initiative).claimedBribeAtEpoch(user, currentEpoch);
@@ -48,7 +48,7 @@ abstract contract BeforeAfter is Setup, Asserts {
         _after.epoch = currentEpoch;
         for (uint8 i; i < deployedInitiatives.length; i++) {
             address initiative = deployedInitiatives[i];
-            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
+            (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
             _after.initiativeStatus[initiative] = status;
             _after.claimedBribeForInitiativeAtEpoch[initiative][user][currentEpoch] =
                 IBribeInitiative(initiative).claimedBribeAtEpoch(user, currentEpoch);
