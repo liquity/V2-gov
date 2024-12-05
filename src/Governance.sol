@@ -280,7 +280,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
     /// @inheritdoc IGovernance
     function getLatestVotingThreshold() public view returns (uint256) {
         uint256 snapshotVotes = votesSnapshot.votes;
-        /// @audit technically can be out of synch
 
         return calculateVotingThreshold(snapshotVotes);
     }
@@ -466,16 +465,16 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         uint256 upscaledTotalVotes = uint256(_votesSnapshot.votes);
 
         if (upscaledInitiativeVotes > votingTheshold && !(upscaledInitiativeVetos >= upscaledInitiativeVotes)) {
-            /// @audit 2^208 means we only have 2^48 left
+            /// 2^208 means we only have 2^48 left
             /// Therefore we need to scale the value down by 4 orders of magnitude to make it fit
             assert(upscaledInitiativeVotes * 1e14 / (VOTING_THRESHOLD_FACTOR / 1e4) > upscaledTotalVotes);
 
             // 34 times when using 0.03e18 -> 33.3 + 1-> 33 + 1 = 34
             uint256 CUSTOM_PRECISION = WAD / VOTING_THRESHOLD_FACTOR + 1;
 
-            /// @audit Because of the updated timestamp, we can run into overflows if we multiply by `boldAccrued`
-            ///     We use `CUSTOM_PRECISION` for this reason, a smaller multiplicative value
-            ///     The change SHOULD be safe because we already check for `threshold` before getting into these lines
+            /// Because of the updated timestamp, we can run into overflows if we multiply by `boldAccrued`
+            /// We use `CUSTOM_PRECISION` for this reason, a smaller multiplicative value
+            /// The change SHOULD be safe because we already check for `threshold` before getting into these lines
             /// As an alternative, this line could be replaced by https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/FullMath.sol
             uint256 claim =
                 upscaledInitiativeVotes * CUSTOM_PRECISION / upscaledTotalVotes * boldAccrued / CUSTOM_PRECISION;
@@ -525,7 +524,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
         registeredInitiatives[_initiative] = currentEpoch;
 
-        /// @audit This ensures that the initiatives has UNREGISTRATION_AFTER_EPOCHS even after the first epoch
+        /// This ensures that the initiatives has UNREGISTRATION_AFTER_EPOCHS even after the first epoch
         initiativeStates[_initiative].lastEpochClaim = currentEpoch - 1;
 
         // Replaces try / catch | Enforces sufficient gas is passed
@@ -561,7 +560,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
             // Must be below, else we cannot reset"
             // Makes cast safe
-            /// @audit Check INVARIANT: property_ensure_user_alloc_cannot_dos
             assert(alloc.voteLQTY <= uint88(type(int88).max));
             assert(alloc.vetoLQTY <= uint88(type(int88).max));
 
@@ -706,7 +704,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             );
 
             if (deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
-                /// @audit You cannot vote on `unregisterable` but a vote may have been there
+                /// You cannot vote on `unregisterable` but a vote may have been there
                 require(
                     status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE
                         || status == InitiativeStatus.CLAIMED,
@@ -734,14 +732,12 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             vars.initiativeState.averageStakingTimestampVoteLQTY = _calculateAverageTimestamp(
                 vars.initiativeState.averageStakingTimestampVoteLQTY,
                 vars.userState.averageStakingTimestamp,
-                /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
                 vars.initiativeState.voteLQTY,
                 add(vars.initiativeState.voteLQTY, deltaLQTYVotes)
             );
             vars.initiativeState.averageStakingTimestampVetoLQTY = _calculateAverageTimestamp(
                 vars.initiativeState.averageStakingTimestampVetoLQTY,
                 vars.userState.averageStakingTimestamp,
-                /// @audit This is wrong unless we enforce a reset on deposit and withdrawal
                 vars.initiativeState.vetoLQTY,
                 add(vars.initiativeState.vetoLQTY, deltaLQTYVetos)
             );
@@ -755,37 +751,22 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
             // == GLOBAL STATE == //
 
-            // TODO: Veto reducing total votes logic change
-            // TODO: Accounting invariants
-            // TODO: Let's say I want to cap the votes vs weights
-            // Then by definition, I add the effective LQTY
-            // And the effective TS
-            // I remove the previous one
-            // and add the next one
-            // Veto > Vote
-            // Reduce down by Vote (cap min)
-            // If Vote > Veto
-            // Increase by Veto - Veto (reduced max)
-
             // update the average staking timestamp for all counted voting LQTY
             /// Discount previous only if the initiative was not unregistered
 
-            /// @audit We update the state only for non-disabled initiaitives
+            /// We update the state only for non-disabled initiaitives
             /// Disabled initiaitves have had their totals subtracted already
             /// Math is also non associative so we cannot easily compare values
             if (status != InitiativeStatus.DISABLED) {
-                /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
                 /// Removing votes from state desynchs the state until all users remove their votes from the initiative
                 /// The invariant that holds is: the one that removes the initiatives that have been unregistered
                 vars.state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
                     vars.state.countedVoteLQTYAverageTimestamp,
                     vars.prevInitiativeState.averageStakingTimestampVoteLQTY,
-                    /// @audit We don't have a test that fails when this line is changed
                     vars.state.countedVoteLQTY,
                     vars.state.countedVoteLQTY - vars.prevInitiativeState.voteLQTY
                 );
                 assert(vars.state.countedVoteLQTY >= vars.prevInitiativeState.voteLQTY);
-                /// @audit INVARIANT: Never overflows
                 vars.state.countedVoteLQTY -= vars.prevInitiativeState.voteLQTY;
 
                 vars.state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
@@ -850,12 +831,10 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         // Remove weight from current state
         uint16 currentEpoch = epoch();
 
-        /// @audit Invariant: Must only claim once or unregister
         // NOTE: Safe to remove | See `check_claim_soundness`
         assert(initiativeState.lastEpochClaim < currentEpoch - 1);
 
         // recalculate the average staking timestamp for all counted voting LQTY if the initiative was counted in
-        /// @audit Trophy: `test_property_sum_of_lqty_global_user_matches_0`
         // Removing votes from state desynchs the state until all users remove their votes from the initiative
 
         state.countedVoteLQTYAverageTimestamp = _calculateAverageTimestamp(
@@ -896,7 +875,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             return 0;
         }
 
-        /// @audit INVARIANT: You can only claim for previous epoch
+        /// INVARIANT: You can only claim for previous epoch
         assert(votesSnapshot_.forEpoch == epoch() - 1);
 
         /// All unclaimed rewards are always recycled
@@ -904,7 +883,7 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
         /// If `lastEpochClaim` is older than epoch() - 1 it means the initiative couldn't claim any rewards this epoch
         initiativeStates[_initiative].lastEpochClaim = epoch() - 1;
 
-        // @audit INVARIANT, because of rounding errors the system can overpay
+        /// INVARIANT, because of rounding errors the system can overpay
         /// We upscale the timestamp to reduce the impact of the loss
         /// However this is still possible
         uint256 available = bold.balanceOf(address(this));

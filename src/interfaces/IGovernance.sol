@@ -137,7 +137,6 @@ interface IGovernance {
         uint88 countedVoteLQTY; // Total LQTY that is included in vote counting
         uint120 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
     }
-    /// TODO: Bold balance? Prob cheaper
 
     /// @notice Returns the user's state
     /// @param _user Address of the user
