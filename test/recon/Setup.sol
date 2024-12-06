@@ -67,8 +67,8 @@ abstract contract Setup is BaseSetup, MockStakingV1Deployer {
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp - EPOCH_DURATION),
-                /// @audit will this work?
+                // backdate by 2 epochs to ensure new initiatives can be registered from the start
+                epochStart: uint32(block.timestamp - 2 * EPOCH_DURATION),
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),

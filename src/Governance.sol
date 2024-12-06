@@ -497,6 +497,9 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
 
     /// @inheritdoc IGovernance
     function registerInitiative(address _initiative) external nonReentrant {
+        uint16 currentEpoch = epoch();
+        require(currentEpoch > 2, "Governance: registration-not-yet-enabled");
+
         bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
 
         require(_initiative != address(0), "Governance: zero-address");
@@ -519,8 +522,6 @@ contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IG
             ) >= upscaledSnapshotVotes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"
         );
-
-        uint16 currentEpoch = epoch();
 
         registeredInitiatives[_initiative] = currentEpoch;
 

@@ -78,6 +78,9 @@ contract ForkedE2ETests is Test {
         _allocate(baseInitiative1, 1e18, 0);
         _reset(baseInitiative1);
 
+        // Registration not allowed initially, so skip one epoch
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
         deal(address(lusd), address(user), REGISTRATION_FEE);
         lusd.approve(address(governance), REGISTRATION_FEE);
         governance.registerInitiative(address(0x123123));
@@ -148,11 +151,14 @@ contract ForkedE2ETests is Test {
         _deposit(1000e18);
 
         console.log("epoch", governance.epoch());
-        _allocate(baseInitiative1, 1e18, 0); // Doesn't work due to cool down I think
+        _allocate(baseInitiative1, 1e18, 0);
 
         // And for sanity, you cannot vote on new ones, they need to be added first
         deal(address(lusd), address(user), REGISTRATION_FEE);
         lusd.approve(address(governance), REGISTRATION_FEE);
+
+        // Registration not allowed initially, so skip one epoch
+        vm.warp(block.timestamp + EPOCH_DURATION);
 
         address newInitiative = address(0x123123);
         governance.registerInitiative(newInitiative);
@@ -192,7 +198,9 @@ contract ForkedE2ETests is Test {
 
     // forge test --match-test test_unregisterWorksCorrectlyEvenAfterXEpochs -vv
     function test_unregisterWorksCorrectlyEvenAfterXEpochs(uint8 epochsInFuture) public {
-        vm.warp(block.timestamp + epochsInFuture * EPOCH_DURATION);
+        // Registration starts working after one epoch, so fast-forward at least one EPOCH_DURATION
+        vm.warp(block.timestamp + (uint32(1) + epochsInFuture) * EPOCH_DURATION);
+
         vm.startPrank(user);
         // Check that we can vote on the first epoch, right after deployment
         _deposit(1000e18);
@@ -251,7 +259,9 @@ contract ForkedE2ETests is Test {
     }
 
     function test_unregisterWorksCorrectlyEvenAfterXEpochs_andCanBeSavedAtLast(uint8 epochsInFuture) public {
-        vm.warp(block.timestamp + epochsInFuture * EPOCH_DURATION);
+        // Registration starts working after one epoch, so fast-forward at least one EPOCH_DURATION
+        vm.warp(block.timestamp + (uint32(1) + epochsInFuture) * EPOCH_DURATION);
+
         vm.startPrank(user);
         // Check that we can vote on the first epoch, right after deployment
         _deposit(1000e18);

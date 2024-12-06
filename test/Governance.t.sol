@@ -352,7 +352,7 @@ abstract contract GovernanceTest is Test {
         assertEq(governance.getLatestVotingThreshold(), 0);
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
-        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
+        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, governance.epoch());
         governance.tester_setVotesSnapshot(snapshot);
 
         uint256 boldAccrued = 1000e18;
@@ -382,7 +382,7 @@ abstract contract GovernanceTest is Test {
             initialInitiatives
         );
 
-        snapshot = IGovernance.VoteSnapshot(10000e18, 1);
+        snapshot = IGovernance.VoteSnapshot(10000e18, governance.epoch());
         governance.tester_setVotesSnapshot(snapshot);
 
         boldAccrued = 1000e18;
@@ -434,7 +434,14 @@ abstract contract GovernanceTest is Test {
 
         address userProxy = governance.deployUserProxy();
 
-        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
+        vm.expectRevert("Governance: registration-not-yet-enabled");
+        governance.registerInitiative(baseInitiative3);
+
+        // Registration not allowed before epoch #3
+        vm.warp(block.timestamp + 2 * EPOCH_DURATION);
+        assertEq(governance.epoch(), 3, "We should be in epoch #3");
+
+        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, governance.epoch());
         governance.tester_setVotesSnapshot(snapshot);
 
         // should revert if the `REGISTRATION_FEE` > `lusd.balanceOf(msg.sender)`
@@ -459,7 +466,7 @@ abstract contract GovernanceTest is Test {
 
         lqty.approve(address(userProxy), 1e18);
         governance.depositLQTY(1e18);
-        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+        vm.warp(block.timestamp + EPOCH_DURATION);
 
         // should revert if `_initiative` is zero
         vm.expectRevert("Governance: zero-address");
@@ -476,52 +483,37 @@ abstract contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
-    // TODO: Broken: Fix it by simplifying most likely
     // forge test --match-test test_unregisterInitiative -vv
     function test_unregisterInitiative() public {
-        vm.startPrank(user);
-
-        address userProxy = governance.deployUserProxy();
-
-        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
-        governance.tester_setVotesSnapshot(snapshot);
-
-        vm.stopPrank();
-
         vm.startPrank(lusdHolder);
         lusd.transfer(user, 1e18);
         vm.stopPrank();
 
         vm.startPrank(user);
 
-        lusd.approve(address(governance), 1e18);
-        lqty.approve(address(userProxy), 1e18);
-        governance.depositLQTY(1e18);
-        vm.warp(block.timestamp + governance.EPOCH_DURATION());
-
         // should revert if the initiative isn't registered
         vm.expectRevert("Governance: cannot-unregister-initiative");
         governance.unregisterInitiative(baseInitiative3);
 
+        // Registration not allowed before epoch #3
+        vm.warp(block.timestamp + 2 * EPOCH_DURATION);
+        assertEq(governance.epoch(), 3, "We should be in epoch #3");
+
+        lusd.approve(address(governance), 1e18);
         governance.registerInitiative(baseInitiative3);
-        uint16 atEpoch = governance.registeredInitiatives(baseInitiative3);
-        assertEq(atEpoch, governance.epoch());
 
         // should revert if the initiative is still in the registration warm up period
         vm.expectRevert("Governance: cannot-unregister-initiative");
         /// @audit should fail due to not waiting enough time
         governance.unregisterInitiative(baseInitiative3);
 
-        vm.warp(block.timestamp + governance.EPOCH_DURATION());
+        vm.warp(block.timestamp + EPOCH_DURATION);
 
         // should revert if the initiative is still active or the vetos don't meet the threshold
         vm.expectRevert("Governance: cannot-unregister-initiative");
         governance.unregisterInitiative(baseInitiative3);
 
-        snapshot = IGovernance.VoteSnapshot(1e18, governance.epoch() - 1);
-        governance.tester_setVotesSnapshot(snapshot);
-
-        vm.warp(block.timestamp + governance.EPOCH_DURATION() * UNREGISTRATION_AFTER_EPOCHS);
+        vm.warp(block.timestamp + EPOCH_DURATION * UNREGISTRATION_AFTER_EPOCHS);
 
         governance.unregisterInitiative(baseInitiative3);
 
@@ -1467,7 +1459,7 @@ abstract contract GovernanceTest is Test {
 
         address userProxy = governance.deployUserProxy();
 
-        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, 1);
+        IGovernance.VoteSnapshot memory snapshot = IGovernance.VoteSnapshot(1e18, governance.epoch());
         governance.tester_setVotesSnapshot(snapshot);
 
         vm.startPrank(lusdHolder);
