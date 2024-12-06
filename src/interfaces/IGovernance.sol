@@ -8,6 +8,14 @@ import {ILQTYStaking} from "./ILQTYStaking.sol";
 import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
+    /// @notice Emitted when a user deposits LQTY
+    /// @param user The account depositing LQTY
+    /// @param rewardRecipient The account receiving the LUSD/ETH rewards earned from staking in V1, if claimed
+    /// @param lqtyAmount The amount of LQTY being deposited
+    /// @return lusdReceived Amount of LUSD tokens received as a side-effect of staking new LQTY
+    /// @return lusdSent Amount of LUSD tokens sent to `rewardRecipient` (may include previously received LUSD)
+    /// @return ethReceived Amount of ETH received as a side-effect of staking new LQTY
+    /// @return ethSent Amount of ETH sent to `rewardRecipient` (may include previously received ETH)
     event DepositLQTY(
         address indexed user,
         address rewardRecipient,
@@ -18,6 +26,15 @@ interface IGovernance {
         uint256 ethSent
     );
 
+    /// @notice Emitted when a user withdraws LQTY or claims V1 staking rewards
+    /// @param user The account withdrawing LQTY or claiming V1 staking rewards
+    /// @param recipient The account receiving the LQTY withdrawn, and if claimed, the LUSD/ETH rewards earned from staking in V1
+    /// @return lqtyReceived Amount of LQTY tokens actually withdrawn (may be lower than the `_lqtyAmount` passed to `withdrawLQTY`)
+    /// @return lqtySent Amount of LQTY tokens sent to `recipient` (may include LQTY sent to the user's proxy from sources other than V1 staking)
+    /// @return lusdReceived Amount of LUSD tokens received as a side-effect of staking new LQTY
+    /// @return lusdSent Amount of LUSD tokens sent to `recipient` (may include previously received LUSD)
+    /// @return ethReceived Amount of ETH received as a side-effect of staking new LQTY
+    /// @return ethSent Amount of ETH sent to `recipient` (may include previously received ETH)
     event WithdrawLQTY(
         address indexed user,
         address recipient,
