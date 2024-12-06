@@ -14,13 +14,13 @@ import {UserProxyFactory} from "./UserProxyFactory.sol";
 
 import {add, max} from "./utils/Math.sol";
 import {_requireNoDuplicates, _requireNoNegatives} from "./utils/UniqueArray.sol";
-import {Multicall} from "./utils/Multicall.sol";
+import {MultiDelegateCall} from "./utils/MultiDelegateCall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
 import {Ownable} from "./utils/Ownable.sol";
 
 /// @title Governance: Modular Initiative based Governance
-contract Governance is Multicall, UserProxyFactory, ReentrancyGuard, Ownable, IGovernance {
+contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Ownable, IGovernance {
     using SafeERC20 for IERC20;
 
     uint256 constant MIN_GAS_TO_HOOK = 350_000;

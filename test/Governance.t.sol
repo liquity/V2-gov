@@ -1438,7 +1438,7 @@ abstract contract GovernanceTest is Test {
         );
         data[6] = abi.encodeWithSignature("resetAllocations(address[],bool)", initiatives, true);
         data[7] = abi.encodeWithSignature("withdrawLQTY(uint88)", lqtyAmount);
-        bytes[] memory response = governance.multicall(data);
+        bytes[] memory response = governance.multiDelegateCall(data);
 
         (uint88 allocatedLQTY,) = abi.decode(response[3], (uint88, uint120));
         assertEq(allocatedLQTY, lqtyAmount);
