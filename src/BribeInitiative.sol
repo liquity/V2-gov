@@ -34,6 +34,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     mapping(address => DoubleLinkedList.List) internal lqtyAllocationByUserAtEpoch;
 
     constructor(address _governance, address _bold, address _bribeToken) {
+        require(_bribeToken != _bold, "BribeInitiative: bribe-token-cannot-be-bold");
+
         governance = IGovernance(_governance);
         bold = IERC20(_bold);
         bribeToken = IERC20(_bribeToken);
