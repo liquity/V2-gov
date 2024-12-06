@@ -23,23 +23,23 @@ abstract contract GovernanceProperties is BeforeAfter {
                 address initiative = deployedInitiatives[i];
 
                 // Hardcoded Allowed FSM
-                if (_before.initiativeStatus[initiative] == Governance.InitiativeStatus.UNREGISTERABLE) {
+                if (_before.initiativeStatus[initiative] == IGovernance.InitiativeStatus.UNREGISTERABLE) {
                     // ALLOW TO SET DISABLE
-                    if (_after.initiativeStatus[initiative] == Governance.InitiativeStatus.DISABLED) {
+                    if (_after.initiativeStatus[initiative] == IGovernance.InitiativeStatus.DISABLED) {
                         return;
                     }
                 }
 
-                if (_before.initiativeStatus[initiative] == Governance.InitiativeStatus.CLAIMABLE) {
+                if (_before.initiativeStatus[initiative] == IGovernance.InitiativeStatus.CLAIMABLE) {
                     // ALLOW TO CLAIM
-                    if (_after.initiativeStatus[initiative] == Governance.InitiativeStatus.CLAIMED) {
+                    if (_after.initiativeStatus[initiative] == IGovernance.InitiativeStatus.CLAIMED) {
                         return;
                     }
                 }
 
-                if (_before.initiativeStatus[initiative] == Governance.InitiativeStatus.NONEXISTENT) {
+                if (_before.initiativeStatus[initiative] == IGovernance.InitiativeStatus.NONEXISTENT) {
                     // Registered -> SKIP is ok
-                    if (_after.initiativeStatus[initiative] == Governance.InitiativeStatus.WARM_UP) {
+                    if (_after.initiativeStatus[initiative] == IGovernance.InitiativeStatus.WARM_UP) {
                         return;
                     }
                 }
@@ -315,9 +315,9 @@ abstract contract GovernanceProperties is BeforeAfter {
             ) = governance.initiativeStates(deployedInitiatives[i]);
 
             // Conditional, only if not DISABLED
-            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+            (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
             // Conditionally add based on state
-            if (status != Governance.InitiativeStatus.DISABLED) {
+            if (status != IGovernance.InitiativeStatus.DISABLED) {
                 allocatedLQTYSum += voteLQTY;
                 // Sum via projection
                 votedPowerSum += governance.lqtyToVotes(
@@ -346,14 +346,14 @@ abstract contract GovernanceProperties is BeforeAfter {
         // In the next epoch it can either be SKIP or UNREGISTERABLE
         address initiative = _getDeployedInitiative(initiativeIndex);
 
-        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
-        if (status == Governance.InitiativeStatus.SKIP) {
+        (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
+        if (status == IGovernance.InitiativeStatus.SKIP) {
             vm.warp(block.timestamp + governance.EPOCH_DURATION());
-            (Governance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
+            (IGovernance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
             t(
                 uint256(status) == uint256(newStatus)
-                    || uint256(newStatus) == uint256(Governance.InitiativeStatus.UNREGISTERABLE)
-                    || uint256(newStatus) == uint256(Governance.InitiativeStatus.CLAIMABLE),
+                    || uint256(newStatus) == uint256(IGovernance.InitiativeStatus.UNREGISTERABLE)
+                    || uint256(newStatus) == uint256(IGovernance.InitiativeStatus.CLAIMABLE),
                 "Either SKIP or UNREGISTERABLE or CLAIMABLE"
             );
         }
@@ -362,16 +362,16 @@ abstract contract GovernanceProperties is BeforeAfter {
     function check_warmup_unregisterable_consistency(uint8 initiativeIndex) public {
         // Status after MUST NOT be UNREGISTERABLE
         address initiative = _getDeployedInitiative(initiativeIndex);
-        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
+        (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
 
-        if (status == Governance.InitiativeStatus.WARM_UP) {
+        if (status == IGovernance.InitiativeStatus.WARM_UP) {
             vm.warp(block.timestamp + governance.EPOCH_DURATION());
-            (Governance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
+            (IGovernance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
 
             // Next status must be SKIP, because by definition it has
             // Received no votes (cannot)
             // Must not be UNREGISTERABLE
-            t(uint256(newStatus) == uint256(Governance.InitiativeStatus.SKIP), "Must be SKIP");
+            t(uint256(newStatus) == uint256(IGovernance.InitiativeStatus.SKIP), "Must be SKIP");
         }
     }
 
@@ -385,10 +385,10 @@ abstract contract GovernanceProperties is BeforeAfter {
         // In the next epoch it will remain UNREGISTERABLE
         address initiative = _getDeployedInitiative(initiativeIndex);
 
-        (Governance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
-        if (status == Governance.InitiativeStatus.UNREGISTERABLE) {
+        (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(initiative);
+        if (status == IGovernance.InitiativeStatus.UNREGISTERABLE) {
             vm.warp(block.timestamp + governance.EPOCH_DURATION());
-            (Governance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
+            (IGovernance.InitiativeStatus newStatus,,) = governance.getInitiativeState(initiative);
             t(uint256(status) == uint256(newStatus), "UNREGISTERABLE must remain UNREGISTERABLE");
         }
     }
@@ -399,12 +399,12 @@ abstract contract GovernanceProperties is BeforeAfter {
         // Check if initiative is claimable
         // If it is assert the check
         for (uint256 i; i < deployedInitiatives.length; i++) {
-            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+            (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
 
             (, Governance.InitiativeState memory initiativeState,) =
                 governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
 
-            if (status == Governance.InitiativeStatus.CLAIMABLE) {
+            if (status == IGovernance.InitiativeStatus.CLAIMABLE) {
                 t(governance.epoch() > 0, "Can never be claimable in epoch 0!"); // Overflow Check, also flags misconfiguration
                 // Normal check
                 t(initiativeState.lastEpochClaim < governance.epoch() - 1, "Cannot be CLAIMABLE, should be CLAIMED");
@@ -425,7 +425,7 @@ abstract contract GovernanceProperties is BeforeAfter {
         uint256 claimableSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
             // NOTE: Non view so it accrues state
-            (Governance.InitiativeStatus status,, uint256 claimableAmount) =
+            (IGovernance.InitiativeStatus status,, uint256 claimableAmount) =
                 governance.getInitiativeState(deployedInitiatives[i]);
 
             claimableSum += claimableAmount;
@@ -466,10 +466,10 @@ abstract contract GovernanceProperties is BeforeAfter {
             (uint88 allocVotes, uint88 allocVetos,) =
                 governance.lqtyAllocatedByUserToInitiative(theUser, deployedInitiatives[i]);
             if (skipDisabled) {
-                (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+                (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
 
                 // Conditionally add based on state
-                if (status != Governance.InitiativeStatus.DISABLED) {
+                if (status != IGovernance.InitiativeStatus.DISABLED) {
                     votes += allocVotes;
                     vetos += allocVetos;
                 }

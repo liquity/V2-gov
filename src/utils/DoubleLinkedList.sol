@@ -33,7 +33,7 @@ library DoubleLinkedList {
         return list.items[0].next;
     }
 
-    /// @notice Returns the item id which follows item `id`. Returns the head item id of the list if the `id` is 0.
+    /// @notice Returns the item id which follows item `id`. Returns the tail item id of the list if the `id` is 0.
     /// @param list Linked list which contains the items
     /// @param id Id of the current item
     /// @return _ Id of the current item's next item
@@ -41,7 +41,7 @@ library DoubleLinkedList {
         return list.items[id].next;
     }
 
-    /// @notice Returns the item id which precedes item `id`. Returns the tail item id of the list if the `id` is 0.
+    /// @notice Returns the item id which precedes item `id`. Returns the head item id of the list if the `id` is 0.
     /// @param list Linked list which contains the items
     /// @param id Id of the current item
     /// @return _ Id of the current item's previous item

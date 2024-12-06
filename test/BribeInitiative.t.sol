@@ -2,7 +2,6 @@
 pragma solidity ^0.8.24;
 
 import {Test, console2} from "forge-std/Test.sol";
-import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {IBribeInitiative} from "../src/interfaces/IBribeInitiative.sol";
@@ -10,12 +9,14 @@ import {IBribeInitiative} from "../src/interfaces/IBribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 import {BribeInitiative} from "../src/BribeInitiative.sol";
 
+import {MockERC20Tester} from "./mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "./mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
 
-contract BribeInitiativeTest is Test {
-    MockERC20 private lqty;
-    MockERC20 private lusd;
-    address private stakingV1;
+contract BribeInitiativeTest is Test, MockStakingV1Deployer {
+    MockERC20Tester private lqty;
+    MockERC20Tester private lusd;
+    MockStakingV1 private stakingV1;
     address private constant user1 = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
     address private constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
     address private user3 = makeAddr("user3");
@@ -27,7 +28,6 @@ contract BribeInitiativeTest is Test {
     uint128 private constant REGISTRATION_FEE = 1e18;
     uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
     uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint16 private constant REGISTRATION_WARM_UP_PERIOD = 4;
     uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
     uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
     uint88 private constant MIN_CLAIM = 500e18;
@@ -41,45 +41,31 @@ contract BribeInitiativeTest is Test {
     BribeInitiative private bribeInitiative;
 
     function setUp() public {
-        lqty = deployMockERC20("Liquity", "LQTY", 18);
-        lusd = deployMockERC20("Liquity USD", "LUSD", 18);
+        (stakingV1, lqty, lusd) = deployMockStakingV1();
 
-        vm.store(address(lqty), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
-        vm.store(address(lusd), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
-        vm.store(address(lqty), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
-        vm.store(address(lusd), keccak256(abi.encode(address(lusdHolder), 4)), bytes32(abi.encode(10_000_000e18)));
+        lqty.mint(lusdHolder, 10_000_000e18);
+        lusd.mint(lusdHolder, 10_000_000e18);
 
-        stakingV1 = address(new MockStakingV1(address(lqty)));
-
-        bribeInitiative = new BribeInitiative(
-            address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
-            address(lusd),
-            address(lqty)
-        );
-
-        initialInitiatives.push(address(bribeInitiative));
+        IGovernance.Configuration memory config = IGovernance.Configuration({
+            registrationFee: REGISTRATION_FEE,
+            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+            minClaim: MIN_CLAIM,
+            minAccrual: MIN_ACCRUAL,
+            epochStart: uint32(block.timestamp),
+            epochDuration: EPOCH_DURATION,
+            epochVotingCutoff: EPOCH_VOTING_CUTOFF
+        });
 
         governance = new Governance(
-            address(lqty),
-            address(lusd),
-            stakingV1,
-            address(lusd),
-            IGovernance.Configuration({
-                registrationFee: REGISTRATION_FEE,
-                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-                minClaim: MIN_CLAIM,
-                minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp),
-                epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
-            }),
-            address(this),
-            initialInitiatives
+            address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), new address[](0)
         );
+
+        bribeInitiative = new BribeInitiative(address(governance), address(lusd), address(lqty));
+        initialInitiatives.push(address(bribeInitiative));
+        governance.registerInitialInitiatives(initialInitiatives);
 
         vm.startPrank(lusdHolder);
         lqty.transfer(user1, 1_000_000e18);
@@ -89,6 +75,11 @@ contract BribeInitiativeTest is Test {
         lqty.transfer(user3, 1_000_000e18);
         lusd.transfer(user3, 1_000_000e18);
         vm.stopPrank();
+    }
+
+    function test_bribeToken_cannot_be_BOLD() external {
+        vm.expectRevert("BribeInitiative: bribe-token-cannot-be-bold");
+        new BribeInitiative({_governance: address(governance), _bold: address(lusd), _bribeToken: address(lusd)});
     }
 
     // test total allocation vote case
@@ -311,7 +302,7 @@ contract BribeInitiativeTest is Test {
         _depositBribe(1e18, 1e18, governance.epoch());
         _allocateLQTY(user1, 1e18, 0);
         _allocateLQTY(user2, 1, 0);
-        _allocateLQTY(user2, 0, 0);
+        _resetAllocation(user2);
 
         // =========== epoch 2 ==================
         vm.warp(block.timestamp + EPOCH_DURATION); // Needs to cause rounding error
@@ -321,8 +312,8 @@ contract BribeInitiativeTest is Test {
 
         // user should receive bribe from their allocated stake
         (uint256 boldAmount, uint256 bribeTokenAmount) = _claimBribe(user1, 2, 2, 2);
-        assertEq(boldAmount, 1e18);
-        assertEq(bribeTokenAmount, 1e18);
+        assertEq(boldAmount, 1e18, "BOLD amount mismatch");
+        assertEq(bribeTokenAmount, 1e18, "Bribe token amount mismatch");
     }
 
     // check that bribes deposited after user votes can be claimed
@@ -570,7 +561,7 @@ contract BribeInitiativeTest is Test {
         // user2 should receive no bribes if they try to claim
         claimEpoch = governance.epoch() - 1; // claim for epoch 3
         prevAllocationEpoch = governance.epoch() - 1; // epoch 3
-        (boldAmount, bribeTokenAmount) = _claimBribe(user2, claimEpoch, prevAllocationEpoch, prevAllocationEpoch);
+        (boldAmount, bribeTokenAmount) = _claimBribe(user2, claimEpoch, prevAllocationEpoch, prevAllocationEpoch, true);
         assertEq(boldAmount, 0, "vetoer receives bold bribe amount");
         assertEq(bribeTokenAmount, 0, "vetoer receives bribe amount");
     }
@@ -612,7 +603,7 @@ contract BribeInitiativeTest is Test {
         assertEq(bribeTokenAmount, 1e18);
 
         // decrease user allocation for the initiative
-        _allocateLQTY(user1, 0, 0);
+        _resetAllocation(user1);
 
         // check if user can still receive bribes after removing votes
         claimEpoch = governance.epoch() - 1; // claim for epoch 4
@@ -686,7 +677,7 @@ contract BribeInitiativeTest is Test {
         _claimBribe(user1, governance.epoch(), governance.epoch() - 1, governance.epoch() - 1, true);
 
         // decrease user allocation for the initiative
-        _allocateLQTY(user1, 0, 0);
+        _resetAllocation(user1);
 
         (userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         (totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
@@ -703,7 +694,7 @@ contract BribeInitiativeTest is Test {
         lqty.approve(address(bribeInitiative), 1e18);
         lusd.approve(address(bribeInitiative), 1e18);
 
-        vm.expectRevert("BribeInitiative: only-future-epochs");
+        vm.expectRevert("BribeInitiative: now-or-future-epochs");
         bribeInitiative.depositBribe(1e18, 1e18, uint16(0));
 
         vm.stopPrank();
@@ -841,7 +832,7 @@ contract BribeInitiativeTest is Test {
 
         vm.warp(block.timestamp + EPOCH_DURATION);
 
-        _allocateLQTY(user1, 0, 0);
+        _tryAllocateNothing(user1);
 
         (uint88 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         (uint88 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
@@ -857,7 +848,7 @@ contract BribeInitiativeTest is Test {
         epochs[0].epoch = governance.epoch() - 1;
         epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 2;
         epochs[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 2;
-        vm.expectRevert("BribeInitiative: invalid-prev-total-lqty-allocation-epoch");
+        vm.expectRevert("BribeInitiative: total-lqty-allocation-zero");
         (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
         vm.stopPrank();
 
@@ -875,7 +866,7 @@ contract BribeInitiativeTest is Test {
 
         vm.warp(block.timestamp + EPOCH_DURATION);
 
-        _allocateLQTY(user1, 0, 0);
+        _tryAllocateNothing(user1);
 
         (uint88 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         (uint88 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
@@ -902,7 +893,7 @@ contract BribeInitiativeTest is Test {
     /**
      * Helpers
      */
-    function _stakeLQTY(address staker, uint88 amount) public {
+    function _stakeLQTY(address staker, uint88 amount) internal {
         vm.startPrank(staker);
         address userProxy = governance.deriveUserProxyAddress(staker);
         lqty.approve(address(userProxy), amount);
@@ -910,19 +901,26 @@ contract BribeInitiativeTest is Test {
         vm.stopPrank();
     }
 
-    function _allocateLQTY(address staker, int88 deltaVoteLQTYAmt, int88 deltaVetoLQTYAmt) public {
+    function _allocateLQTY(address staker, int88 absoluteVoteLQTYAmt, int88 absoluteVetoLQTYAmt) internal {
         vm.startPrank(staker);
+        address[] memory initiativesToReset;
+        (uint88 currentVote, uint88 currentVeto,) =
+            governance.lqtyAllocatedByUserToInitiative(staker, address(bribeInitiative));
+        if (currentVote != 0 || currentVeto != 0) {
+            initiativesToReset = new address[](1);
+            initiativesToReset[0] = address(bribeInitiative);
+        }
+
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(bribeInitiative);
 
-        // voting in favor of the  initiative with half of user1's stake
-        int88[] memory deltaVoteLQTY = new int88[](1);
-        deltaVoteLQTY[0] = deltaVoteLQTYAmt;
+        int88[] memory absoluteVoteLQTY = new int88[](1);
+        absoluteVoteLQTY[0] = absoluteVoteLQTYAmt;
 
-        int88[] memory deltaVetoLQTY = new int88[](1);
-        deltaVetoLQTY[0] = deltaVetoLQTYAmt;
+        int88[] memory absoluteVetoLQTY = new int88[](1);
+        absoluteVetoLQTY[0] = absoluteVetoLQTYAmt;
 
-        governance.allocateLQTY(initiatives, initiatives, deltaVoteLQTY, deltaVetoLQTY);
+        governance.allocateLQTY(initiativesToReset, initiatives, absoluteVoteLQTY, absoluteVetoLQTY);
         vm.stopPrank();
     }
 
@@ -931,13 +929,37 @@ contract BribeInitiativeTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
-        int88[] memory deltaLQTYVotes = new int88[](1);
-        deltaLQTYVotes[0] = votes;
-        int88[] memory deltaLQTYVetos = new int88[](1);
-        deltaLQTYVetos[0] = vetos;
+        int88[] memory absoluteLQTYVotes = new int88[](1);
+        absoluteLQTYVotes[0] = votes;
+        int88[] memory absoluteLQTYVetos = new int88[](1);
+        absoluteLQTYVetos[0] = vetos;
 
-        governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
+        governance.allocateLQTY(initiatives, initiatives, absoluteLQTYVotes, absoluteLQTYVetos);
 
+        vm.stopPrank();
+    }
+
+    function _tryAllocateNothing(address staker) internal {
+        vm.startPrank(staker);
+        address[] memory initiativesToReset;
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = address(bribeInitiative);
+
+        int88[] memory absoluteVoteLQTY = new int88[](1);
+        int88[] memory absoluteVetoLQTY = new int88[](1);
+
+        vm.expectRevert("Governance: voting nothing");
+        governance.allocateLQTY(initiativesToReset, initiatives, absoluteVoteLQTY, absoluteVetoLQTY);
+        vm.stopPrank();
+    }
+
+    function _resetAllocation(address staker) internal {
+        vm.startPrank(staker);
+        address[] memory initiativesToReset = new address[](1);
+        initiativesToReset[0] = address(bribeInitiative);
+
+        governance.resetAllocations(initiativesToReset, true);
         vm.stopPrank();
     }
 
