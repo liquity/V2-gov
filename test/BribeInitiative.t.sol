@@ -79,7 +79,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
     function test_bribeToken_cannot_be_BOLD() external {
         vm.expectRevert("BribeInitiative: bribe-token-cannot-be-bold");
-        new BribeInitiative({ _governance: address(governance), _bold: address(lusd), _bribeToken: address(lusd) });
+        new BribeInitiative({_governance: address(governance), _bold: address(lusd), _bribeToken: address(lusd)});
     }
 
     // test total allocation vote case
