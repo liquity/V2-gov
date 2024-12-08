@@ -117,7 +117,7 @@ abstract contract UserProxyTest is Test, MockStakingV1Deployer {
 
         userProxy.stake(1e18, user, false, address(0));
 
-        (uint256 lusdAmount, uint256 ethAmount) = userProxy.unstake(0, true, user);
+        (,, uint256 lusdAmount,, uint256 ethAmount,) = userProxy.unstake(0, true, user);
         assertEq(lusdAmount, 0);
         assertEq(ethAmount, 0);
 
@@ -130,7 +130,7 @@ abstract contract UserProxyTest is Test, MockStakingV1Deployer {
 
         vm.startPrank(address(userProxyFactory));
 
-        (lusdAmount, ethAmount) = userProxy.unstake(1e18, true, user);
+        (,, lusdAmount,, ethAmount,) = userProxy.unstake(1e18, true, user);
         assertEq(lusdAmount, 1e18);
         assertEq(ethAmount, 1e18);
 
