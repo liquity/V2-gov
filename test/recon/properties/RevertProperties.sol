@@ -9,12 +9,12 @@ import {IBribeInitiative} from "src/interfaces/IBribeInitiative.sol";
 // The are view functions that should never revert
 abstract contract RevertProperties is BeforeAfter {
     function property_computingGlobalPowerNeverReverts() public {
-        (uint256 totalCountedLQTY, uint256 global_countedVoteLQTYAverageTimestamp) = governance.globalState();
+        (uint256 totalCountedLQTY, uint256 global_countedVoteOffset) = governance.globalState();
 
         try governance.lqtyToVotes(
             totalCountedLQTY,
-            uint256(block.timestamp) * uint256(governance.TIMESTAMP_PRECISION()),
-            global_countedVoteLQTYAverageTimestamp
+            block.timestamp,
+            global_countedVoteOffset
         ) {} catch {
             t(false, "Should never revert");
         }
@@ -25,9 +25,9 @@ abstract contract RevertProperties is BeforeAfter {
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (
                 uint256 voteLQTY,
+                uint256 voteOffset,
                 uint256 vetoLQTY,
-                uint256 averageStakingTimestampVoteLQTY,
-                uint256 averageStakingTimestampVetoLQTY,
+                uint256 vetoOffset,
             ) = governance.initiativeStates(deployedInitiatives[i]);
 
             // Sum via projection
@@ -35,8 +35,8 @@ abstract contract RevertProperties is BeforeAfter {
             unchecked {
                 try governance.lqtyToVotes(
                     voteLQTY,
-                    uint256(block.timestamp) * uint256(governance.TIMESTAMP_PRECISION()),
-                    averageStakingTimestampVoteLQTY
+                    block.timestamp,
+                    voteOffset
                 ) returns (uint256 res) {
                     votedPowerSum += res;
                 } catch {
