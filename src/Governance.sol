@@ -75,9 +75,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
     uint256 constant UNREGISTERED_INITIATIVE = type(uint256).max;
 
-    // 100 Million LQTY will be necessary to make the rounding error cause 1 second of loss per operation
-    uint256 public constant TIMESTAMP_PRECISION = 1e26;
-
     constructor(
         address _lqty,
         address _lusd,
@@ -146,7 +143,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         // Assert that we have resetted here
         // TODO: Remove, as now unecessary
         UserState memory userState = userStates[msg.sender];
-        require(userState.unallocatedLQTY == 0, "Governance: must-be-zero-allocation");
+        require(userState.allocatedLQTY == 0, "Governance: must-be-zero-allocation");
 
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
@@ -342,7 +339,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
             snapshot.votes = lqtyToVotes(
                 state.countedVoteLQTY,
-                epochStart() * TIMESTAMP_PRECISION,
+                epochStart(),
                 state.countedVoteOffset
             );
             snapshot.forEpoch = currentEpoch - 1;
@@ -383,12 +380,11 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         if (initiativeSnapshot.forEpoch < currentEpoch - 1) {
             shouldUpdate = true;
 
-            uint256 start = epochStart() * TIMESTAMP_PRECISION;
+            uint256 start = epochStart();
             uint256 votes =
                 lqtyToVotes(initiativeState.voteLQTY, start, initiativeState.voteOffset);
             uint256 vetos =
                 lqtyToVotes(initiativeState.vetoLQTY, start, initiativeState.vetoOffset);
-            // NOTE: Upscaling to u224 is safe
             initiativeSnapshot.votes = votes;
             initiativeSnapshot.vetos = vetos;
 
@@ -469,25 +465,10 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         // == Rewards Conditions (votes can be zero, logic is the same) == //
 
         // By definition if _votesForInitiativeSnapshot.votes > 0 then _votesSnapshot.votes > 0
+        if (_votesForInitiativeSnapshot.votes > votingTheshold && _votesForInitiativeSnapshot.votes > _votesForInitiativeSnapshot.vetos) 
+        {
+            uint256 claim = _votesForInitiativeSnapshot.votes * boldAccrued / _votesSnapshot.votes;
 
-        uint256 upscaledInitiativeVotes = uint256(_votesForInitiativeSnapshot.votes);
-        uint256 upscaledInitiativeVetos = uint256(_votesForInitiativeSnapshot.vetos);
-        uint256 upscaledTotalVotes = uint256(_votesSnapshot.votes);
-
-        if (upscaledInitiativeVotes > votingTheshold && !(upscaledInitiativeVetos >= upscaledInitiativeVotes)) {
-            /// 2^208 means we only have 2^48 left
-            /// Therefore we need to scale the value down by 4 orders of magnitude to make it fit
-            assert(upscaledInitiativeVotes * 1e14 / (VOTING_THRESHOLD_FACTOR / 1e4) > upscaledTotalVotes);
-
-            // 34 times when using 0.03e18 -> 33.3 + 1-> 33 + 1 = 34
-            uint256 CUSTOM_PRECISION = WAD / VOTING_THRESHOLD_FACTOR + 1;
-
-            /// Because of the updated timestamp, we can run into overflows if we multiply by `boldAccrued`
-            /// We use `CUSTOM_PRECISION` for this reason, a smaller multiplicative value
-            /// The change SHOULD be safe because we already check for `threshold` before getting into these lines
-            /// As an alternative, this line could be replaced by https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/FullMath.sol
-            uint256 claim =
-                upscaledInitiativeVotes * CUSTOM_PRECISION / upscaledTotalVotes * boldAccrued / CUSTOM_PRECISION;
             return (InitiativeStatus.CLAIMABLE, lastEpochClaim, claim);
         }
 
@@ -495,8 +476,8 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the 4th epoch flip that would result in SKIP, will result in the initiative being `UNREGISTERABLE`
         if (
             (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < currentEpoch - 1)
-                || upscaledInitiativeVetos > upscaledInitiativeVotes
-                    && upscaledInitiativeVetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
+                || _votesForInitiativeSnapshot.vetos > _votesForInitiativeSnapshot.votes
+                    && _votesForInitiativeSnapshot.vetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
             return (InitiativeStatus.UNREGISTERABLE, lastEpochClaim, 0);
         }
@@ -530,7 +511,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             // Check against the user's total voting power, so include both allocated and unallocated LQTY
             lqtyToVotes(
                 stakingV1.stakes(userProxyAddress),
-                epochStart() * TIMESTAMP_PRECISION,
+                epochStart(),
                 totalUserOffset
             ) >= upscaledSnapshotVotes * REGISTRATION_THRESHOLD_FACTOR / WAD,
             "Governance: insufficient-lqty"

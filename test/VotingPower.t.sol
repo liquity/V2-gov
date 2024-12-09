@@ -96,41 +96,6 @@ abstract contract VotingPowerTest is Test {
         assertEq(powerInTheFuture, powerFromMoreDeposits, "Same result");
     }
 
-    function _averageAge(uint32 _currentTimestamp, uint32 _averageTimestamp) internal pure returns (uint32) {
-        if (_averageTimestamp == 0 || _currentTimestamp < _averageTimestamp) return 0;
-        return _currentTimestamp - _averageTimestamp;
-    }
-
-    function _calculateAverageTimestamp(
-        uint32 _prevOuterAverageTimestamp,
-        uint32 _newInnerAverageTimestamp,
-        uint256 _prevLQTYBalance,
-        uint256 _newLQTYBalance
-    ) internal view returns (uint32) {
-        if (_newLQTYBalance == 0) return 0;
-
-        uint32 prevOuterAverageAge = _averageAge(uint32(block.timestamp), _prevOuterAverageTimestamp);
-        uint32 newInnerAverageAge = _averageAge(uint32(block.timestamp), _newInnerAverageTimestamp);
-
-        uint256 newOuterAverageAge;
-        if (_prevLQTYBalance <= _newLQTYBalance) {
-            uint256 deltaLQTY = _newLQTYBalance - _prevLQTYBalance;
-            uint256 prevVotes = uint256(_prevLQTYBalance) * uint256(prevOuterAverageAge);
-            uint256 newVotes = uint256(deltaLQTY) * uint256(newInnerAverageAge);
-            uint256 votes = prevVotes + newVotes;
-            newOuterAverageAge = uint32(votes / uint256(_newLQTYBalance));
-        } else {
-            uint256 deltaLQTY = _prevLQTYBalance - _newLQTYBalance;
-            uint256 prevVotes = uint256(_prevLQTYBalance) * uint256(prevOuterAverageAge);
-            uint256 newVotes = uint256(deltaLQTY) * uint256(newInnerAverageAge);
-            uint256 votes = (prevVotes >= newVotes) ? prevVotes - newVotes : 0;
-            newOuterAverageAge = uint32(votes / uint256(_newLQTYBalance));
-        }
-
-        if (newOuterAverageAge > block.timestamp) return 0;
-        return uint32(block.timestamp - newOuterAverageAge);
-    }
-
     // This test prepares for comparing votes and vetos for state
     // forge test --match-test test_we_can_compare_votes_and_vetos -vv
     // function test_we_can_compare_votes_and_vetos() public {
@@ -219,123 +184,124 @@ abstract contract VotingPowerTest is Test {
     // }
 
     // forge test --match-test test_crit_user_can_dilute_total_votes -vv
-    function test_crit_user_can_dilute_total_votes() public {
-        // User A deposits normaly
-        vm.startPrank(user);
+    // TODO: convert to an offset-based test
+    // function test_crit_user_can_dilute_total_votes() public {
+    //     // User A deposits normaly
+    //     vm.startPrank(user);
 
-        _stakeLQTY(user, 124);
+    //     _stakeLQTY(user, 124);
 
-        vm.warp(block.timestamp + 124 - 15);
+    //     vm.warp(block.timestamp + 124 - 15);
 
-        vm.startPrank(user2);
-        _stakeLQTY(user2, 15);
+    //     vm.startPrank(user2);
+    //     _stakeLQTY(user2, 15);
 
-        vm.warp(block.timestamp + 15);
+    //     vm.warp(block.timestamp + 15);
 
-        vm.startPrank(user);
-        _allocate(address(baseInitiative1), 124, 0);
-        uint256 user1_avg = _getAverageTS(baseInitiative1);
+    //     vm.startPrank(user);
+    //     _allocate(address(baseInitiative1), 124, 0);
+    //     uint256 user1_avg = _getAverageTS(baseInitiative1);
 
-        vm.startPrank(user2);
-        _allocate(address(baseInitiative1), 15, 0);
-        _reset(address(baseInitiative1));
+        // vm.startPrank(user2);
+        // _allocate(address(baseInitiative1), 15, 0);
+        // _reset(address(baseInitiative1));
 
-        uint256 griefed_avg = _getAverageTS(baseInitiative1);
+    //     uint256 griefed_avg = _getAverageTS(baseInitiative1);
 
-        uint256 vote_power_1 = governance.lqtyToVotes(124, uint32(block.timestamp), uint32(user1_avg));
-        uint256 vote_power_2 = governance.lqtyToVotes(124, uint32(block.timestamp), uint32(griefed_avg));
+    //     uint256 vote_power_1 = governance.lqtyToVotes(124, uint32(block.timestamp), uint32(user1_avg));
+    //     uint256 vote_power_2 = governance.lqtyToVotes(124, uint32(block.timestamp), uint32(griefed_avg));
 
-        console.log("vote_power_1", vote_power_1);
-        console.log("vote_power_2", vote_power_2);
+    //     console.log("vote_power_1", vote_power_1);
+    //     console.log("vote_power_2", vote_power_2);
 
-        // assertEq(user1_avg, griefed_avg, "same avg"); // BREAKS, OFF BY ONE
+    //     // assertEq(user1_avg, griefed_avg, "same avg"); // BREAKS, OFF BY ONE
 
-        // Causes a loss of power of 1 second per time this is done
+    //     // Causes a loss of power of 1 second per time this is done
 
-        vm.startPrank(user);
-        _reset(address(baseInitiative1));
+        // vm.startPrank(user);
+        // _reset(address(baseInitiative1));
 
-        uint256 final_avg = _getAverageTS(baseInitiative1);
-        console.log("final_avg", final_avg);
+    //     uint256 final_avg = _getAverageTS(baseInitiative1);
+    //     console.log("final_avg", final_avg);
 
-        // This is not an issue, except for bribes, bribes can get the last claimer DOSS
-    }
+    //     // This is not an issue, except for bribes, bribes can get the last claimer DOSS
+    // }
 
     // forge test --match-test test_can_we_spam_to_revert -vv
-    function test_can_we_spam_to_revert() public {
-        // User A deposits normaly
-        vm.startPrank(user);
+    // function test_can_we_spam_to_revert() public {
+    //     // User A deposits normaly
+    //     vm.startPrank(user);
 
-        _stakeLQTY(user, 124);
+    //     _stakeLQTY(user, 124);
 
-        vm.warp(block.timestamp + 124);
+    //     vm.warp(block.timestamp + 124);
 
-        vm.startPrank(user2);
-        _stakeLQTY(user2, 15);
+    //     vm.startPrank(user2);
+    //     _stakeLQTY(user2, 15);
 
-        vm.startPrank(user);
-        _allocate(address(baseInitiative1), 124, 0);
+    //     vm.startPrank(user);
+    //     _allocate(address(baseInitiative1), 124, 0);
 
-        vm.startPrank(user2);
-        _allocate(address(baseInitiative1), 15, 0);
-        _reset(address(baseInitiative1));
+        // vm.startPrank(user2);
+        // _allocate(address(baseInitiative1), 15, 0);
+        // _reset(address(baseInitiative1));
 
-        uint256 griefed_avg = _getAverageTS(baseInitiative1);
-        console.log("griefed_avg", griefed_avg);
-        console.log("block.timestamp", block.timestamp);
+    //     uint256 griefed_avg = _getAverageTS(baseInitiative1);
+    //     console.log("griefed_avg", griefed_avg);
+    //     console.log("block.timestamp", block.timestamp);
 
-        console.log("0?");
+    //     console.log("0?");
 
-        uint256 currentMagnifiedTs = uint256(block.timestamp) * uint256(1e26);
+    //     uint256 currentMagnifiedTs = uint256(block.timestamp) * uint256(1e26);
 
-        vm.startPrank(user2);
-        _allocate(address(baseInitiative1), 15, 0);
-        _reset(address(baseInitiative1));
+        // vm.startPrank(user2);
+        // _allocate(address(baseInitiative1), 15, 0);
+        // _reset(address(baseInitiative1));
 
-        uint256 ts = _getAverageTS(baseInitiative1);
-        uint256 delta = currentMagnifiedTs - ts;
-        console.log("griefed_avg", ts);
-        console.log("delta", delta);
-        console.log("currentMagnifiedTs", currentMagnifiedTs);
+    //     uint256 ts = _getAverageTS(baseInitiative1);
+    //     uint256 delta = currentMagnifiedTs - ts;
+    //     console.log("griefed_avg", ts);
+    //     console.log("delta", delta);
+    //     console.log("currentMagnifiedTs", currentMagnifiedTs);
 
-        console.log("0?");
-        uint256 i;
-        while (i++ < 122) {
-            console.log("i", i);
-            _allocate(address(baseInitiative1), 15, 0);
-            _reset(address(baseInitiative1));
-        }
+        // console.log("0?");
+        // uint256 i;
+        // while (i++ < 122) {
+        //     console.log("i", i);
+        //     _allocate(address(baseInitiative1), 15, 0);
+        //     _reset(address(baseInitiative1));
+        // }
 
-        console.log("1?");
+    //     console.log("1?");
 
-        ts = _getAverageTS(baseInitiative1);
-        delta = currentMagnifiedTs - ts;
-        console.log("griefed_avg", ts);
-        console.log("delta", delta);
-        console.log("currentMagnifiedTs", currentMagnifiedTs);
+    //     ts = _getAverageTS(baseInitiative1);
+    //     delta = currentMagnifiedTs - ts;
+    //     console.log("griefed_avg", ts);
+    //     console.log("delta", delta);
+    //     console.log("currentMagnifiedTs", currentMagnifiedTs);
 
-        // One more time
-        _allocate(address(baseInitiative1), 15, 0);
-        _reset(address(baseInitiative1));
-        _allocate(address(baseInitiative1), 15, 0);
-        _reset(address(baseInitiative1));
-        _allocate(address(baseInitiative1), 15, 0);
-        _reset(address(baseInitiative1));
-        _allocate(address(baseInitiative1), 15, 0);
+        // // One more time
+        // _allocate(address(baseInitiative1), 15, 0);
+        // _reset(address(baseInitiative1));
+        // _allocate(address(baseInitiative1), 15, 0);
+        // _reset(address(baseInitiative1));
+        // _allocate(address(baseInitiative1), 15, 0);
+        // _reset(address(baseInitiative1));
+        // _allocate(address(baseInitiative1), 15, 0);
 
-        /// NOTE: Keep 1 wei to keep rounding error
-        _allocate(address(baseInitiative1), 1, 0);
+    //     /// NOTE: Keep 1 wei to keep rounding error
+    //     _allocate(address(baseInitiative1), 1, 0);
 
-        ts = _getAverageTS(baseInitiative1);
-        console.log("griefed_avg", ts);
+    //     ts = _getAverageTS(baseInitiative1);
+    //     console.log("griefed_avg", ts);
 
-        vm.startPrank(user);
-        _reset(address(baseInitiative1));
-        _allocate(address(baseInitiative1), 124, 0);
+    //     vm.startPrank(user);
+    //     _reset(address(baseInitiative1));
+    //     _allocate(address(baseInitiative1), 124, 0);
 
-        ts = _getAverageTS(baseInitiative1);
-        console.log("end_ts", ts);
-    }
+    //     ts = _getAverageTS(baseInitiative1);
+    //     console.log("end_ts", ts);
+    // }
 
     // forge test --match-test test_basic_reset_flow -vv
     function test_basic_reset_flow() public {
@@ -347,7 +313,7 @@ abstract contract VotingPowerTest is Test {
 
         // user allocates to baseInitiative1
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-        (uint256 allocatedLQTY,) = governance.userStates(user);
+        (,,uint256 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, uint256(lqtyAmount / 2), "half");
 
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
@@ -364,7 +330,7 @@ abstract contract VotingPowerTest is Test {
 
         // user allocates to baseInitiative1
         _allocate(address(baseInitiative1), lqtyAmount / 2, 0); // 50% to it
-        (uint256 allocatedLQTY,) = governance.userStates(user);
+        (,,uint256 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, uint256(lqtyAmount / 2), "Half");
 
         // Go to Cutoff
@@ -400,10 +366,10 @@ abstract contract VotingPowerTest is Test {
     // Removing just updates that + the weights
     // The weights are the avg time * the number
 
-    function _getAverageTS(address initiative) internal view returns (uint256) {
-        (,, uint256 averageStakingTimestampVoteLQTY,,) = governance.initiativeStates(initiative);
+    function _getInitiativeOffset(address initiative) internal view returns (uint256) {
+        (,uint256 voteOffset,,,) = governance.initiativeStates(initiative);
 
-        return averageStakingTimestampVoteLQTY;
+        return voteOffset;
     }
 
     function _stakeLQTY(address _user, uint256 amount) internal {

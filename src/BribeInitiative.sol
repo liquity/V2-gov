@@ -72,8 +72,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
     }
 
-    uint256 constant TIMESTAMP_PRECISION = 1e26;
-
     function _claimBribe(
         address _user,
         uint256 _epoch,
@@ -104,9 +102,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         require(totalLQTYAllocation.lqty > 0, "BribeInitiative: total-lqty-allocation-zero");
 
         // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
-        uint256 scaledEpochEnd = (
-            governance.EPOCH_START() + _epoch * governance.EPOCH_DURATION()
-        ) * TIMESTAMP_PRECISION;
+        uint256 scaledEpochEnd = governance.EPOCH_START() + _epoch * governance.EPOCH_DURATION();
 
         uint256 totalVotes = governance.lqtyToVotes(totalLQTYAllocation.lqty, scaledEpochEnd, totalLQTYAllocation.offset);
         if (totalVotes != 0) {

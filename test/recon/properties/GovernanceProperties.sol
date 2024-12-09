@@ -115,7 +115,6 @@ abstract contract GovernanceProperties is BeforeAfter {
     function _getGlobalLQTYAndUserSum() internal returns (uint256, uint256) {
         (
             uint256 totalCountedLQTY,
-            // uint256 after_user_countedVoteLQTYAverageTimestamp // TODO: How do we do this?
         ) = governance.globalState();
 
         uint256 totalUserCountedLQTY;
@@ -247,7 +246,7 @@ abstract contract GovernanceProperties is BeforeAfter {
             (uint256 initiativeVoteLQTY, uint256 initiativeVoteOffset,,,) =
                 governance.initiativeStates(deployedInitiatives[i]);
             uint256 initiativeWeight = governance.lqtyToVotes(
-                initiativeVoteLQTY, uint256(block.timestamp) , initiativeVoteOffset
+                initiativeVoteLQTY, block.timestamp, initiativeVoteOffset
             );
 
             acc[i].userSum = userWeightAccumulatorForInitiative;
@@ -297,7 +296,7 @@ abstract contract GovernanceProperties is BeforeAfter {
     }
 
     function _getInitiativeStateAndGlobalState() internal returns (uint256, uint256, uint256, uint256) {
-        (uint256 totalCountedLQTY, uint256 global_countedVoteLQTYAverageTimestamp) = governance.globalState();
+        (uint256 totalCountedLQTY, uint256 global_countedVoteOffset) = governance.globalState();
 
         // Can sum via projection I guess
 
@@ -308,9 +307,9 @@ abstract contract GovernanceProperties is BeforeAfter {
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (
                 uint256 voteLQTY,
+                uint256 voteOffset,
                 uint256 vetoLQTY,
-                uint256 averageStakingTimestampVoteLQTY,
-                uint256 averageStakingTimestampVetoLQTY,
+                uint256 vetoOffset,
             ) = governance.initiativeStates(deployedInitiatives[i]);
 
             // Conditional, only if not DISABLED
@@ -319,18 +318,14 @@ abstract contract GovernanceProperties is BeforeAfter {
             if (status != IGovernance.InitiativeStatus.DISABLED) {
                 allocatedLQTYSum += voteLQTY;
                 // Sum via projection
-                votedPowerSum += governance.lqtyToVotes(
-                    voteLQTY,
-                    uint256(block.timestamp) * uint256(governance.TIMESTAMP_PRECISION()),
-                    averageStakingTimestampVoteLQTY
-                );
+                votedPowerSum += governance.lqtyToVotes(voteLQTY, block.timestamp, voteOffset);
             }
         }
 
         uint256 govPower = governance.lqtyToVotes(
             totalCountedLQTY,
-            uint256(block.timestamp) * uint256(governance.TIMESTAMP_PRECISION()),
-            global_countedVoteLQTYAverageTimestamp
+            block.timestamp,
+            global_countedVoteOffset
         );
 
         return (allocatedLQTYSum, totalCountedLQTY, votedPowerSum, govPower);
