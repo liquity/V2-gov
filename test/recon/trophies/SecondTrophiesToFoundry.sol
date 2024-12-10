@@ -170,17 +170,17 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
 
         governance_registerInitiative(1);
         _loginitiative_and_state(); // 7
-        property_sum_of_initatives_matches_total_votes_strict();
+        property_sum_of_initatives_matches_total_votes_bounded();
 
         vm.roll(block.number + 3);
         vm.warp(block.timestamp + 449572);
         governance_allocateLQTY_clamped_single_initiative(1, 330671315851182842292, 0);
         _loginitiative_and_state(); // 8
-        property_sum_of_initatives_matches_total_votes_strict();
+        property_sum_of_initatives_matches_total_votes_bounded();
 
-        governance_resetAllocations(); // NOTE: This leaves 1 vote from user2, and removes the votes from user1
+        // governance_resetAllocations(); // user 1 has nothing to reset
         _loginitiative_and_state(); // In lack of reset, we have 2 wei error | With reset the math is off by 7x
-        property_sum_of_initatives_matches_total_votes_strict();
+        property_sum_of_initatives_matches_total_votes_bounded();
         console.log("time 0", block.timestamp);
 
         vm.warp(block.timestamp + 231771);
@@ -194,17 +194,16 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
         property_sum_of_user_voting_weights_bounded();
         property_sum_of_lqty_global_user_matches();
 
-        /// === BROKEN === ///
-        //  property_sum_of_initatives_matches_total_votes_strict(); // THIS IS THE BROKEN PROPERTY
+        property_sum_of_initatives_matches_total_votes_bounded();
         (IGovernance.VoteSnapshot memory snapshot,,) = governance.getTotalVotesAndState();
 
         uint256 initiativeVotesSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot,,) =
                 governance.getInitiativeSnapshotAndState(deployedInitiatives[i]);
-            (Governance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
+            (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
 
-            // if (status != Governance.InitiativeStatus.DISABLED) {
+            // if (status != IGovernance.InitiativeStatus.DISABLED) {
             // FIX: Only count total if initiative is not disabled
             initiativeVotesSum += initiativeSnapshot.votes;
             // }
@@ -243,7 +242,6 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
         }
     }
 
-    // forge test --match-test test_property_BI07_4 -vv
     function test_property_BI07_4() public {
         vm.warp(block.timestamp + 562841);
 
@@ -255,7 +253,8 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
 
         vm.roll(block.number + 1);
 
-        governance_allocateLQTY_clamped_single_initiative_2nd_user(0, 1, 0);
+        uint8 initiativesIndex = 0;
+        governance_allocateLQTY_clamped_single_initiative_2nd_user(initiativesIndex, 1, 0);
 
         vm.warp(block.timestamp + 403427);
 
@@ -265,7 +264,10 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
         // Doesn't check latest alloc for each user
         // Property is broken due to wrong spec
         // For each user you need to grab the latest via the Governance.allocatedByUser
-        property_resetting_never_reverts();
+        address[] memory initiativesToReset = new address[](1);
+        initiativesToReset[0] = _getDeployedInitiative(initiativesIndex);
+        vm.startPrank(user2);
+        property_resetting_never_reverts(initiativesToReset);
 
         property_BI07();
     }

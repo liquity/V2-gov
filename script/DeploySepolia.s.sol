@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import {Script} from "forge-std/Script.sol";
-import {MockERC20} from "forge-std/mocks/MockERC20.sol";
 
 import {PoolManager, Deployers, Hooks} from "v4-core/test/utils/Deployers.sol";
 import {ICurveStableswapFactoryNG} from "../src/interfaces/ICurveStableswapFactoryNG.sol";
@@ -16,15 +15,17 @@ import {UniV4Donations} from "../src/UniV4Donations.sol";
 import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
 import {Hooks} from "../src/utils/BaseHook.sol";
 
+import {MockERC20Tester} from "../test/mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "../test/mocks/MockStakingV1.sol";
+import {MockStakingV1Deployer} from "../test/mocks/MockStakingV1Deployer.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
 
-contract DeploySepoliaScript is Script, Deployers {
+contract DeploySepoliaScript is Script, Deployers, MockStakingV1Deployer {
     // Environment Constants
-    MockERC20 private lqty;
-    MockERC20 private bold;
-    address private stakingV1;
-    MockERC20 private usdc;
+    MockERC20Tester private lqty;
+    MockERC20Tester private bold;
+    MockStakingV1 private stakingV1;
+    MockERC20Tester private usdc;
 
     PoolManager private constant poolManager = PoolManager(0xE8E23e97Fa135823143d6b9Cba9c699040D51F70);
     ICurveStableswapFactoryNG private constant curveFactory =
@@ -34,7 +35,6 @@ contract DeploySepoliaScript is Script, Deployers {
     uint128 private constant REGISTRATION_FEE = 100e18;
     uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.001e18;
     uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 3e18;
-    uint16 private constant REGISTRATION_WARM_UP_PERIOD = 4;
     uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
     uint128 private constant VOTING_THRESHOLD_FACTOR = 0.03e18;
     uint88 private constant MIN_CLAIM = 500e18;
@@ -71,23 +71,21 @@ contract DeploySepoliaScript is Script, Deployers {
     }
 
     function deployEnvironment() private {
-        lqty = deployMockERC20("Liquity", "LQTY", 18);
-        bold = deployMockERC20("Bold", "BOLD", 18);
-        usdc = deployMockERC20("USD Coin", "USDC", 6);
-        stakingV1 = address(new MockStakingV1(address(lqty)));
+        (stakingV1, lqty,) = deployMockStakingV1();
+        bold = new MockERC20Tester("Bold", "BOLD");
+        usdc = new MockERC20Tester("USD Coin", "USDC");
     }
 
     function deployGovernance() private {
         governance = new Governance(
             address(lqty),
             address(bold),
-            stakingV1,
+            address(stakingV1),
             address(bold),
             IGovernance.Configuration({
                 registrationFee: REGISTRATION_FEE,
                 registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
                 unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
                 unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
