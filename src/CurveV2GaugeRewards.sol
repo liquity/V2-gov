@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
 
@@ -26,7 +26,6 @@ contract CurveV2GaugeRewards is BribeInitiative {
         _depositIntoGauge(_bold);
     }
 
-    // TODO: If this is capped, we may need to donate here, so cap it here as well
     function _depositIntoGauge(uint256 amount) internal {
         uint256 total = amount + remainder;
 

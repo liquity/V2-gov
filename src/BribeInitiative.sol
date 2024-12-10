@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -34,6 +34,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     mapping(address => DoubleLinkedList.List) internal lqtyAllocationByUserAtEpoch;
 
     constructor(address _governance, address _bold, address _bribeToken) {
+        require(_bribeToken != _bold, "BribeInitiative: bribe-token-cannot-be-bold");
+
         governance = IGovernance(_governance);
         bold = IERC20(_bold);
         bribeToken = IERC20(_bribeToken);
@@ -88,33 +90,32 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             lqtyAllocationByUserAtEpoch[_user].getItem(_prevLQTYAllocationEpoch);
 
         require(
-            lqtyAllocation.value != 0 && _prevLQTYAllocationEpoch <= _epoch
-                && (lqtyAllocation.next > _epoch || lqtyAllocation.next == 0),
+            _prevLQTYAllocationEpoch <= _epoch && (lqtyAllocation.next > _epoch || lqtyAllocation.next == 0),
             "BribeInitiative: invalid-prev-lqty-allocation-epoch"
         );
         DoubleLinkedList.Item memory totalLQTYAllocation =
             totalLQTYAllocationByEpoch.getItem(_prevTotalLQTYAllocationEpoch);
         require(
-            totalLQTYAllocation.value != 0 && _prevTotalLQTYAllocationEpoch <= _epoch
+            _prevTotalLQTYAllocationEpoch <= _epoch
                 && (totalLQTYAllocation.next > _epoch || totalLQTYAllocation.next == 0),
             "BribeInitiative: invalid-prev-total-lqty-allocation-epoch"
         );
 
         (uint88 totalLQTY, uint120 totalAverageTimestamp) = _decodeLQTYAllocation(totalLQTYAllocation.value);
+        require(totalLQTY > 0, "BribeInitiative: total-lqty-allocation-zero");
 
         // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
         uint120 scaledEpochEnd = (
             uint120(governance.EPOCH_START()) + uint120(_epoch) * uint120(governance.EPOCH_DURATION())
         ) * uint120(TIMESTAMP_PRECISION);
 
-        /// @audit User Invariant
         assert(totalAverageTimestamp <= scaledEpochEnd);
 
         uint240 totalVotes = governance.lqtyToVotes(totalLQTY, scaledEpochEnd, totalAverageTimestamp);
         if (totalVotes != 0) {
             (uint88 lqty, uint120 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
+            require(lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
-            /// @audit Governance Invariant
             assert(averageTimestamp <= scaledEpochEnd);
 
             uint240 votes = governance.lqtyToVotes(lqty, scaledEpochEnd, averageTimestamp);
@@ -234,8 +235,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         IGovernance.Allocation calldata _allocation,
         IGovernance.InitiativeState calldata _initiativeState
     ) external virtual onlyGovernance {
-        if (_currentEpoch == 0) return;
-
         uint16 mostRecentUserEpoch = lqtyAllocationByUserAtEpoch[_user].getHead();
         uint16 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
 

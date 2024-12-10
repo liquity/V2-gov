@@ -8,23 +8,64 @@ import {ILQTYStaking} from "./ILQTYStaking.sol";
 import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
-    event DepositLQTY(address user, uint256 depositedLQTY);
-    event WithdrawLQTY(address user, uint256 withdrawnLQTY, uint256 accruedLUSD, uint256 accruedETH);
+    /// @notice Emitted when a user deposits LQTY
+    /// @param user The account depositing LQTY
+    /// @param rewardRecipient The account receiving the LUSD/ETH rewards earned from staking in V1, if claimed
+    /// @param lqtyAmount The amount of LQTY being deposited
+    /// @return lusdReceived Amount of LUSD tokens received as a side-effect of staking new LQTY
+    /// @return lusdSent Amount of LUSD tokens sent to `rewardRecipient` (may include previously received LUSD)
+    /// @return ethReceived Amount of ETH received as a side-effect of staking new LQTY
+    /// @return ethSent Amount of ETH sent to `rewardRecipient` (may include previously received ETH)
+    event DepositLQTY(
+        address indexed user,
+        address rewardRecipient,
+        uint256 lqtyAmount,
+        uint256 lusdReceived,
+        uint256 lusdSent,
+        uint256 ethReceived,
+        uint256 ethSent
+    );
 
-    event SnapshotVotes(uint240 votes, uint16 forEpoch);
-    event SnapshotVotesForInitiative(address initiative, uint240 votes, uint16 forEpoch);
+    /// @notice Emitted when a user withdraws LQTY or claims V1 staking rewards
+    /// @param user The account withdrawing LQTY or claiming V1 staking rewards
+    /// @param recipient The account receiving the LQTY withdrawn, and if claimed, the LUSD/ETH rewards earned from staking in V1
+    /// @return lqtyReceived Amount of LQTY tokens actually withdrawn (may be lower than the `_lqtyAmount` passed to `withdrawLQTY`)
+    /// @return lqtySent Amount of LQTY tokens sent to `recipient` (may include LQTY sent to the user's proxy from sources other than V1 staking)
+    /// @return lusdReceived Amount of LUSD tokens received as a side-effect of staking new LQTY
+    /// @return lusdSent Amount of LUSD tokens sent to `recipient` (may include previously received LUSD)
+    /// @return ethReceived Amount of ETH received as a side-effect of staking new LQTY
+    /// @return ethSent Amount of ETH sent to `recipient` (may include previously received ETH)
+    event WithdrawLQTY(
+        address indexed user,
+        address recipient,
+        uint256 lqtyReceived,
+        uint256 lqtySent,
+        uint256 lusdReceived,
+        uint256 lusdSent,
+        uint256 ethReceived,
+        uint256 ethSent
+    );
 
-    event RegisterInitiative(address initiative, address registrant, uint16 atEpoch);
-    event UnregisterInitiative(address initiative, uint16 atEpoch);
+    event SnapshotVotes(uint256 votes, uint256 forEpoch, uint256 boldAccrued);
+    event SnapshotVotesForInitiative(address indexed initiative, uint256 votes, uint256 vetos, uint256 forEpoch);
 
-    event AllocateLQTY(address user, address initiative, int256 deltaVoteLQTY, int256 deltaVetoLQTY, uint16 atEpoch);
-    event ClaimForInitiative(address initiative, uint256 bold, uint256 forEpoch);
+    event RegisterInitiative(address initiative, address registrant, uint256 atEpoch, bool hookSuccess);
+    event UnregisterInitiative(address initiative, uint256 atEpoch, bool hookSuccess);
+
+    event AllocateLQTY(
+        address indexed user,
+        address indexed initiative,
+        int256 deltaVoteLQTY,
+        int256 deltaVetoLQTY,
+        uint256 atEpoch,
+        bool hookSuccess
+    );
+    event ClaimForInitiative(address indexed initiative, uint256 bold, uint256 forEpoch, bool hookSuccess);
 
     struct Configuration {
         uint128 registrationFee;
         uint128 registrationThresholdFactor;
         uint128 unregistrationThresholdFactor;
-        uint16 registrationWarmUpPeriod;
         uint16 unregistrationAfterEpochs;
         uint128 votingThresholdFactor;
         uint88 minClaim;
@@ -71,9 +112,6 @@ interface IGovernance {
     /// @notice Multiple of the voting threshold in vetos that are necessary to unregister an initiative
     /// @return unregistrationThresholdFactor Unregistration threshold factor
     function UNREGISTRATION_THRESHOLD_FACTOR() external view returns (uint256 unregistrationThresholdFactor);
-    /// @notice Number of epochs an initiative has to exist before it can be unregistered
-    /// @return registrationWarmUpPeriod Number of epochs
-    function REGISTRATION_WARM_UP_PERIOD() external view returns (uint256 registrationWarmUpPeriod);
     /// @notice Number of epochs an initiative has to be inactive before it can be unregistered
     /// @return unregistrationAfterEpochs Number of epochs
     function UNREGISTRATION_AFTER_EPOCHS() external view returns (uint256 unregistrationAfterEpochs);
@@ -134,7 +172,6 @@ interface IGovernance {
         uint88 countedVoteLQTY; // Total LQTY that is included in vote counting
         uint120 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
     }
-    /// TODO: Bold balance? Prob cheaper
 
     /// @notice Returns the user's state
     /// @param _user Address of the user
@@ -183,21 +220,50 @@ interface IGovernance {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Deposits LQTY
-    /// @dev The caller has to approve this contract to spend the LQTY tokens
+    /// @dev The caller has to approve their `UserProxy` address to spend the LQTY tokens
     /// @param _lqtyAmount Amount of LQTY to deposit
     function depositLQTY(uint88 _lqtyAmount) external;
+
+    /// @notice Deposits LQTY
+    /// @dev The caller has to approve their `UserProxy` address to spend the LQTY tokens
+    /// @param _lqtyAmount Amount of LQTY to deposit
+    /// @param _doSendRewards If true, send rewards claimed from LQTY staking
+    /// @param _recipient Address to which the tokens should be sent
+    function depositLQTY(uint88 _lqtyAmount, bool _doSendRewards, address _recipient) external;
+
     /// @notice Deposits LQTY via Permit
     /// @param _lqtyAmount Amount of LQTY to deposit
     /// @param _permitParams Permit parameters
-    function depositLQTYViaPermit(uint88 _lqtyAmount, PermitParams memory _permitParams) external;
+    function depositLQTYViaPermit(uint88 _lqtyAmount, PermitParams calldata _permitParams) external;
+
+    /// @notice Deposits LQTY via Permit
+    /// @param _lqtyAmount Amount of LQTY to deposit
+    /// @param _permitParams Permit parameters
+    /// @param _doSendRewards If true, send rewards claimed from LQTY staking
+    /// @param _recipient Address to which the tokens should be sent
+    function depositLQTYViaPermit(
+        uint88 _lqtyAmount,
+        PermitParams calldata _permitParams,
+        bool _doSendRewards,
+        address _recipient
+    ) external;
+
     /// @notice Withdraws LQTY and claims any accrued LUSD and ETH rewards from StakingV1
     /// @param _lqtyAmount Amount of LQTY to withdraw
     function withdrawLQTY(uint88 _lqtyAmount) external;
+
+    /// @notice Withdraws LQTY and claims any accrued LUSD and ETH rewards from StakingV1
+    /// @param _lqtyAmount Amount of LQTY to withdraw
+    /// @param _doSendRewards If true, send rewards claimed from LQTY staking
+    /// @param _recipient Address to which the tokens should be sent
+    function withdrawLQTY(uint88 _lqtyAmount, bool _doSendRewards, address _recipient) external;
+
     /// @notice Claims staking rewards from StakingV1 without unstaking
+    /// @dev Note: in the unlikely event that the caller's `UserProxy` holds any LQTY tokens, they will also be sent to `_rewardRecipient`
     /// @param _rewardRecipient Address that will receive the rewards
-    /// @return accruedLUSD Amount of LUSD accrued
-    /// @return accruedETH Amount of ETH accrued
-    function claimFromStakingV1(address _rewardRecipient) external returns (uint256 accruedLUSD, uint256 accruedETH);
+    /// @return lusdSent Amount of LUSD tokens sent to `_rewardRecipient` (may include previously received LUSD)
+    /// @return ethSent Amount of ETH sent to `_rewardRecipient` (may include previously received ETH)
+    function claimFromStakingV1(address _rewardRecipient) external returns (uint256 lusdSent, uint256 ethSent);
 
     /*//////////////////////////////////////////////////////////////
                                  VOTING
@@ -222,6 +288,33 @@ interface IGovernance {
         pure
         returns (uint208);
 
+    /// @dev Returns the most up to date voting threshold
+    /// In contrast to `getLatestVotingThreshold` this function updates the snapshot
+    /// This ensures that the value returned is always the latest
+    function calculateVotingThreshold() external returns (uint256);
+
+    /// @dev Utility function to compute the threshold votes without recomputing the snapshot
+    /// Note that `boldAccrued` is a cached value, this function works correctly only when called after an accrual
+    function calculateVotingThreshold(uint256 _votes) external view returns (uint256);
+
+    /// @notice Return the most up to date global snapshot and state as well as a flag to notify whether the state can be updated
+    /// This is a convenience function to always retrieve the most up to date state values
+    function getTotalVotesAndState()
+        external
+        view
+        returns (VoteSnapshot memory snapshot, GlobalState memory state, bool shouldUpdate);
+
+    /// @dev Given an initiative address, return it's most up to date snapshot and state as well as a flag to notify whether the state can be updated
+    /// This is a convenience function to always retrieve the most up to date state values
+    function getInitiativeSnapshotAndState(address _initiative)
+        external
+        view
+        returns (
+            InitiativeVoteSnapshot memory initiativeSnapshot,
+            InitiativeState memory initiativeState,
+            bool shouldUpdate
+        );
+
     /// @notice Voting threshold is the max. of either:
     ///   - 4% of the total voting LQTY in the previous epoch
     ///   - or the minimum number of votes necessary to claim at least MIN_CLAIM BOLD
@@ -236,6 +329,38 @@ interface IGovernance {
     function snapshotVotesForInitiative(address _initiative)
         external
         returns (VoteSnapshot memory voteSnapshot, InitiativeVoteSnapshot memory initiativeVoteSnapshot);
+
+    /*//////////////////////////////////////////////////////////////
+                                 FSM
+    //////////////////////////////////////////////////////////////*/
+
+    enum InitiativeStatus {
+        NONEXISTENT,
+        /// This Initiative Doesn't exist | This is never returned
+        WARM_UP,
+        /// This epoch was just registered
+        SKIP,
+        /// This epoch will result in no rewards and no unregistering
+        CLAIMABLE,
+        /// This epoch will result in claiming rewards
+        CLAIMED,
+        /// The rewards for this epoch have been claimed
+        UNREGISTERABLE,
+        /// Can be unregistered
+        DISABLED // It was already Unregistered
+
+    }
+
+    function getInitiativeState(address _initiative)
+        external
+        returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
+
+    function getInitiativeState(
+        address _initiative,
+        VoteSnapshot memory _votesSnapshot,
+        InitiativeVoteSnapshot memory _votesForInitiativeSnapshot,
+        InitiativeState memory _initiativeState
+    ) external view returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
 
     /// @notice Registers a new initiative
     /// @param _initiative Address of the initiative
