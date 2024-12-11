@@ -135,15 +135,15 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
         uint16 startingEpoch = governance.epoch();
         uint16 lastEpoch = startingEpoch;
 
-        for (uint16 i = 0; i < MAX_NUM_EPOCHS; ++i) {
-            uint128 boldAmount = uint128(random.generate(MAX_BRIBE));
-            uint128 brybAmount = uint128(random.generate(MAX_BRIBE));
+        for (uint16 i = startingEpoch; i < startingEpoch + MAX_NUM_EPOCHS; ++i) {
+            boldAtEpoch[i] = random.generate(MAX_BRIBE);
+            brybAtEpoch[i] = random.generate(MAX_BRIBE);
 
-            bold.mint(briber, boldAmount);
-            bryb.mint(briber, brybAmount);
+            bold.mint(briber, boldAtEpoch[i]);
+            bryb.mint(briber, brybAtEpoch[i]);
 
             vm.prank(briber);
-            bribeInitiative.depositBribe(boldAmount, brybAmount, startingEpoch + i);
+            bribeInitiative.depositBribe(uint128(boldAtEpoch[i]), uint128(brybAtEpoch[i]), i);
         }
 
         for (;;) {
