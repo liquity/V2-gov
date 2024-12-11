@@ -111,16 +111,16 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
         assert(totalAverageTimestamp <= scaledEpochEnd);
 
-        uint240 totalVotes = governance.lqtyToVotes(totalLQTY, scaledEpochEnd, totalAverageTimestamp);
-        if (totalVotes != 0) {
+        uint120 totalAverageAge = scaledEpochEnd - totalAverageTimestamp;
+        if (totalLQTY != 0 && totalAverageAge != 0) {
             (uint88 lqty, uint120 averageTimestamp) = _decodeLQTYAllocation(lqtyAllocation.value);
             require(lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
             assert(averageTimestamp <= scaledEpochEnd);
 
-            uint240 votes = governance.lqtyToVotes(lqty, scaledEpochEnd, averageTimestamp);
-            boldAmount = uint256(bribe.boldAmount) * uint256(votes) / uint256(totalVotes);
-            bribeTokenAmount = uint256(bribe.bribeTokenAmount) * uint256(votes) / uint256(totalVotes);
+            uint120 averageAge = scaledEpochEnd - averageTimestamp;
+            boldAmount = uint256(bribe.boldAmount) * lqty / totalLQTY * averageAge / totalAverageAge;
+            bribeTokenAmount = uint256(bribe.bribeTokenAmount) * lqty / totalLQTY * averageAge / totalAverageAge;
         }
 
         claimedBribeAtEpoch[_user][_epoch] = true;
