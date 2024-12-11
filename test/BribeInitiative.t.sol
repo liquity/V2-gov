@@ -255,14 +255,14 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
     function test_claimBribes() public {
         // =========== epoch 1 ==================
         // user stakes in epoch 1
-        _stakeLQTY(user1, 1e18);
+        _stakeLQTY(user1, 1e6 ether);
 
         // =========== epoch 2 ==================
         vm.warp(block.timestamp + EPOCH_DURATION);
         assertEq(2, governance.epoch(), "not in epoch 2");
 
         // lusdHolder deposits lqty and lusd bribes claimable in epoch 3
-        _depositBribe(1e18, 1e18, governance.epoch() + 1);
+        _depositBribe(1e6 ether, 1e6 ether, governance.epoch() + 1);
         uint16 depositedBribe = governance.epoch() + 1;
 
         // =========== epoch 3 ==================
@@ -270,7 +270,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         assertEq(3, governance.epoch(), "not in epoch 3");
 
         // user votes on bribeInitiative
-        _allocateLQTY(user1, 1e18, 0);
+        _allocateLQTY(user1, 1e6 ether, 0);
 
         // =========== epoch 5 ==================
         vm.warp(block.timestamp + (EPOCH_DURATION * 2));
@@ -279,8 +279,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         // user should receive bribe from their allocated stake
         (uint256 boldAmount, uint256 bribeTokenAmount) =
             _claimBribe(user1, depositedBribe, depositedBribe, depositedBribe);
-        assertEq(boldAmount, 1e18);
-        assertEq(bribeTokenAmount, 1e18);
+        assertEq(boldAmount, 1e6 ether);
+        assertEq(bribeTokenAmount, 1e6 ether);
     }
 
     // user that votes in an epoch that has bribes allocated to it will receive bribes on claiming
