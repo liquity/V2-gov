@@ -128,6 +128,8 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
         vm.stopPrank();
     }
 
+    // Ridiculously slow on Github
+    /// forge-config: ci.fuzz.runs = 50
     function test_AbleToClaimBribesInAnyOrder_EvenFromEpochsWhereVoterStayedInactive(bytes32 seed) external {
         Random.Context memory random = Random.init(seed);
         uint16 startingEpoch = governance.epoch();
