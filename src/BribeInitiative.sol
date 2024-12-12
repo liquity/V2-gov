@@ -99,15 +99,15 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
         require(totalLQTYAllocation.lqty > 0, "BribeInitiative: total-lqty-allocation-zero");
 
-        // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
-        uint256 scaledEpochEnd = governance.EPOCH_START() + _epoch * governance.EPOCH_DURATION();
+
+        uint256 epochEnd = governance.EPOCH_START() + _epoch * governance.EPOCH_DURATION();
 
         uint256 totalVotes =
-            governance.lqtyToVotes(totalLQTYAllocation.lqty, scaledEpochEnd, totalLQTYAllocation.offset);
+            governance.lqtyToVotes(totalLQTYAllocation.lqty, epochEnd, totalLQTYAllocation.offset);
         if (totalVotes != 0) {
             require(lqtyAllocation.lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
-            uint256 votes = governance.lqtyToVotes(lqtyAllocation.lqty, scaledEpochEnd, lqtyAllocation.offset);
+            uint256 votes = governance.lqtyToVotes(lqtyAllocation.lqty, epochEnd, lqtyAllocation.offset);
             boldAmount = bribe.boldAmount * votes / totalVotes;
             bribeTokenAmount = bribe.bribeTokenAmount * votes / totalVotes;
         }
