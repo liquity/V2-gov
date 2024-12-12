@@ -102,7 +102,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         // NOTE: SCALING!!! | The timestamp will work until type(uint32).max | After which the math will eventually overflow
         uint256 scaledEpochEnd = governance.EPOCH_START() + _epoch * governance.EPOCH_DURATION();
 
-        uint256 totalVotes = governance.lqtyToVotes(totalLQTYAllocation.lqty, scaledEpochEnd, totalLQTYAllocation.offset);
+        uint256 totalVotes =
+            governance.lqtyToVotes(totalLQTYAllocation.lqty, scaledEpochEnd, totalLQTYAllocation.offset);
         if (totalVotes != 0) {
             require(lqtyAllocation.lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
@@ -155,14 +156,12 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     /// @inheritdoc IInitiative
     function onUnregisterInitiative(uint256) external virtual override onlyGovernance {}
 
-    function _setTotalLQTYAllocationByEpoch(uint256 _epoch, uint256 _lqty, uint256 _offset, bool _insert)
-        private
-    {
+    function _setTotalLQTYAllocationByEpoch(uint256 _epoch, uint256 _lqty, uint256 _offset, bool _insert) private {
         if (_insert) {
             totalLQTYAllocationByEpoch.insert(_epoch, _lqty, _offset, 0);
         } else {
             totalLQTYAllocationByEpoch.items[_epoch].lqty = _lqty;
-             totalLQTYAllocationByEpoch.items[_epoch].offset = _offset;
+            totalLQTYAllocationByEpoch.items[_epoch].offset = _offset;
         }
         emit ModifyTotalLQTYAllocation(_epoch, _lqty, _offset);
     }
@@ -186,7 +185,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     function _loadTotalLQTYAllocation(uint256 _epoch) private view returns (uint256, uint256) {
         require(_epoch <= governance.epoch(), "No future Lookup");
         DoubleLinkedList.Item memory totalLqtyAllocation = totalLQTYAllocationByEpoch.items[_epoch];
-        
+
         return (totalLqtyAllocation.lqty, totalLqtyAllocation.offset);
     }
 

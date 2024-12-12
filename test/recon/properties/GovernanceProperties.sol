@@ -63,7 +63,7 @@ abstract contract GovernanceProperties is BeforeAfter {
             address userProxyAddress = governance.deriveUserProxyAddress(users[i]);
             uint256 stake = MockStakingV1(stakingV1).stakes(userProxyAddress);
 
-            (,,uint256 user_allocatedLQTY,) = governance.userStates(users[i]);
+            (,, uint256 user_allocatedLQTY,) = governance.userStates(users[i]);
             lte(user_allocatedLQTY, stake, "User can never allocated more than stake");
         }
     }
@@ -113,9 +113,7 @@ abstract contract GovernanceProperties is BeforeAfter {
     }
 
     function _getGlobalLQTYAndUserSum() internal returns (uint256, uint256) {
-        (
-            uint256 totalCountedLQTY,
-        ) = governance.globalState();
+        (uint256 totalCountedLQTY,) = governance.globalState();
 
         uint256 totalUserCountedLQTY;
         for (uint256 i; i < users.length; i++) {
@@ -153,7 +151,7 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         uint256 totalUserCountedLQTY;
         for (uint256 i; i < users.length; i++) {
-            (,,uint256 user_allocatedLQTY,) = governance.userStates(users[i]);
+            (,, uint256 user_allocatedLQTY,) = governance.userStates(users[i]);
             totalUserCountedLQTY += user_allocatedLQTY;
         }
 
@@ -235,19 +233,17 @@ abstract contract GovernanceProperties is BeforeAfter {
         for (uint256 i; i < deployedInitiatives.length; i++) {
             uint256 userWeightAccumulatorForInitiative;
             for (uint256 j; j < users.length; j++) {
-                (uint256 userVoteLQTY,,,,) = governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
-                (,,uint256 allocatedOffset,) = governance.userStates(users[j]);
+                (uint256 userVoteLQTY,,,,) =
+                    governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
+                (,, uint256 allocatedOffset,) = governance.userStates(users[j]);
                 // add the weight calculated for each user's allocation to the accumulator
-                userWeightAccumulatorForInitiative += governance.lqtyToVotes(
-                    userVoteLQTY, uint256(block.timestamp), allocatedOffset
-                );
+                userWeightAccumulatorForInitiative +=
+                    governance.lqtyToVotes(userVoteLQTY, uint256(block.timestamp), allocatedOffset);
             }
 
             (uint256 initiativeVoteLQTY, uint256 initiativeVoteOffset,,,) =
                 governance.initiativeStates(deployedInitiatives[i]);
-            uint256 initiativeWeight = governance.lqtyToVotes(
-                initiativeVoteLQTY, block.timestamp, initiativeVoteOffset
-            );
+            uint256 initiativeWeight = governance.lqtyToVotes(initiativeVoteLQTY, block.timestamp, initiativeVoteOffset);
 
             acc[i].userSum = userWeightAccumulatorForInitiative;
             acc[i].initiativeWeight = initiativeWeight;
@@ -305,12 +301,8 @@ abstract contract GovernanceProperties is BeforeAfter {
         uint256 allocatedLQTYSum;
         uint256 votedPowerSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
-            (
-                uint256 voteLQTY,
-                uint256 voteOffset,
-                uint256 vetoLQTY,
-                uint256 vetoOffset,
-            ) = governance.initiativeStates(deployedInitiatives[i]);
+            (uint256 voteLQTY, uint256 voteOffset, uint256 vetoLQTY, uint256 vetoOffset,) =
+                governance.initiativeStates(deployedInitiatives[i]);
 
             // Conditional, only if not DISABLED
             (IGovernance.InitiativeStatus status,,) = governance.getInitiativeState(deployedInitiatives[i]);
@@ -322,11 +314,7 @@ abstract contract GovernanceProperties is BeforeAfter {
             }
         }
 
-        uint256 govPower = governance.lqtyToVotes(
-            totalCountedLQTY,
-            block.timestamp,
-            global_countedVoteOffset
-        );
+        uint256 govPower = governance.lqtyToVotes(totalCountedLQTY, block.timestamp, global_countedVoteOffset);
 
         return (allocatedLQTYSum, totalCountedLQTY, votedPowerSum, govPower);
     }
@@ -455,7 +443,10 @@ abstract contract GovernanceProperties is BeforeAfter {
         (votes, vetos,,,) = governance.lqtyAllocatedByUserToInitiative(theUser, initiative);
     }
 
-    function _getAllUserAllocations(address theUser, bool skipDisabled) internal returns (uint256 votes, uint256 vetos) {
+    function _getAllUserAllocations(address theUser, bool skipDisabled)
+        internal
+        returns (uint256 votes, uint256 vetos)
+    {
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (uint256 allocVotes, uint256 allocVetos,,,) =
                 governance.lqtyAllocatedByUserToInitiative(theUser, deployedInitiatives[i]);
@@ -494,12 +485,8 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         // GET state and initiative data before allocation
         (uint256 totalCountedLQTY, uint256 user_countedVoteOffset) = governance.globalState();
-        (
-            uint256 voteLQTY,
-            uint256 voteOffset,
-            uint256 vetoLQTY,
-            uint256 vetoOffset,
-        ) = governance.initiativeStates(targetInitiative);
+        (uint256 voteLQTY, uint256 voteOffset, uint256 vetoLQTY, uint256 vetoOffset,) =
+            governance.initiativeStates(targetInitiative);
 
         // Allocate
         {
@@ -517,11 +504,11 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         // Deposit (Changes total LQTY an hopefully also changes ts)
         {
-            (,uint256 unallocatedOffset1,,) = governance.userStates(user);
+            (, uint256 unallocatedOffset1,,) = governance.userStates(user);
 
             lqtyAmount = uint256(lqtyAmount % lqty.balanceOf(user));
             governance.depositLQTY(lqtyAmount);
-            (,uint256 unallocatedOffset2,,) = governance.userStates(user);
+            (, uint256 unallocatedOffset2,,) = governance.userStates(user);
 
             require(unallocatedOffset2 > unallocatedOffset1, "Must have changed");
         }
@@ -534,14 +521,9 @@ abstract contract GovernanceProperties is BeforeAfter {
 
         // Check total allocation and initiative allocation
         {
-            (uint256 after_totalCountedLQTY, uint256 after_user_countedVoteOffset) =
-                governance.globalState();
-            (
-                uint256 after_voteLQTY,
-                uint256 after_voteOffset,
-                uint256 after_vetoLQTY,
-                uint256 after_vetoOffset,
-            ) = governance.initiativeStates(targetInitiative);
+            (uint256 after_totalCountedLQTY, uint256 after_user_countedVoteOffset) = governance.globalState();
+            (uint256 after_voteLQTY, uint256 after_voteOffset, uint256 after_vetoLQTY, uint256 after_vetoOffset,) =
+                governance.initiativeStates(targetInitiative);
 
             eq(voteLQTY, after_voteLQTY, "Same vote");
             eq(vetoLQTY, after_vetoLQTY, "Same veto");

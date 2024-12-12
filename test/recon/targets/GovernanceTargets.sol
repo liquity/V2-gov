@@ -27,7 +27,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
         address initiative = _getDeployedInitiative(initiativesIndex);
         address[] memory initiativesToReset;
-        (uint256 currentVote, , uint256 currentVeto,,) =
+        (uint256 currentVote,, uint256 currentVeto,,) =
             governance.lqtyAllocatedByUserToInitiative(user, address(initiative));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
@@ -79,7 +79,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
         address initiative = _getDeployedInitiative(initiativesIndex);
         address[] memory initiativesToReset;
-        (uint256 currentVote, , uint256 currentVeto,,) =
+        (uint256 currentVote,, uint256 currentVeto,,) =
             governance.lqtyAllocatedByUserToInitiative(user2, address(initiative));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
@@ -116,7 +116,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
             t(false, "must never revert");
         }
 
-        (,,uint256 user_allocatedLQTY,) = governance.userStates(user);
+        (,, uint256 user_allocatedLQTY,) = governance.userStates(user);
 
         eq(user_allocatedLQTY, 0, "User has 0 allocated on a reset");
     }
@@ -130,15 +130,15 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
             governance.depositLQTY(lqtyAmount);
 
             // assert that user's offset TS is now * deposited LQTY
-            (,uint256 offset,,) = governance.userStates(user);
+            (, uint256 offset,,) = governance.userStates(user);
             eq(offset, block.timestamp * lqtyAmount, "User unallocated offset is now * lqty deposited");
         } else {
             // Make sure the TS can never bo before itself
-            (,uint256 offset_b4,,) = governance.userStates(user);
+            (, uint256 offset_b4,,) = governance.userStates(user);
             lqtyAmount = uint256(lqtyAmount % lqty.balanceOf(user));
             governance.depositLQTY(lqtyAmount);
 
-            (,uint256 offset_after,,) = governance.userStates(user);
+            (, uint256 offset_after,,) = governance.userStates(user);
 
             gte(offset_after, offset_b4, "User unallocated offset must always increase");
         }

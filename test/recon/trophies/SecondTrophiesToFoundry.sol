@@ -224,7 +224,7 @@ contract SecondTrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
         console.log("snapshot.votes", snapshot.votes);
 
         console.log("state.countedVoteLQTY", state.countedVoteLQTY);
-        
+
         for (uint256 i; i < deployedInitiatives.length; i++) {
             (
                 IGovernance.InitiativeVoteSnapshot memory initiativeSnapshot,

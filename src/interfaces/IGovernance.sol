@@ -174,20 +174,18 @@ interface IGovernance {
 
     struct GlobalState {
         uint256 countedVoteLQTY; // Total LQTY that is included in vote counting
-        uint256 countedVoteOffset;  // Offset associated with the counted vote LQTY
+        uint256 countedVoteOffset; // Offset associated with the counted vote LQTY
     }
 
     /// @notice Returns the user's state
-    /// @return unallocatedLQTY LQTY deposited and unallocated  
+    /// @return unallocatedLQTY LQTY deposited and unallocated
     /// @return unallocatedOffset Offset associated with unallocated LQTY
     /// @return allocatedLQTY allocated by the user to initatives
     /// @return allocatedOffset Offset associated with allocated LQTY
-    function userStates(address _user) external view returns (
-        uint256 unallocatedLQTY,
-        uint256 unallocatedOffset,
-        uint256 allocatedLQTY,
-        uint256 allocatedOffset
-    );
+    function userStates(address _user)
+        external
+        view
+        returns (uint256 unallocatedLQTY, uint256 unallocatedOffset, uint256 allocatedLQTY, uint256 allocatedOffset);
     /// @notice Returns the initiative's state
     /// @param _initiative Address of the initiative
     /// @return voteLQTY LQTY allocated vouching for the initiative
@@ -198,13 +196,7 @@ interface IGovernance {
     function initiativeStates(address _initiative)
         external
         view
-        returns (
-            uint256 voteLQTY,
-            uint256 voteOffset,
-            uint256 vetoLQTY,
-            uint256 vetoOffset,
-            uint256 lastEpochClaim
-        );
+        returns (uint256 voteLQTY, uint256 voteOffset, uint256 vetoLQTY, uint256 vetoOffset, uint256 lastEpochClaim);
     /// @notice Returns the global state
     /// @return countedVoteLQTY Total LQTY that is included in vote counting
     /// @return countedVoteOffset Offset associated with countedVoteLQTY
@@ -220,13 +212,7 @@ interface IGovernance {
     function lqtyAllocatedByUserToInitiative(address _user, address _initiative)
         external
         view
-        returns (
-            uint256 voteLQTY, 
-            uint256 voteOffset,
-            uint256 vetoLQTY,
-            uint256 vetoOffset,
-            uint256 atEpoch
-        );
+        returns (uint256 voteLQTY, uint256 voteOffset, uint256 vetoLQTY, uint256 vetoOffset, uint256 atEpoch);
 
     /// @notice Returns when an initiative was registered
     /// @param _initiative Address of the initiative
@@ -296,16 +282,13 @@ interface IGovernance {
     /// @notice Returns the number of seconds that have gone by since the current epoch started
     /// @return secondsWithinEpoch Seconds within the current epoch
     function secondsWithinEpoch() external view returns (uint256 secondsWithinEpoch);
-    
+
     /// @notice Returns the voting power for an entity (i.e. user or initiative) at a given timestamp
     /// @param _lqtyAmount Amount of LQTY associated with the entity
     /// @param _timestamp Timestamp at which to calculate voting power
     /// @param _offset The entity's offset sum
     /// @return votes Number of votes
-    function lqtyToVotes(uint256 _lqtyAmount, uint256 _timestamp, uint256 _offset)
-        external
-        pure
-        returns (uint256);
+    function lqtyToVotes(uint256 _lqtyAmount, uint256 _timestamp, uint256 _offset) external pure returns (uint256);
 
     /// @dev Returns the most up to date voting threshold
     /// In contrast to `getLatestVotingThreshold` this function updates the snapshot

@@ -56,7 +56,7 @@ library DoubleLinkedList {
     /// @return LQTY associated with the item
     /// @return Offset associated with the item's LQTY
     function getLQTYAndOffset(List storage list, uint256 id) internal view returns (uint256, uint256) {
-        return (list.items[id].lqty, list.items[id].offset); 
+        return (list.items[id].lqty, list.items[id].offset);
     }
 
     /// @notice Returns the item `id`
@@ -82,7 +82,7 @@ library DoubleLinkedList {
     /// @param list Linked list which contains the next item and into which the new item will be inserted
     /// @param id Id of the item to insert
     /// @param lqty amount of LQTY
-    /// @param offset associated with the LQTY amount 
+    /// @param offset associated with the LQTY amount
     /// @param next Id of the item which should follow item `id`
     function insert(List storage list, uint256 id, uint256 lqty, uint256 offset, uint256 next) internal {
         if (contains(list, id)) revert ItemInList();

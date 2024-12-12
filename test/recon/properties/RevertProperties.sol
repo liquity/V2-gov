@@ -11,11 +11,8 @@ abstract contract RevertProperties is BeforeAfter {
     function property_computingGlobalPowerNeverReverts() public {
         (uint256 totalCountedLQTY, uint256 global_countedVoteOffset) = governance.globalState();
 
-        try governance.lqtyToVotes(
-            totalCountedLQTY,
-            block.timestamp,
-            global_countedVoteOffset
-        ) {} catch {
+        try governance.lqtyToVotes(totalCountedLQTY, block.timestamp, global_countedVoteOffset) {}
+        catch {
             t(false, "Should never revert");
         }
     }
@@ -23,21 +20,13 @@ abstract contract RevertProperties is BeforeAfter {
     function property_summingInitiativesPowerNeverReverts() public {
         uint256 votedPowerSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
-            (
-                uint256 voteLQTY,
-                uint256 voteOffset,
-                uint256 vetoLQTY,
-                uint256 vetoOffset,
-            ) = governance.initiativeStates(deployedInitiatives[i]);
+            (uint256 voteLQTY, uint256 voteOffset, uint256 vetoLQTY, uint256 vetoOffset,) =
+                governance.initiativeStates(deployedInitiatives[i]);
 
             // Sum via projection
             uint256 prevSum = votedPowerSum;
             unchecked {
-                try governance.lqtyToVotes(
-                    voteLQTY,
-                    block.timestamp,
-                    voteOffset
-                ) returns (uint256 res) {
+                try governance.lqtyToVotes(voteLQTY, block.timestamp, voteOffset) returns (uint256 res) {
                     votedPowerSum += res;
                 } catch {
                     t(false, "Should never revert");

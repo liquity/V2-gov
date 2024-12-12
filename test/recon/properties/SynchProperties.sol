@@ -17,7 +17,7 @@ abstract contract SynchProperties is BeforeAfter {
         // For all strategies
         for (uint256 i; i < deployedInitiatives.length; i++) {
             for (uint256 j; j < users.length; j++) {
-                (uint256 votes,,,,uint256 epoch) =
+                (uint256 votes,,,, uint256 epoch) =
                     governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
 
                 // Grab epoch from initiative
@@ -30,7 +30,7 @@ abstract contract SynchProperties is BeforeAfter {
                 if (votes != 0) {
                     // if we're voting and the votes are different from 0
                     // then we check user offset
-                    (,,,uint256 allocatedOffset) = governance.userStates(users[j]);
+                    (,,, uint256 allocatedOffset) = governance.userStates(users[j]);
 
                     eq(allocatedOffset, allocOffset, "Offsets must match");
                 } else {
