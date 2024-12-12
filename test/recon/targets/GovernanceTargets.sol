@@ -27,7 +27,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
         address initiative = _getDeployedInitiative(initiativesIndex);
         address[] memory initiativesToReset;
-        (uint88 currentVote, uint88 currentVeto,) =
+        (uint256 currentVote, , uint256 currentVeto,,) =
             governance.lqtyAllocatedByUserToInitiative(user, address(initiative));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
@@ -79,7 +79,7 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
 
         address initiative = _getDeployedInitiative(initiativesIndex);
         address[] memory initiativesToReset;
-        (uint88 currentVote, uint88 currentVeto,) =
+        (uint256 currentVote, , uint256 currentVeto,,) =
             governance.lqtyAllocatedByUserToInitiative(user2, address(initiative));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
@@ -87,10 +87,10 @@ abstract contract GovernanceTargets is BaseTargetFunctions, Properties {
         }
         address[] memory initiatives = new address[](1);
         initiatives[0] = initiative;
-        int88[] memory deltaLQTYVotesArray = new int256[](1);
-        deltaLQTYVotesArray[0] = int88(uint88(deltaLQTYVotes % stakedAmount));
-        int88[] memory deltaLQTYVetosArray = new int256[](1);
-        deltaLQTYVetosArray[0] = int88(uint88(deltaLQTYVetos % stakedAmount));
+        int256[] memory deltaLQTYVotesArray = new int256[](1);
+        deltaLQTYVotesArray[0] = int256(uint256(deltaLQTYVotes % stakedAmount));
+        int256[] memory deltaLQTYVetosArray = new int256[](1);
+        deltaLQTYVetosArray[0] = int256(uint256(deltaLQTYVetos % stakedAmount));
 
         require(stakedAmount > 0, "0 stake");
 

@@ -372,14 +372,14 @@ interface IGovernance {
 
     function getInitiativeState(address _initiative)
         external
-        returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
+        returns (InitiativeStatus status, uint256 lastEpochClaim, uint256 claimableAmount);
 
     function getInitiativeState(
         address _initiative,
         VoteSnapshot memory _votesSnapshot,
         InitiativeVoteSnapshot memory _votesForInitiativeSnapshot,
         InitiativeState memory _initiativeState
-    ) external view returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
+    ) external view returns (InitiativeStatus status, uint256 lastEpochClaim, uint256 claimableAmount);
 
     /// @notice Registers a new initiative
     /// @param _initiative Address of the initiative

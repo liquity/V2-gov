@@ -652,8 +652,8 @@ abstract contract GovernanceTest is Test {
         removeInitiatives[1] = baseInitiative2;
         governance.resetAllocations(removeInitiatives, true);
 
-        int88[] memory removeDeltaLQTYVotes = new int256[](2);
-        int88[] memory removeDeltaLQTYVetos = new int256[](2);
+        int256[] memory removeDeltaLQTYVotes = new int256[](2);
+        int256[] memory removeDeltaLQTYVetos = new int256[](2);
         removeDeltaLQTYVotes[0] = -1e18;
 
         vm.expectRevert("Cannot be negative");
@@ -1259,7 +1259,7 @@ abstract contract GovernanceTest is Test {
         int256[] memory deltaVoteLQTY = new int256[](2);
         deltaVoteLQTY[0] = 500e18;
         deltaVoteLQTY[1] = 500e18;
-        int88[] memory deltaVetoLQTY = new int256[](2);
+        int256[] memory deltaVetoLQTY = new int256[](2);
         governance.allocateLQTY(initiativesToReset, initiatives, deltaVoteLQTY, deltaVetoLQTY);
         (,,uint256 allocatedLQTY,) = governance.userStates(user);
         assertEq(allocatedLQTY, 1000e18);
@@ -1290,8 +1290,8 @@ abstract contract GovernanceTest is Test {
         initiativesToReset[1] = baseInitiative2;
         initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
-        deltaVoteLQTY = new int88[](1);
-        deltaVetoLQTY = new int88[](1);
+        deltaVoteLQTY = new int256[](1);
+        deltaVetoLQTY = new int256[](1);
         deltaVoteLQTY[0] = 495e18;
         // @audit user can't deallocate because votes already get reset
         // deltaVoteLQTY[1] = -495e18;
@@ -1415,13 +1415,13 @@ abstract contract GovernanceTest is Test {
         deltaVoteLQTY[0] = int256(uint256(lqtyAmount));
         int256[] memory deltaVetoLQTY = new int256[](1);
 
-        int88[] memory deltaVoteLQTY_ = new int256[](1);
+        int256[] memory deltaVoteLQTY_ = new int256[](1);
         deltaVoteLQTY_[0] = 1;
 
         data[0] = abi.encodeWithSignature("deployUserProxy()");
         data[1] = abi.encodeWithSignature("depositLQTY(uint256)", lqtyAmount);
         data[2] = abi.encodeWithSignature(
-            "allocateLQTY(address[],address[],int88[],int88[])",
+            "allocateLQTY(address[],address[],int256[],int256[])",
             initiativesToReset,
             initiatives,
             deltaVoteLQTY,
@@ -1478,8 +1478,8 @@ abstract contract GovernanceTest is Test {
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = address(mockInitiative);
-        int88[] memory deltaLQTYVotes = new int88[](1);
-        int88[] memory deltaLQTYVetos = new int88[](1);
+        int256[] memory deltaLQTYVotes = new int256[](1);
+        int256[] memory deltaLQTYVetos = new int256[](1);
         governance.allocateLQTY(initiativesToReset, initiatives, deltaLQTYVotes, deltaLQTYVetos);
 
         // check that votingThreshold is is high enough such that MIN_CLAIM is met
@@ -1514,7 +1514,7 @@ abstract contract GovernanceTest is Test {
 
         int256[] memory deltaLQTYVotes = new int256[](2);
         deltaLQTYVotes[0] = 1;
-        deltaLQTYVotes[1] = type(int88).max;
+        deltaLQTYVotes[1] = type(int256).max;
         int256[] memory deltaLQTYVetos = new int256[](2);
         deltaLQTYVetos[0] = 0;
         deltaLQTYVetos[1] = 0;
@@ -2324,7 +2324,7 @@ abstract contract GovernanceTest is Test {
         vm.startPrank(allocator);
 
         address[] memory initiativesToReset;
-        (uint88 currentVote, uint88 currentVeto,) =
+        (uint256 currentVote,,uint256 currentVeto,,) =
             governance.lqtyAllocatedByUserToInitiative(allocator, address(baseInitiative1));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
@@ -2363,7 +2363,7 @@ abstract contract GovernanceTest is Test {
         vm.startPrank(allocator);
 
         address[] memory initiativesToReset;
-        (uint88 currentVote, uint88 currentVeto,) =
+        (uint256 currentVote, ,uint256 currentVeto, , ) =
             governance.lqtyAllocatedByUserToInitiative(allocator, address(baseInitiative1));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);

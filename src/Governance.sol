@@ -182,7 +182,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     }
 
     function depositLQTYViaPermit(
-        uint88 _lqtyAmount,
+        uint256 _lqtyAmount,
         PermitParams calldata _permitParams,
         bool _doSendRewards,
         address _recipient
@@ -200,7 +200,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         withdrawLQTY(_lqtyAmount, true, msg.sender);
     }
 
-    function withdrawLQTY(uint88 _lqtyAmount, bool _doSendRewards, address _recipient) public nonReentrant {
+    function withdrawLQTY(uint256 _lqtyAmount, bool _doSendRewards, address _recipient) public nonReentrant {
         // check that user has reset before changing lqty balance
         UserState storage userState = userStates[msg.sender];
         require(userState.allocatedLQTY == 0, "Governance: must-allocate-zero");
@@ -258,7 +258,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
     /// @inheritdoc IGovernance
     function epoch() public view returns (uint256) {
-        return (block.timestamp - EPOCH_START) / EPOCH_DURATION) + 1;
+        return ((block.timestamp - EPOCH_START) / EPOCH_DURATION) + 1;
     }
 
     /// @inheritdoc IGovernance
@@ -434,7 +434,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             /// By definition it has zero rewards
         }
 
-        uint16 currentEpoch = epoch();
+        uint256 currentEpoch = epoch();
 
         // == Just Registered Condition == //
         if (initiativeRegistrationEpoch == currentEpoch) {
@@ -488,7 +488,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
     /// @inheritdoc IGovernance
     function registerInitiative(address _initiative) external nonReentrant {
-        uint16 currentEpoch = epoch();
+        uint256 currentEpoch = epoch();
         require(currentEpoch > 2, "Governance: registration-not-yet-enabled");
 
         bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
@@ -674,6 +674,11 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         InitiativeState initiativeState;
         InitiativeState prevInitiativeState;
         Allocation allocation;
+        uint256 currentEpoch;
+        int256 deltaLQTYVotes;
+        int256 deltaLQTYVetos;
+        int256 deltaOffsetVotes;
+        int256 deltaOffsetVetos;
     }
 
     /// @dev For each given initiative applies relative changes to the allocation
@@ -694,17 +699,17 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
         AllocateLQTYMemory memory vars;
         (vars.votesSnapshot_, vars.state) = _snapshotVotes();
-        uint256 currentEpoch = epoch();
+        vars.currentEpoch = epoch();
         vars.userState = userStates[msg.sender];
 
         for (uint256 i = 0; i < _initiatives.length; i++) {
             address initiative = _initiatives[i];
-            int256 deltaLQTYVotes = _deltaLQTYVotes[i];
-            int256 deltaLQTYVetos = _deltaLQTYVetos[i];
-            assert(deltaLQTYVotes != 0 || deltaLQTYVetos != 0);
+            vars.deltaLQTYVotes = _deltaLQTYVotes[i];
+            vars.deltaLQTYVetos = _deltaLQTYVetos[i];
+            assert(vars.deltaLQTYVotes != 0 || vars.deltaLQTYVetos != 0);
             
-            int256 deltaOffsetVotes = _deltaOffsetVotes[i];
-            int256 deltaOffsetVetos = _deltaOffsetVetos[i];
+            vars.deltaOffsetVotes = _deltaOffsetVotes[i];
+            vars.deltaOffsetVetos = _deltaOffsetVetos[i];
 
             /// === Check FSM === ///
             // Can vote positively in SKIP, CLAIMABLE and CLAIMED states
@@ -716,7 +721,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
                 initiative, vars.votesSnapshot_, vars.votesForInitiativeSnapshot_, vars.initiativeState
             );
 
-            if (deltaLQTYVotes > 0 || deltaLQTYVetos > 0) {
+            if (vars.deltaLQTYVotes > 0 || vars.deltaLQTYVetos > 0) {
                 /// You cannot vote on `unregisterable` but a vote may have been there
                 require(
                     status == InitiativeStatus.SKIP || status == InitiativeStatus.CLAIMABLE
@@ -726,7 +731,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             }
 
             if (status == InitiativeStatus.DISABLED) {
-                require(deltaLQTYVotes <= 0 && deltaLQTYVetos <= 0, "Must be a withdrawal");
+                require(vars.deltaLQTYVotes <= 0 && vars.deltaLQTYVetos <= 0, "Must be a withdrawal");
             }
 
             /// === UPDATE ACCOUNTING === ///
@@ -741,27 +746,13 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
                 vars.initiativeState.lastEpochClaim
             );
 
-            // update the average staking timestamp for the initiative based on the user's average staking timestamp
-            vars.initiativeState.averageStakingTimestampVoteLQTY = _calculateAverageTimestamp(
-                vars.initiativeState.averageStakingTimestampVoteLQTY,
-                vars.userState.averageStakingTimestamp,
-                vars.initiativeState.voteLQTY,
-                add(vars.initiativeState.voteLQTY, deltaLQTYVotes)
-            );
-            vars.initiativeState.averageStakingTimestampVetoLQTY = _calculateAverageTimestamp(
-                vars.initiativeState.averageStakingTimestampVetoLQTY,
-                vars.userState.averageStakingTimestamp,
-                vars.initiativeState.vetoLQTY,
-                add(vars.initiativeState.vetoLQTY, deltaLQTYVetos)
-            );
-
             // allocate the voting and vetoing LQTY to the initiative
-            vars.initiativeState.voteLQTY = add(vars.initiativeState.voteLQTY, deltaLQTYVotes);
-            vars.initiativeState.vetoLQTY = add(vars.initiativeState.vetoLQTY, deltaLQTYVetos);
+            vars.initiativeState.voteLQTY = add(vars.initiativeState.voteLQTY, vars.deltaLQTYVotes);
+            vars.initiativeState.vetoLQTY = add(vars.initiativeState.vetoLQTY, vars.deltaLQTYVetos);
 
             // Update the initiative's vote and veto offsets
-            vars.initiativeState.voteOffset = add(initiativeState.voteOffset, deltaOffsetVotes);
-            vars.initiativeState.vetoOffset = add(initiativeState.vetoOffset, deltaOffsetVetos);
+            vars.initiativeState.voteOffset = add(vars.initiativeState.voteOffset, vars.deltaOffsetVotes);
+            vars.initiativeState.vetoOffset = add(vars.initiativeState.vetoOffset, vars.deltaOffsetVetos);
 
             // update the initiative's state
             initiativeStates[initiative] = vars.initiativeState;
@@ -771,7 +762,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             /// We update the state only for non-disabled initiatives
             /// Disabled initiatves have had their totals subtracted already
             if (status != InitiativeStatus.DISABLED) {
-                assert(state.countedVoteLQTY >= prevInitiativeState.voteLQTY);
+                assert(vars.state.countedVoteLQTY >= vars.prevInitiativeState.voteLQTY);
                
                 // Remove old initative LQTY and offset from global count
                 vars.state.countedVoteLQTY -= vars.prevInitiativeState.voteLQTY;
@@ -785,16 +776,16 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             // == USER ALLOCATION TO INITIATIVE == //
 
             // Record the vote and veto LQTY and offsets by user to initative
-            Allocation memory allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
+            vars.allocation = lqtyAllocatedByUserToInitiative[msg.sender][initiative];
             // Update offsets
-            vars.allocation.voteOffset = add(allocation.voteOffset, deltaOffsetVotes);
-            vars.allocation.vetoOffset = add(allocation.vetoOffset, deltaOffsetVetos);
+            vars.allocation.voteOffset = add(vars.allocation.voteOffset, vars.deltaOffsetVotes);
+            vars.allocation.vetoOffset = add(vars.allocation.vetoOffset, vars.deltaOffsetVetos);
 
             // Update votes and vetos
-            vars.allocation.voteLQTY = add(allocation.voteLQTY, deltaLQTYVotes);
-            vars.allocation.vetoLQTY = add(allocation.vetoLQTY, deltaLQTYVetos);
+            vars.allocation.voteLQTY = add(vars.allocation.voteLQTY, vars.deltaLQTYVotes);
+            vars.allocation.vetoLQTY = add(vars.allocation.vetoLQTY, vars.deltaLQTYVetos);
            
-            vars.allocation.atEpoch = currentEpoch;
+            vars.allocation.atEpoch = vars.currentEpoch;
 
             require(!(vars.allocation.voteLQTY != 0 && vars.allocation.vetoLQTY != 0), "Governance: vote-and-veto");
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = vars.allocation;
@@ -802,14 +793,12 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             // == USER STATE == //
 
             // Remove from the user's unallocated LQTY and offset
-            userState.unallocatedLQTY = sub(userState.unallocatedLQTY, (deltaLQTYVotes + deltaLQTYVetos));
-            userState.unallocatedOffset = sub(userState.unallocatedLQTY, (deltaOffsetVotes + deltaOffsetVetos));
+            vars.userState.unallocatedLQTY = sub(vars.userState.unallocatedLQTY, (vars.deltaLQTYVotes + vars.deltaLQTYVetos));
+            vars.userState.unallocatedOffset = sub(vars.userState.unallocatedLQTY, (vars.deltaOffsetVotes + vars.deltaOffsetVetos));
 
             // Add to the user's allocated LQTY and offset
-            userState.allocatedLQTY = add(userState.allocatedLQTY, (deltaLQTYVotes + deltaLQTYVetos));
-            userState.allocatedOffset = add(userState.allocatedOffset, (deltaOffsetVotes + deltaOffsetVetos));
-
-            emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch);
+            vars.userState.allocatedLQTY = add(vars.userState.allocatedLQTY, (vars.deltaLQTYVotes + vars.deltaLQTYVetos));
+            vars.userState.allocatedOffset = add(vars.userState.allocatedOffset, (vars.deltaOffsetVotes + vars.deltaOffsetVetos));
 
             // Replaces try / catch | Enforces sufficient gas is passed
             bool success = safeCallWithMinGas(
@@ -818,11 +807,11 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
                 0,
                 abi.encodeCall(
                     IInitiative.onAfterAllocateLQTY,
-                    (currentEpoch, msg.sender, vars.userState, vars.allocation, vars.initiativeState)
+                    (vars.currentEpoch, msg.sender, vars.userState, vars.allocation, vars.initiativeState)
                 )
             );
 
-            emit AllocateLQTY(msg.sender, initiative, deltaLQTYVotes, deltaLQTYVetos, currentEpoch, success);
+            emit AllocateLQTY(msg.sender, initiative, vars.deltaLQTYVotes, vars.deltaLQTYVetos, vars.currentEpoch, success);
         }
 
         require(
@@ -917,7 +906,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         return claimableAmount;
     }
 
-    function _requireNoNOP(int88[] memory _absoluteLQTYVotes, int88[] memory _absoluteLQTYVetos) internal pure {
+    function _requireNoNOP(int256[] memory _absoluteLQTYVotes, int256[] memory _absoluteLQTYVetos) internal pure {
         for (uint256 i; i < _absoluteLQTYVotes.length; i++) {
             require(_absoluteLQTYVotes[i] > 0 || _absoluteLQTYVetos[i] > 0, "Governance: voting nothing");
         }

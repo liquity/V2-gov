@@ -28,8 +28,8 @@ contract ForkedCurveV2GaugeRewardsTest is Test {
     uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
     uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
     uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint88 private constant MIN_CLAIM = 500e18;
-    uint88 private constant MIN_ACCRUAL = 1000e18;
+    uint256 private constant MIN_CLAIM = 500e18;
+    uint256 private constant MIN_ACCRUAL = 1000e18;
     uint32 private constant EPOCH_DURATION = 604800;
     uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
