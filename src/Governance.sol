@@ -787,7 +787,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             vars.userState.unallocatedLQTY =
                 sub(vars.userState.unallocatedLQTY, (vars.deltaLQTYVotes + vars.deltaLQTYVetos));
             vars.userState.unallocatedOffset =
-                sub(vars.userState.unallocatedLQTY, (vars.deltaOffsetVotes + vars.deltaOffsetVetos));
+                sub(vars.userState.unallocatedOffset, (vars.deltaOffsetVotes + vars.deltaOffsetVetos));
 
             // Add to the user's allocated LQTY and offset
             vars.userState.allocatedLQTY =
