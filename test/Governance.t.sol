@@ -127,7 +127,7 @@ abstract contract GovernanceTest is Test {
 
         // should revert if the `_lqtyAmount` > `lqty.balanceOf(msg.sender)`
         _expectInsufficientAllowanceAndBalance();
-        governance.depositLQTY(1e18 + 1);
+        governance.depositLQTY(1e26);
 
         uint256 lqtyDeposit = 2e18;
 
@@ -244,7 +244,7 @@ abstract contract GovernanceTest is Test {
         vm.startPrank(wallet.addr);
 
         _expectInsufficientAllowanceAndBalance();
-        governance.depositLQTYViaPermit(1e18 + 1, permitParams);
+        governance.depositLQTYViaPermit(1e26, permitParams);
 
         // deploy and deposit 1 LQTY
         governance.depositLQTYViaPermit(1e18, permitParams);
