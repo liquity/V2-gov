@@ -274,7 +274,8 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
     /// @inheritdoc IGovernance
     function lqtyToVotes(uint256 _lqtyAmount, uint256 _timestamp, uint256 _offset) public pure returns (uint256) {
-        return (_lqtyAmount * _timestamp - _offset);
+        uint256 prod = _lqtyAmount * _timestamp;
+        return prod > _offset ? prod - _offset : 0;
     }
 
     /*//////////////////////////////////////////////////////////////
