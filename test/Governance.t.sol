@@ -945,7 +945,7 @@ abstract contract GovernanceTest is Test {
         assertEq(countedVoteLQTY, 1e18);
 
         uint256 atEpoch;
-        (voteLQTY, vetoLQTY,,, atEpoch) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
+        (voteLQTY,, vetoLQTY,, atEpoch) = governance.lqtyAllocatedByUserToInitiative(user, baseInitiative1);
         // should update the allocation mapping from user to initiative
         assertEq(voteLQTY, 1e18);
         assertEq(vetoLQTY, 0);
@@ -969,8 +969,15 @@ abstract contract GovernanceTest is Test {
         lqty.approve(address(user2Proxy), 1e18);
         governance.depositLQTY(1e18);
 
-        (,,, uint256 allocatedOffset2) = governance.userStates(user2);
-        assertEq(governance.lqtyToVotes(1e18, uint256(block.timestamp), allocatedOffset2), 0);
+        IGovernance.UserState memory user2State;
+        (user2State.unallocatedLQTY, user2State.unallocatedOffset, user2State.allocatedLQTY, user2State.allocatedOffset)
+        = governance.userStates(user2);
+        assertEq(user2State.allocatedLQTY, 0);
+        assertEq(user2State.allocatedOffset, 0);
+        assertEq(
+            governance.lqtyToVotes(user2State.unallocatedLQTY, uint256(block.timestamp), user2State.unallocatedOffset),
+            0
+        );
 
         deltaLQTYVetos[0] = 1e18;
 
