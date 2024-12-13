@@ -1964,7 +1964,7 @@ abstract contract GovernanceTest is Test {
         _allocateLQTY(user, lqtyAmount2);
 
         // get user voting power at start of epoch 2
-        (,,, uint256 allocatedOffset1) = governance.userStates(user);
+        (, uint256 unallocatedOffset1,, uint256 allocatedOffset1) = governance.userStates(user);
 
         // =========== epoch 3 (start) ==================
         // 3. user allocates to baseInitiative1 in epoch 3
@@ -1977,8 +1977,8 @@ abstract contract GovernanceTest is Test {
         _allocateLQTY(user, lqtyAmount3);
 
         // get user voting power at start of epoch 3 from lqtyAllocatedByUserToInitiative
-        (,,, uint256 allocatedOffset2) = governance.userStates(user);
-        assertEq(allocatedOffset2, allocatedOffset1, "allocatedOffset1 != allocatedOffset2");
+        (, uint256 unallocatedOffset2,, uint256 allocatedOffset2) = governance.userStates(user);
+        assertEq(unallocatedOffset2 + allocatedOffset2, unallocatedOffset1 + allocatedOffset1, "offset2 != offset1");
     }
 
     function test_voting_snapshot_start_vs_end_epoch() public {
