@@ -1429,7 +1429,7 @@ abstract contract GovernanceTest is Test {
         data[7] = abi.encodeWithSignature("withdrawLQTY(uint256)", lqtyAmount);
         bytes[] memory response = governance.multiDelegateCall(data);
 
-        (,,uint256 allocatedLQTY,) = abi.decode(response[3], (uint256, uint256, uint256, uint256));
+        (,, uint256 allocatedLQTY,) = abi.decode(response[3], (uint256, uint256, uint256, uint256));
         assertEq(allocatedLQTY, lqtyAmount);
         (IGovernance.VoteSnapshot memory votes, IGovernance.InitiativeVoteSnapshot memory votesForInitiative) =
             abi.decode(response[4], (IGovernance.VoteSnapshot, IGovernance.InitiativeVoteSnapshot));

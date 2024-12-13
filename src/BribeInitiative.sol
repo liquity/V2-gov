@@ -99,11 +99,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
         require(totalLQTYAllocation.lqty > 0, "BribeInitiative: total-lqty-allocation-zero");
 
-
         uint256 epochEnd = governance.EPOCH_START() + _epoch * governance.EPOCH_DURATION();
 
-        uint256 totalVotes =
-            governance.lqtyToVotes(totalLQTYAllocation.lqty, epochEnd, totalLQTYAllocation.offset);
+        uint256 totalVotes = governance.lqtyToVotes(totalLQTYAllocation.lqty, epochEnd, totalLQTYAllocation.offset);
         if (totalVotes != 0) {
             require(lqtyAllocation.lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
