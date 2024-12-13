@@ -233,12 +233,11 @@ abstract contract GovernanceProperties is BeforeAfter {
         for (uint256 i; i < deployedInitiatives.length; i++) {
             uint256 userWeightAccumulatorForInitiative;
             for (uint256 j; j < users.length; j++) {
-                (uint256 userVoteLQTY,,,,) =
+                (uint256 userVoteLQTY, uint256 userVoteOffset,,,) =
                     governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
-                (,, uint256 allocatedOffset,) = governance.userStates(users[j]);
                 // add the weight calculated for each user's allocation to the accumulator
                 userWeightAccumulatorForInitiative +=
-                    governance.lqtyToVotes(userVoteLQTY, uint256(block.timestamp), allocatedOffset);
+                    governance.lqtyToVotes(userVoteLQTY, uint256(block.timestamp), userVoteOffset);
             }
 
             (uint256 initiativeVoteLQTY, uint256 initiativeVoteOffset,,,) =
