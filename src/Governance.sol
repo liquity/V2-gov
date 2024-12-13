@@ -642,8 +642,8 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             }
         }
 
-        int256[] memory absoluteOffsetVotes;
-        int256[] memory absoluteOffsetVetos;
+        int256[] memory absoluteOffsetVotes = new int256[](_initiatives.length);
+        int256[] memory absoluteOffsetVetos = new int256[](_initiatives.length);
 
         // Calculate the offset portions that correspond to each LQTY vote and veto portion
         for (uint256 x; x < _initiatives.length; x++) {
