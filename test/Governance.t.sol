@@ -1674,7 +1674,7 @@ abstract contract GovernanceTest is Test {
         assertEq(2, governance.epoch(), "not in epoch 2");
 
         // check user voting power before allocation at epoch start
-        (uint256 allocatedLQTY0, uint256 allocatedOffset0,,) = governance.userStates(user);
+        (,, uint256 allocatedLQTY0, uint256 allocatedOffset0) = governance.userStates(user);
         uint256 currentUserPower0 = governance.lqtyToVotes(allocatedLQTY0, block.timestamp, allocatedOffset0);
         assertEq(currentUserPower0, 0, "user has voting power > 0");
 
@@ -1689,7 +1689,7 @@ abstract contract GovernanceTest is Test {
         assertEq(2, governance.epoch(), "not in epoch 2");
 
         // check user voting power after allocation at epoch end
-        (uint256 allocatedLQTY1, uint256 allocatedOffset1,,) = governance.userStates(user);
+        (,, uint256 allocatedLQTY1, uint256 allocatedOffset1) = governance.userStates(user);
         uint256 currentUserPower1 = governance.lqtyToVotes(allocatedLQTY1, block.timestamp, allocatedOffset1);
         assertGt(currentUserPower1, 0, "user has no voting power after allocation");
 
@@ -1705,7 +1705,7 @@ abstract contract GovernanceTest is Test {
         assertEq(42, governance.epoch(), "not in epoch 42");
 
         // get user voting power after multiple epochs
-        (uint256 allocatedLQTY2, uint256 allocatedOffset2,,) = governance.userStates(user);
+        (,, uint256 allocatedLQTY2, uint256 allocatedOffset2) = governance.userStates(user);
         uint256 currentUserPower2 = governance.lqtyToVotes(allocatedLQTY2, block.timestamp, allocatedOffset2);
         assertGt(currentUserPower2, currentUserPower1, "user voting power doesn't increase");
 
