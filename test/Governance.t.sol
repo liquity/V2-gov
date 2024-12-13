@@ -244,14 +244,14 @@ abstract contract GovernanceTest is Test {
         vm.startPrank(wallet.addr);
 
         _expectInsufficientAllowanceAndBalance();
-        governance.depositLQTYViaPermit(type(uint256).max, permitParams);
+        governance.depositLQTYViaPermit(1e18 + 1, permitParams);
 
         // deploy and deposit 1 LQTY
         governance.depositLQTYViaPermit(1e18, permitParams);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
         (uint256 unallocatedLQTY, uint256 unallocatedOffset,,) = governance.userStates(wallet.addr);
         assertEq(unallocatedLQTY, 1e18);
-        assertEq(unallocatedOffset, block.timestamp);
+        assertEq(unallocatedOffset, 1e18 * block.timestamp);
     }
 
     function test_claimFromStakingV1() public {
