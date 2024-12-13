@@ -613,6 +613,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         /// Invariant, 0 allocated = 0 votes
         UserState memory userState = userStates[msg.sender];
         require(userState.allocatedLQTY == 0, "must be a reset");
+        require(userState.unallocatedLQTY != 0, "Governance: insufficient-or-allocated-lqty"); // avoid div-by-zero
 
         // After cutoff you can only re-apply the same vote
         // Or vote less
@@ -813,8 +814,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         }
 
         require(
-            vars.userState.allocatedLQTY == 0
-                || vars.userState.allocatedLQTY <= stakingV1.stakes(deriveUserProxyAddress(msg.sender)),
+            vars.userState.allocatedLQTY <= stakingV1.stakes(deriveUserProxyAddress(msg.sender)),
             "Governance: insufficient-or-allocated-lqty"
         );
 
