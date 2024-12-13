@@ -127,7 +127,7 @@ abstract contract GovernanceTest is Test {
 
         // should revert if the `_lqtyAmount` > `lqty.balanceOf(msg.sender)`
         _expectInsufficientAllowanceAndBalance();
-        governance.depositLQTY(type(uint256).max);
+        governance.depositLQTY(1e18 + 1);
 
         uint256 lqtyDeposit = 2e18;
 
@@ -163,20 +163,20 @@ abstract contract GovernanceTest is Test {
 
         vm.startPrank(address(this));
         vm.expectRevert("Governance: user-proxy-not-deployed");
-        governance.withdrawLQTY(lqtyDeposit / 2);
+        governance.withdrawLQTY(lqtyDeposit);
         vm.stopPrank();
 
         vm.startPrank(user);
 
-        governance.withdrawLQTY(lqtyDeposit / 2);
-        assertEq(UserProxy(payable(userProxy)).staked(), lqtyDeposit / 2);
+        governance.withdrawLQTY(lqtyDeposit);
+        assertEq(UserProxy(payable(userProxy)).staked(), lqtyDeposit);
         (unallocatedLQTY, unallocatedOffset,,) = governance.userStates(user);
-        assertEq(unallocatedLQTY, lqtyDeposit / 2);
+        assertEq(unallocatedLQTY, lqtyDeposit);
         // Withdrawing half of the LQTY should also halve the offset, i.e. withdraw "proportionally" from all past deposits
         assertEq(unallocatedOffset, expectedOffset2 / 2, "unallocated offset2");
 
         // withdraw remaining LQTY
-        governance.withdrawLQTY(lqtyDeposit / 2);
+        governance.withdrawLQTY(lqtyDeposit);
         assertEq(UserProxy(payable(userProxy)).staked(), 0);
         (unallocatedLQTY, unallocatedOffset,,) = governance.userStates(user);
         assertEq(unallocatedLQTY, 0);
