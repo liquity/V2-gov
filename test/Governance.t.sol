@@ -292,7 +292,7 @@ abstract contract GovernanceTest is Test {
     }
 
     // should not revert under any block.timestamp >= EPOCH_START
-    function test_epoch_fuzz(uint256 _timestamp) public {
+    function test_epoch_fuzz(uint32 _timestamp) public {
         vm.warp(governance.EPOCH_START() + _timestamp);
         governance.epoch();
     }
@@ -305,7 +305,7 @@ abstract contract GovernanceTest is Test {
     }
 
     // should not revert under any block.timestamp >= EPOCH_START
-    function test_epochStart_fuzz(uint256 _timestamp) public {
+    function test_epochStart_fuzz(uint32 _timestamp) public {
         vm.warp(governance.EPOCH_START() + _timestamp);
         governance.epochStart();
     }
@@ -324,13 +324,13 @@ abstract contract GovernanceTest is Test {
     }
 
     // should not revert under any block.timestamp
-    function test_secondsWithinEpoch_fuzz(uint256 _timestamp) public {
+    function test_secondsWithinEpoch_fuzz(uint32 _timestamp) public {
         vm.warp(governance.EPOCH_START() + _timestamp);
         governance.secondsWithinEpoch();
     }
 
     // should not revert under any input
-    function test_lqtyToVotes(uint256 _lqtyAmount, uint256 _currentTimestamp, uint256 _offset) public {
+    function test_lqtyToVotes(uint88 _lqtyAmount, uint32 _currentTimestamp, uint256 _offset) public {
         governance.lqtyToVotes(_lqtyAmount, _currentTimestamp, _offset);
     }
 
@@ -407,8 +407,12 @@ abstract contract GovernanceTest is Test {
         uint256 _votingThresholdFactor,
         uint256 _minClaim
     ) public {
-        _votingThresholdFactor = _votingThresholdFactor % 1e18;
-        /// Clamp to prevent misconfig
+        _votes = bound(_votes, 0, type(uint128).max);
+        _forEpoch = bound(_forEpoch, 0, type(uint16).max);
+        _boldAccrued = bound(_boldAccrued, 0, 1e9 ether);
+        _votingThresholdFactor = bound(_votingThresholdFactor, 0, 1 ether - 1);
+        _minClaim = bound(_minClaim, 0, 1e9 ether);
+
         governance = new GovernanceTester(
             address(lqty),
             address(lusd),
@@ -1162,7 +1166,7 @@ abstract contract GovernanceTest is Test {
     }
 
     function test_allocateLQTY_fuzz_deltaLQTYVotes(uint256 _deltaLQTYVotes) public {
-        vm.assume(_deltaLQTYVotes > 0 && _deltaLQTYVotes < uint256(type(int256).max));
+        _deltaLQTYVotes = bound(_deltaLQTYVotes, 1, 100e6 ether);
 
         vm.startPrank(user);
 
@@ -1176,7 +1180,7 @@ abstract contract GovernanceTest is Test {
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
         int256[] memory deltaLQTYVotes = new int256[](1);
-        deltaLQTYVotes[0] = int256(uint256(_deltaLQTYVotes));
+        deltaLQTYVotes[0] = int256(_deltaLQTYVotes);
         int256[] memory deltaLQTYVetos = new int256[](1);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
@@ -1187,7 +1191,7 @@ abstract contract GovernanceTest is Test {
     }
 
     function test_allocateLQTY_fuzz_deltaLQTYVetos(uint256 _deltaLQTYVetos) public {
-        vm.assume(_deltaLQTYVetos > 0 && _deltaLQTYVetos < uint256(type(int256).max));
+        _deltaLQTYVetos = bound(_deltaLQTYVetos, 1, 100e6 ether);
 
         vm.startPrank(user);
 
@@ -1202,7 +1206,7 @@ abstract contract GovernanceTest is Test {
         initiatives[0] = baseInitiative1;
         int256[] memory deltaLQTYVotes = new int256[](1);
         int256[] memory deltaLQTYVetos = new int256[](1);
-        deltaLQTYVetos[0] = int256(uint256(_deltaLQTYVetos));
+        deltaLQTYVetos[0] = int256(_deltaLQTYVetos);
 
         vm.warp(block.timestamp + governance.EPOCH_DURATION());
 
