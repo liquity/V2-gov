@@ -80,7 +80,7 @@ abstract contract GovernanceAttacksTest is Test {
         // deploy and deposit 1 LQTY
         governance.depositLQTY(1e18);
         assertEq(UserProxy(payable(userProxy)).staked(), 1e18);
-        (,,uint256 allocatedLQTY, uint256 allocatedOffset) = governance.userStates(user);
+        (,, uint256 allocatedLQTY, uint256 allocatedOffset) = governance.userStates(user);
         assertEq(allocatedLQTY, 0);
         // First deposit should have an unallocated offset of timestamp * deposit
         assertEq(allocatedOffset, 0);

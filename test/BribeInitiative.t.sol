@@ -431,9 +431,11 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         );
     }
 
-    function test_claimedBribes_fraction_fuzz(uint256 user1StakeAmount, uint256 user2StakeAmount, uint256 user3StakeAmount)
-        public
-    {
+    function test_claimedBribes_fraction_fuzz(
+        uint256 user1StakeAmount,
+        uint256 user2StakeAmount,
+        uint256 user3StakeAmount
+    ) public {
         // =========== epoch 1 ==================
         user1StakeAmount = uint256(bound(uint256(user1StakeAmount), 1, lqty.balanceOf(user1)));
         user2StakeAmount = uint256(bound(uint256(user2StakeAmount), 1, lqty.balanceOf(user2)));
@@ -904,7 +906,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
     function _allocateLQTY(address staker, int256 absoluteVoteLQTYAmt, int256 absoluteVetoLQTYAmt) internal {
         vm.startPrank(staker);
         address[] memory initiativesToReset;
-        (uint256 currentVote,,uint256 currentVeto,,) =
+        (uint256 currentVote,, uint256 currentVeto,,) =
             governance.lqtyAllocatedByUserToInitiative(staker, address(bribeInitiative));
         if (currentVote != 0 || currentVeto != 0) {
             initiativesToReset = new address[](1);
