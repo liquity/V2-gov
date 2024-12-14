@@ -12,31 +12,31 @@ contract MockInitiative is IInitiative {
     }
 
     /// @inheritdoc IInitiative
-    function onRegisterInitiative(uint16) external virtual override {
+    function onRegisterInitiative(uint256) external virtual override {
         governance.registerInitiative(address(0));
     }
 
     /// @inheritdoc IInitiative
-    function onUnregisterInitiative(uint16) external virtual override {
+    function onUnregisterInitiative(uint256) external virtual override {
         governance.unregisterInitiative(address(0));
     }
 
     /// @inheritdoc IInitiative
     function onAfterAllocateLQTY(
-        uint16,
+        uint256,
         address,
         IGovernance.UserState calldata,
         IGovernance.Allocation calldata,
         IGovernance.InitiativeState calldata
     ) external virtual {
         address[] memory initiatives = new address[](0);
-        int88[] memory deltaLQTYVotes = new int88[](0);
-        int88[] memory deltaLQTYVetos = new int88[](0);
+        int256[] memory deltaLQTYVotes = new int256[](0);
+        int256[] memory deltaLQTYVetos = new int256[](0);
         governance.allocateLQTY(initiatives, initiatives, deltaLQTYVotes, deltaLQTYVetos);
     }
 
     /// @inheritdoc IInitiative
-    function onClaimForInitiative(uint16, uint256) external virtual override {
+    function onClaimForInitiative(uint256, uint256) external virtual override {
         governance.claimForInitiative(address(0));
     }
 }

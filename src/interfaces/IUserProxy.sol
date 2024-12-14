@@ -76,5 +76,5 @@ interface IUserProxy {
 
     /// @notice Returns the current amount LQTY staked by a user in the V1 staking contract
     /// @return staked Amount of LQTY tokens staked
-    function staked() external view returns (uint88);
+    function staked() external view returns (uint256);
 }

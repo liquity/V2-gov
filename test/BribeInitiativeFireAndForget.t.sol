@@ -25,8 +25,8 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
     uint32 constant EPOCH_DURATION = 7 days;
     uint32 constant EPOCH_VOTING_CUTOFF = 6 days;
 
-    uint16 constant MAX_NUM_EPOCHS = 100;
-    uint88 constant MAX_VOTE = 1e6 ether;
+    uint256 constant MAX_NUM_EPOCHS = 100;
+    uint256 constant MAX_VOTE = 1e6 ether;
     uint128 constant MAX_BRIBE = 1e6 ether;
     uint256 constant MAX_CLAIMS_PER_CALL = 10;
     uint256 constant MEAN_TIME_BETWEEN_VOTES = 2 * EPOCH_DURATION;
@@ -50,7 +50,7 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
     });
 
     struct Vote {
-        uint16 epoch;
+        uint256 epoch;
         uint256 amount;
     }
 
@@ -132,10 +132,10 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
     /// forge-config: ci.fuzz.runs = 50
     function test_AbleToClaimBribesInAnyOrder_EvenFromEpochsWhereVoterStayedInactive(bytes32 seed) external {
         Random.Context memory random = Random.init(seed);
-        uint16 startingEpoch = governance.epoch();
-        uint16 lastEpoch = startingEpoch;
+        uint256 startingEpoch = governance.epoch();
+        uint256 lastEpoch = startingEpoch;
 
-        for (uint16 i = startingEpoch; i < startingEpoch + MAX_NUM_EPOCHS; ++i) {
+        for (uint256 i = startingEpoch; i < startingEpoch + MAX_NUM_EPOCHS; ++i) {
             boldAtEpoch[i] = random.generate(MAX_BRIBE);
             brybAtEpoch[i] = random.generate(MAX_BRIBE);
 
@@ -148,15 +148,15 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
 
         for (;;) {
             vm.warp(block.timestamp + random.generate(2 * MEAN_TIME_BETWEEN_VOTES));
-            uint16 epoch = governance.epoch();
+            uint256 epoch = governance.epoch();
 
-            for (uint16 i = lastEpoch; i < epoch; ++i) {
+            for (uint256 i = lastEpoch; i < epoch; ++i) {
                 voteAtEpoch[i] = latestVote[voter].amount;
                 toteAtEpoch[i] = latestVote[voter].amount + latestVote[other].amount;
                 claimDataAtEpoch[i].epoch = i;
                 claimDataAtEpoch[i].prevLQTYAllocationEpoch = latestVote[voter].epoch;
                 claimDataAtEpoch[i].prevTotalLQTYAllocationEpoch =
-                    uint16(Math.max(latestVote[voter].epoch, latestVote[other].epoch));
+                    uint256(Math.max(latestVote[voter].epoch, latestVote[other].epoch));
 
                 console.log(
                     string.concat(
@@ -232,16 +232,16 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
     /////////////
 
     function _vote(address who, address initiative, uint256 vote) internal {
-        assertLeDecimal(vote, uint256(int256(type(int88).max)), 18, "vote > type(uint88).max");
+        assertLeDecimal(vote, uint256(int256(type(int256).max)), 18, "vote > type(uint256).max");
         vm.startPrank(who);
 
         if (vote > 0) {
             address[] memory initiatives = new address[](1);
-            int88[] memory votes = new int88[](1);
-            int88[] memory vetos = new int88[](1);
+            int256[] memory votes = new int256[](1);
+            int256[] memory vetos = new int256[](1);
 
             initiatives[0] = initiative;
-            votes[0] = int88(uint88(vote));
+            votes[0] = int256(uint256(vote));
             governance.allocateLQTY(initiativesToReset[who], initiatives, votes, vetos);
 
             if (initiativesToReset[who].length != 0) initiativesToReset[who].pop();

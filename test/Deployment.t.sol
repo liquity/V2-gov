@@ -45,8 +45,8 @@ contract DeploymentTest is MockStakingV1Deployer {
 
     address[] initiativesToReset;
     address[] initiatives;
-    int88[] votes;
-    int88[] vetos;
+    int256[] votes;
+    int256[] vetos;
 
     function setUp() external {
         vm.warp(START_TIME);
@@ -125,10 +125,10 @@ contract DeploymentTest is MockStakingV1Deployer {
     /////////////
 
     function _voteOnInitiative() internal {
-        uint88 lqtyAmount = 1 ether;
+        uint256 lqtyAmount = 1 ether;
         lqty.mint(voter, lqtyAmount);
 
-        votes.push(int88(lqtyAmount));
+        votes.push(int256(lqtyAmount));
         vetos.push(0);
 
         vm.startPrank(voter);
@@ -155,7 +155,7 @@ contract DeploymentTest is MockStakingV1Deployer {
     }
 
     function _depositLQTY() internal {
-        uint88 lqtyAmount = 1 ether;
+        uint256 lqtyAmount = 1 ether;
         lqty.mint(registrant, lqtyAmount);
         vm.startPrank(registrant);
         lqty.approve(governance.deriveUserProxyAddress(registrant), lqtyAmount);

@@ -29,17 +29,17 @@ abstract contract Setup is BaseSetup, MockStakingV1Deployer {
     bool internal claimedTwice;
     bool internal unableToClaim;
 
-    uint128 internal constant REGISTRATION_FEE = 1e18;
-    uint128 internal constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
-    uint128 internal constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint16 internal constant UNREGISTRATION_AFTER_EPOCHS = 4;
-    uint128 internal constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint88 internal constant MIN_CLAIM = 500e18;
-    uint88 internal constant MIN_ACCRUAL = 1000e18;
-    uint32 internal constant EPOCH_DURATION = 604800;
-    uint32 internal constant EPOCH_VOTING_CUTOFF = 518400;
+    uint256 internal constant REGISTRATION_FEE = 1e18;
+    uint256 internal constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
+    uint256 internal constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
+    uint256 internal constant UNREGISTRATION_AFTER_EPOCHS = 4;
+    uint256 internal constant VOTING_THRESHOLD_FACTOR = 0.04e18;
+    uint256 internal constant MIN_CLAIM = 500e18;
+    uint256 internal constant MIN_ACCRUAL = 1000e18;
+    uint256 internal constant EPOCH_DURATION = 604800;
+    uint256 internal constant EPOCH_VOTING_CUTOFF = 518400;
 
-    uint120 magnifiedStartTS;
+    uint256 magnifiedStartTS;
 
     function setup() internal virtual override {
         vm.warp(block.timestamp + EPOCH_DURATION * 4); // Somehow Medusa goes back after the constructor
@@ -68,7 +68,7 @@ abstract contract Setup is BaseSetup, MockStakingV1Deployer {
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
                 // backdate by 2 epochs to ensure new initiatives can be registered from the start
-                epochStart: uint32(block.timestamp - 2 * EPOCH_DURATION),
+                epochStart: uint256(block.timestamp - 2 * EPOCH_DURATION),
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
             }),
@@ -91,7 +91,7 @@ abstract contract Setup is BaseSetup, MockStakingV1Deployer {
 
         governance.registerInitiative(address(initiative1));
 
-        magnifiedStartTS = uint120(block.timestamp) * uint120(1e18);
+        magnifiedStartTS = uint256(block.timestamp) * uint256(1e18);
     }
 
     function _getDeployedInitiative(uint8 index) internal view returns (address initiative) {

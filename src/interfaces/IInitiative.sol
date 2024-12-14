@@ -6,11 +6,11 @@ import {IGovernance} from "./IGovernance.sol";
 interface IInitiative {
     /// @notice Callback hook that is called by Governance after the initiative was successfully registered
     /// @param _atEpoch Epoch at which the initiative is registered
-    function onRegisterInitiative(uint16 _atEpoch) external;
+    function onRegisterInitiative(uint256 _atEpoch) external;
 
     /// @notice Callback hook that is called by Governance after the initiative was unregistered
     /// @param _atEpoch Epoch at which the initiative is unregistered
-    function onUnregisterInitiative(uint16 _atEpoch) external;
+    function onUnregisterInitiative(uint256 _atEpoch) external;
 
     /// @notice Callback hook that is called by Governance after the LQTY allocation is updated by a user
     /// @param _currentEpoch Epoch at which the LQTY allocation is updated
@@ -19,7 +19,7 @@ interface IInitiative {
     /// @param _allocation Allocation state from user to initiative
     /// @param _initiativeState Initiative state
     function onAfterAllocateLQTY(
-        uint16 _currentEpoch,
+        uint256 _currentEpoch,
         address _user,
         IGovernance.UserState calldata _userState,
         IGovernance.Allocation calldata _allocation,
@@ -30,5 +30,5 @@ interface IInitiative {
     /// to the initiative
     /// @param _claimEpoch Epoch at which the claim was distributed
     /// @param _bold Amount of BOLD that was distributed
-    function onClaimForInitiative(uint16 _claimEpoch, uint256 _bold) external;
+    function onClaimForInitiative(uint256 _claimEpoch, uint256 _bold) external;
 }

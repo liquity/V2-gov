@@ -9,13 +9,10 @@ import {IBribeInitiative} from "src/interfaces/IBribeInitiative.sol";
 // The are view functions that should never revert
 abstract contract RevertProperties is BeforeAfter {
     function property_computingGlobalPowerNeverReverts() public {
-        (uint88 totalCountedLQTY, uint120 global_countedVoteLQTYAverageTimestamp) = governance.globalState();
+        (uint256 totalCountedLQTY, uint256 global_countedVoteOffset) = governance.globalState();
 
-        try governance.lqtyToVotes(
-            totalCountedLQTY,
-            uint120(block.timestamp) * uint120(governance.TIMESTAMP_PRECISION()),
-            global_countedVoteLQTYAverageTimestamp
-        ) {} catch {
+        try governance.lqtyToVotes(totalCountedLQTY, block.timestamp, global_countedVoteOffset) {}
+        catch {
             t(false, "Should never revert");
         }
     }
@@ -23,21 +20,13 @@ abstract contract RevertProperties is BeforeAfter {
     function property_summingInitiativesPowerNeverReverts() public {
         uint256 votedPowerSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
-            (
-                uint88 voteLQTY,
-                uint88 vetoLQTY,
-                uint120 averageStakingTimestampVoteLQTY,
-                uint120 averageStakingTimestampVetoLQTY,
-            ) = governance.initiativeStates(deployedInitiatives[i]);
+            (uint256 voteLQTY, uint256 voteOffset, uint256 vetoLQTY, uint256 vetoOffset,) =
+                governance.initiativeStates(deployedInitiatives[i]);
 
             // Sum via projection
             uint256 prevSum = votedPowerSum;
             unchecked {
-                try governance.lqtyToVotes(
-                    voteLQTY,
-                    uint120(block.timestamp) * uint120(governance.TIMESTAMP_PRECISION()),
-                    averageStakingTimestampVoteLQTY
-                ) returns (uint208 res) {
+                try governance.lqtyToVotes(voteLQTY, block.timestamp, voteOffset) returns (uint256 res) {
                     votedPowerSum += res;
                 } catch {
                     t(false, "Should never revert");

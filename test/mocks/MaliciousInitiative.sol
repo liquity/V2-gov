@@ -29,16 +29,16 @@ contract MaliciousInitiative is IInitiative {
     }
 
     // Do stuff on each hook
-    function onRegisterInitiative(uint16) external view override {
+    function onRegisterInitiative(uint256) external view override {
         _performRevertBehaviour(revertBehaviours[FunctionType.REGISTER]);
     }
 
-    function onUnregisterInitiative(uint16) external view override {
+    function onUnregisterInitiative(uint256) external view override {
         _performRevertBehaviour(revertBehaviours[FunctionType.UNREGISTER]);
     }
 
     function onAfterAllocateLQTY(
-        uint16,
+        uint256,
         address,
         IGovernance.UserState calldata,
         IGovernance.Allocation calldata,
@@ -47,7 +47,7 @@ contract MaliciousInitiative is IInitiative {
         _performRevertBehaviour(revertBehaviours[FunctionType.ALLOCATE]);
     }
 
-    function onClaimForInitiative(uint16, uint256) external view override {
+    function onClaimForInitiative(uint256, uint256) external view override {
         _performRevertBehaviour(revertBehaviours[FunctionType.CLAIM]);
     }
 

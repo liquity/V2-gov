@@ -9,17 +9,17 @@ import {IBribeInitiative} from "src/interfaces/IBribeInitiative.sol";
 abstract contract TsProperties is BeforeAfter {
     // Properties that ensure that a user TS is somewhat sound
 
-    function property_user_ts_is_always_greater_than_start() public {
+    function property_user_offset_is_always_greater_than_start() public {
         for (uint256 i; i < users.length; i++) {
-            (uint88 user_allocatedLQTY, uint120 userTs) = governance.userStates(users[i]);
+            (,, uint256 user_allocatedLQTY, uint256 userAllocatedOffset) = governance.userStates(users[i]);
             if (user_allocatedLQTY > 0) {
-                gte(userTs, magnifiedStartTS, "User ts must always be GTE than start");
+                gte(userAllocatedOffset, magnifiedStartTS, "User ts must always be GTE than start");
             }
         }
     }
 
-    function property_global_ts_is_always_greater_than_start() public {
-        (uint88 totalCountedLQTY, uint120 globalTs) = governance.globalState();
+    function property_global_offset_is_always_greater_than_start() public {
+        (uint256 totalCountedLQTY, uint256 globalTs) = governance.globalState();
 
         if (totalCountedLQTY > 0) {
             gte(globalTs, magnifiedStartTS, "Global ts must always be GTE than start");

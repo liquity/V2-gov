@@ -63,16 +63,16 @@ interface IGovernance {
     event ClaimForInitiative(address indexed initiative, uint256 bold, uint256 forEpoch, bool hookSuccess);
 
     struct Configuration {
-        uint128 registrationFee;
-        uint128 registrationThresholdFactor;
-        uint128 unregistrationThresholdFactor;
-        uint16 unregistrationAfterEpochs;
-        uint128 votingThresholdFactor;
-        uint88 minClaim;
-        uint88 minAccrual;
-        uint32 epochStart;
-        uint32 epochDuration;
-        uint32 epochVotingCutoff;
+        uint256 registrationFee;
+        uint256 registrationThresholdFactor;
+        uint256 unregistrationThresholdFactor;
+        uint256 unregistrationAfterEpochs;
+        uint256 votingThresholdFactor;
+        uint256 minClaim;
+        uint256 minAccrual;
+        uint256 epochStart;
+        uint256 epochDuration;
+        uint256 epochVotingCutoff;
     }
 
     function registerInitialInitiatives(address[] memory _initiatives) external;
@@ -124,21 +124,21 @@ interface IGovernance {
     function boldAccrued() external view returns (uint256 boldAccrued);
 
     struct VoteSnapshot {
-        uint240 votes; // Votes at epoch transition
-        uint16 forEpoch; // Epoch for which the votes are counted
+        uint256 votes; // Votes at epoch transition
+        uint256 forEpoch; // Epoch for which the votes are counted
     }
 
     struct InitiativeVoteSnapshot {
-        uint224 votes; // Votes at epoch transition
-        uint16 forEpoch; // Epoch for which the votes are counted
-        uint16 lastCountedEpoch; // Epoch at which which the votes where counted last in the global snapshot
-        uint224 vetos; // Vetos at epoch transition
+        uint256 votes; // Votes at epoch transition
+        uint256 forEpoch; // Epoch for which the votes are counted
+        uint256 lastCountedEpoch; // Epoch at which which the votes where counted last in the global snapshot
+        uint256 vetos; // Vetos at epoch transition
     }
 
     /// @notice Returns the vote count snapshot of the previous epoch
     /// @return votes Number of votes
     /// @return forEpoch Epoch for which the votes are counted
-    function votesSnapshot() external view returns (uint240 votes, uint16 forEpoch);
+    function votesSnapshot() external view returns (uint256 votes, uint256 forEpoch);
     /// @notice Returns the vote count snapshot for an initiative of the previous epoch
     /// @param _initiative Address of the initiative
     /// @return votes Number of votes
@@ -147,73 +147,77 @@ interface IGovernance {
     function votesForInitiativeSnapshot(address _initiative)
         external
         view
-        returns (uint224 votes, uint16 forEpoch, uint16 lastCountedEpoch, uint224 vetos);
+        returns (uint256 votes, uint256 forEpoch, uint256 lastCountedEpoch, uint256 vetos);
 
     struct Allocation {
-        uint88 voteLQTY; // LQTY allocated vouching for the initiative
-        uint88 vetoLQTY; // LQTY vetoing the initiative
-        uint16 atEpoch; // Epoch at which the allocation was last updated
+        uint256 voteLQTY; // LQTY allocated vouching for the initiative
+        uint256 voteOffset; // Offset associated with LQTY vouching for the initiative
+        uint256 vetoLQTY; // LQTY vetoing the initiative
+        uint256 vetoOffset; // Offset associated with LQTY vetoing the initiative
+        uint256 atEpoch; // Epoch at which the allocation was last updated
     }
 
     struct UserState {
-        uint88 allocatedLQTY; // LQTY allocated by the user
-        uint120 averageStakingTimestamp; // Average timestamp at which LQTY was staked by the user
+        uint256 unallocatedLQTY; // LQTY deposited and unallocated
+        uint256 unallocatedOffset; // The offset sum corresponding to the unallocated LQTY
+        uint256 allocatedLQTY; // LQTY allocated by the user to initatives
+        uint256 allocatedOffset; // The offset sum corresponding to the allocated LQTY
     }
 
     struct InitiativeState {
-        uint88 voteLQTY; // LQTY allocated vouching for the initiative
-        uint88 vetoLQTY; // LQTY allocated vetoing the initiative
-        uint120 averageStakingTimestampVoteLQTY; // Average staking timestamp of the voting LQTY for the initiative
-        uint120 averageStakingTimestampVetoLQTY; // Average staking timestamp of the vetoing LQTY for the initiative
-        uint16 lastEpochClaim;
+        uint256 voteLQTY; // LQTY allocated vouching for the initiative
+        uint256 voteOffset; // Offset associated with LQTY vouching for to the initative
+        uint256 vetoLQTY; // LQTY allocated vetoing the initiative
+        uint256 vetoOffset; // Offset associated with LQTY veoting the initative
+        uint256 lastEpochClaim;
     }
 
     struct GlobalState {
-        uint88 countedVoteLQTY; // Total LQTY that is included in vote counting
-        uint120 countedVoteLQTYAverageTimestamp; // Average timestamp: derived initiativeAllocation.averageTimestamp
+        uint256 countedVoteLQTY; // Total LQTY that is included in vote counting
+        uint256 countedVoteOffset; // Offset associated with the counted vote LQTY
     }
 
     /// @notice Returns the user's state
-    /// @param _user Address of the user
-    /// @return allocatedLQTY LQTY allocated by the user
-    /// @return averageStakingTimestamp Average timestamp at which LQTY was staked (deposited) by the user
-    function userStates(address _user) external view returns (uint88 allocatedLQTY, uint120 averageStakingTimestamp);
+    /// @return unallocatedLQTY LQTY deposited and unallocated
+    /// @return unallocatedOffset Offset associated with unallocated LQTY
+    /// @return allocatedLQTY allocated by the user to initatives
+    /// @return allocatedOffset Offset associated with allocated LQTY
+    function userStates(address _user)
+        external
+        view
+        returns (uint256 unallocatedLQTY, uint256 unallocatedOffset, uint256 allocatedLQTY, uint256 allocatedOffset);
     /// @notice Returns the initiative's state
     /// @param _initiative Address of the initiative
     /// @return voteLQTY LQTY allocated vouching for the initiative
+    /// @return voteOffset Offset associated with voteLQTY
     /// @return vetoLQTY LQTY allocated vetoing the initiative
-    /// @return averageStakingTimestampVoteLQTY // Average staking timestamp of the voting LQTY for the initiative
-    /// @return averageStakingTimestampVetoLQTY // Average staking timestamp of the vetoing LQTY for the initiative
+    /// @return vetoOffset Offset associated with vetoLQTY
     /// @return lastEpochClaim // Last epoch at which rewards were claimed
     function initiativeStates(address _initiative)
         external
         view
-        returns (
-            uint88 voteLQTY,
-            uint88 vetoLQTY,
-            uint120 averageStakingTimestampVoteLQTY,
-            uint120 averageStakingTimestampVetoLQTY,
-            uint16 lastEpochClaim
-        );
+        returns (uint256 voteLQTY, uint256 voteOffset, uint256 vetoLQTY, uint256 vetoOffset, uint256 lastEpochClaim);
     /// @notice Returns the global state
     /// @return countedVoteLQTY Total LQTY that is included in vote counting
-    /// @return countedVoteLQTYAverageTimestamp Average timestamp: derived initiativeAllocation.averageTimestamp
-    function globalState() external view returns (uint88 countedVoteLQTY, uint120 countedVoteLQTYAverageTimestamp);
+    /// @return countedVoteOffset Offset associated with countedVoteLQTY
+    function globalState() external view returns (uint256 countedVoteLQTY, uint256 countedVoteOffset);
     /// @notice Returns the amount of voting and vetoing LQTY a user allocated to an initiative
     /// @param _user Address of the user
     /// @param _initiative Address of the initiative
     /// @return voteLQTY LQTY allocated vouching for the initiative
-    /// @return vetoLQTY LQTY allocated vetoing the initiative
+    /// @return voteOffset The offset associated with voteLQTY
+    /// @return vetoLQTY allocated vetoing the initiative
+    /// @return vetoOffset the offset associated with vetoLQTY
     /// @return atEpoch Epoch at which the allocation was last updated
     function lqtyAllocatedByUserToInitiative(address _user, address _initiative)
         external
         view
-        returns (uint88 voteLQTY, uint88 vetoLQTY, uint16 atEpoch);
+        returns (uint256 voteLQTY, uint256 voteOffset, uint256 vetoLQTY, uint256 vetoOffset, uint256 atEpoch);
 
     /// @notice Returns when an initiative was registered
     /// @param _initiative Address of the initiative
     /// @return atEpoch Epoch at which the initiative was registered
-    function registeredInitiatives(address _initiative) external view returns (uint16 atEpoch);
+    function registeredInitiatives(address _initiative) external view returns (uint256 atEpoch);
 
     /*//////////////////////////////////////////////////////////////
                                 STAKING
@@ -222,19 +226,19 @@ interface IGovernance {
     /// @notice Deposits LQTY
     /// @dev The caller has to approve their `UserProxy` address to spend the LQTY tokens
     /// @param _lqtyAmount Amount of LQTY to deposit
-    function depositLQTY(uint88 _lqtyAmount) external;
+    function depositLQTY(uint256 _lqtyAmount) external;
 
     /// @notice Deposits LQTY
     /// @dev The caller has to approve their `UserProxy` address to spend the LQTY tokens
     /// @param _lqtyAmount Amount of LQTY to deposit
     /// @param _doSendRewards If true, send rewards claimed from LQTY staking
     /// @param _recipient Address to which the tokens should be sent
-    function depositLQTY(uint88 _lqtyAmount, bool _doSendRewards, address _recipient) external;
+    function depositLQTY(uint256 _lqtyAmount, bool _doSendRewards, address _recipient) external;
 
     /// @notice Deposits LQTY via Permit
     /// @param _lqtyAmount Amount of LQTY to deposit
     /// @param _permitParams Permit parameters
-    function depositLQTYViaPermit(uint88 _lqtyAmount, PermitParams calldata _permitParams) external;
+    function depositLQTYViaPermit(uint256 _lqtyAmount, PermitParams calldata _permitParams) external;
 
     /// @notice Deposits LQTY via Permit
     /// @param _lqtyAmount Amount of LQTY to deposit
@@ -242,7 +246,7 @@ interface IGovernance {
     /// @param _doSendRewards If true, send rewards claimed from LQTY staking
     /// @param _recipient Address to which the tokens should be sent
     function depositLQTYViaPermit(
-        uint88 _lqtyAmount,
+        uint256 _lqtyAmount,
         PermitParams calldata _permitParams,
         bool _doSendRewards,
         address _recipient
@@ -250,13 +254,13 @@ interface IGovernance {
 
     /// @notice Withdraws LQTY and claims any accrued LUSD and ETH rewards from StakingV1
     /// @param _lqtyAmount Amount of LQTY to withdraw
-    function withdrawLQTY(uint88 _lqtyAmount) external;
+    function withdrawLQTY(uint256 _lqtyAmount) external;
 
     /// @notice Withdraws LQTY and claims any accrued LUSD and ETH rewards from StakingV1
     /// @param _lqtyAmount Amount of LQTY to withdraw
     /// @param _doSendRewards If true, send rewards claimed from LQTY staking
     /// @param _recipient Address to which the tokens should be sent
-    function withdrawLQTY(uint88 _lqtyAmount, bool _doSendRewards, address _recipient) external;
+    function withdrawLQTY(uint256 _lqtyAmount, bool _doSendRewards, address _recipient) external;
 
     /// @notice Claims staking rewards from StakingV1 without unstaking
     /// @dev Note: in the unlikely event that the caller's `UserProxy` holds any LQTY tokens, they will also be sent to `_rewardRecipient`
@@ -271,22 +275,20 @@ interface IGovernance {
 
     /// @notice Returns the current epoch number
     /// @return epoch Current epoch
-    function epoch() external view returns (uint16 epoch);
+    function epoch() external view returns (uint256 epoch);
     /// @notice Returns the timestamp at which the current epoch started
     /// @return epochStart Epoch start of the current epoch
-    function epochStart() external view returns (uint32 epochStart);
+    function epochStart() external view returns (uint256 epochStart);
     /// @notice Returns the number of seconds that have gone by since the current epoch started
     /// @return secondsWithinEpoch Seconds within the current epoch
-    function secondsWithinEpoch() external view returns (uint32 secondsWithinEpoch);
-    /// @notice Returns the number of votes per LQTY for a user
-    /// @param _lqtyAmount Amount of LQTY to convert to votes
-    /// @param _currentTimestamp Current timestamp
-    /// @param _averageTimestamp Average timestamp at which the LQTY was staked
+    function secondsWithinEpoch() external view returns (uint256 secondsWithinEpoch);
+
+    /// @notice Returns the voting power for an entity (i.e. user or initiative) at a given timestamp
+    /// @param _lqtyAmount Amount of LQTY associated with the entity
+    /// @param _timestamp Timestamp at which to calculate voting power
+    /// @param _offset The entity's offset sum
     /// @return votes Number of votes
-    function lqtyToVotes(uint88 _lqtyAmount, uint120 _currentTimestamp, uint120 _averageTimestamp)
-        external
-        pure
-        returns (uint208);
+    function lqtyToVotes(uint256 _lqtyAmount, uint256 _timestamp, uint256 _offset) external pure returns (uint256);
 
     /// @dev Returns the most up to date voting threshold
     /// In contrast to `getLatestVotingThreshold` this function updates the snapshot
@@ -353,14 +355,14 @@ interface IGovernance {
 
     function getInitiativeState(address _initiative)
         external
-        returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
+        returns (InitiativeStatus status, uint256 lastEpochClaim, uint256 claimableAmount);
 
     function getInitiativeState(
         address _initiative,
         VoteSnapshot memory _votesSnapshot,
         InitiativeVoteSnapshot memory _votesForInitiativeSnapshot,
         InitiativeState memory _initiativeState
-    ) external view returns (InitiativeStatus status, uint16 lastEpochClaim, uint256 claimableAmount);
+    ) external view returns (InitiativeStatus status, uint256 lastEpochClaim, uint256 claimableAmount);
 
     /// @notice Registers a new initiative
     /// @param _initiative Address of the initiative
@@ -380,8 +382,8 @@ interface IGovernance {
     function allocateLQTY(
         address[] calldata _resetInitiatives,
         address[] memory _initiatives,
-        int88[] memory _absoluteLQTYVotes,
-        int88[] memory absoluteLQTYVetos
+        int256[] memory _absoluteLQTYVotes,
+        int256[] memory absoluteLQTYVetos
     ) external;
 
     /// @notice Splits accrued funds according to votes received between all initiatives

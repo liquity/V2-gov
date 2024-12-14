@@ -34,14 +34,14 @@ contract TrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
     //     uint256 state = _getInitiativeStatus(_getDeployedInitiative(0));
     //     assertEq(state, 5, "Should not be this tbh");
     //     // check_unregisterable_consistecy(0);
-    //     uint16 epoch = _getLastEpochClaim(_getDeployedInitiative(0));
+    //     uint256 epoch = _getLastEpochClaim(_getDeployedInitiative(0));
 
     //     console.log(epoch + governance.UNREGISTRATION_AFTER_EPOCHS() < governance.epoch() - 1);
 
     //     vm.warp(block.timestamp + governance.EPOCH_DURATION());
     //     uint256 newState = _getInitiativeStatus(_getDeployedInitiative(0));
 
-    //     uint16 lastEpochClaim = _getLastEpochClaim(_getDeployedInitiative(0));
+    //     uint256 lastEpochClaim = _getLastEpochClaim(_getDeployedInitiative(0));
 
     //     console.log("governance.UNREGISTRATION_AFTER_EPOCHS()", governance.UNREGISTRATION_AFTER_EPOCHS());
     //     console.log("governance.epoch()", governance.epoch());
@@ -54,8 +54,8 @@ contract TrophiesToFoundry is Test, TargetFunctions, FoundryAsserts {
     //     assertEq(newState, state, "??");
     // }
 
-    function _getLastEpochClaim(address _initiative) internal returns (uint16) {
-        (, uint16 epoch,) = governance.getInitiativeState(_initiative);
+    function _getLastEpochClaim(address _initiative) internal returns (uint256) {
+        (, uint256 epoch,) = governance.getInitiativeState(_initiative);
         return epoch;
     }
 }
