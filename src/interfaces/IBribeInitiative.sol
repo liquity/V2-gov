@@ -38,20 +38,24 @@ interface IBribeInitiative {
     function claimedBribeAtEpoch(address _user, uint256 _epoch) external view returns (bool claimed);
 
     /// @notice Total LQTY allocated to the initiative at a given epoch
+    ///         Voting power can be calculated as `totalLQTYAllocated * timestamp - offset`
     /// @param _epoch Epoch at which the LQTY was allocated
     /// @return totalLQTYAllocated Total LQTY allocated
+    /// @return offset Voting power offset
     function totalLQTYAllocatedByEpoch(uint256 _epoch)
         external
         view
-        returns (uint256 totalLQTYAllocated, uint256 averageTimestamp);
+        returns (uint256 totalLQTYAllocated, uint256 offset);
     /// @notice LQTY allocated by a user to the initiative at a given epoch
+    ///         Voting power can be calculated as `lqtyAllocated * timestamp - offset`
     /// @param _user Address of the user
     /// @param _epoch Epoch at which the LQTY was allocated by the user
     /// @return lqtyAllocated LQTY allocated by the user
+    /// @return offset Voting power offset
     function lqtyAllocatedByUserAtEpoch(address _user, uint256 _epoch)
         external
         view
-        returns (uint256 lqtyAllocated, uint256 averageTimestamp);
+        returns (uint256 lqtyAllocated, uint256 offset);
 
     /// @notice Deposit bribe tokens for a given epoch
     /// @dev The caller has to approve this contract to spend the BOLD and bribe tokens.
