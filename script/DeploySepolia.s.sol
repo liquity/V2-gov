@@ -90,7 +90,7 @@ contract DeploySepoliaScript is Script, Deployers, MockStakingV1Deployer {
                 votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
                 minClaim: MIN_CLAIM,
                 minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp - VESTING_EPOCH_START),
+                epochStart: block.timestamp - EPOCH_DURATION,
                 /// @audit Ensures that `initialInitiatives` can be voted on
                 epochDuration: EPOCH_DURATION,
                 epochVotingCutoff: EPOCH_VOTING_CUTOFF
