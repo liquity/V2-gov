@@ -41,4 +41,6 @@ interface ILQTYStaking {
     function getPendingLUSDGain(address _user) external view returns (uint256);
 
     function stakes(address _user) external view returns (uint256);
+
+    function totalLQTYStaked() external view returns (uint256);
 }

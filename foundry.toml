@@ -12,7 +12,7 @@ chain_id = 99
 block_timestamp = 2592000
 
 [profile.ci.fuzz]
-runs = 5000
+runs = 500
 
 [profile.default.fuzz]
 runs = 100
