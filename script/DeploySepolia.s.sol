@@ -43,8 +43,6 @@ contract DeploySepoliaScript is Script, Deployers, MockStakingV1Deployer {
     uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
     // UniV4Donations Constants
-    uint256 private immutable VESTING_EPOCH_START = block.timestamp;
-    uint256 private constant VESTING_EPOCH_DURATION = 7 days;
     uint24 private constant FEE = 400;
     int24 constant MAX_TICK_SPACING = 32767;
 
