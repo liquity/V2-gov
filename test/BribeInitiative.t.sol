@@ -21,9 +21,6 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
     address private constant user2 = address(0x10C9cff3c4Faa8A60cB8506a7A99411E6A199038);
     address private user3 = makeAddr("user3");
     address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
-    address private constant initiative = address(0x1);
-    address private constant initiative2 = address(0x2);
-    address private constant initiative3 = address(0x3);
 
     uint256 private constant REGISTRATION_FEE = 1e18;
     uint256 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
@@ -890,6 +887,82 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         assertEq(boldAmount, 0);
         assertEq(bribeTokenAmount, 0);
+    }
+
+    // See https://github.com/liquity/V2-gov/issues/106
+    function test_VoterGetsTheirFairShareOfBribes() external {
+        uint256 bribeAmount = 10_000 ether;
+        uint256 voteAmount = 100_000 ether;
+        address otherInitiative = makeAddr("otherInitiative");
+
+        // Fast-forward to enable registration
+        vm.warp(block.timestamp + 2 * EPOCH_DURATION);
+
+        vm.startPrank(lusdHolder);
+        {
+            // Register otherInitiative, so user1 has something else to vote on
+            lusd.approve(address(governance), REGISTRATION_FEE);
+            governance.registerInitiative(otherInitiative);
+
+            // Deposit some bribes into bribeInitiative in next epoch
+            lusd.approve(address(bribeInitiative), bribeAmount);
+            lqty.approve(address(bribeInitiative), bribeAmount);
+            bribeInitiative.depositBribe(bribeAmount, bribeAmount, governance.epoch() + 1);
+        }
+        vm.stopPrank();
+
+        // Ensure otherInitiative can be voted on
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        address[] memory initiativesToReset = new address[](0);
+        address[] memory initiatives;
+        int256[] memory votes;
+        int256[] memory vetos;
+
+        vm.startPrank(user1);
+        {
+            initiatives = new address[](2);
+            votes = new int256[](2);
+            vetos = new int256[](2);
+
+            initiatives[0] = otherInitiative;
+            initiatives[1] = address(bribeInitiative);
+            votes[0] = int256(voteAmount);
+            votes[1] = int256(voteAmount);
+
+            lqty.approve(governance.deriveUserProxyAddress(user1), 2 * voteAmount);
+            governance.depositLQTY(2 * voteAmount);
+            governance.allocateLQTY(initiativesToReset, initiatives, votes, vetos);
+        }
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        {
+            initiatives = new address[](1);
+            votes = new int256[](1);
+            vetos = new int256[](1);
+
+            initiatives[0] = address(bribeInitiative);
+            votes[0] = int256(voteAmount);
+
+            lqty.approve(governance.deriveUserProxyAddress(user2), voteAmount);
+            governance.depositLQTY(voteAmount);
+            governance.allocateLQTY(initiativesToReset, initiatives, votes, vetos);
+        }
+        vm.stopPrank();
+
+        // Fast-forward to next epoch, so previous epoch's bribes can be claimed
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        IBribeInitiative.ClaimData[] memory claimData = new IBribeInitiative.ClaimData[](1);
+        claimData[0].epoch = governance.epoch() - 1;
+        claimData[0].prevLQTYAllocationEpoch = governance.epoch() - 1;
+        claimData[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 1;
+
+        vm.prank(user1);
+        (uint256 lusdBribe, uint256 lqtyBribe) = bribeInitiative.claimBribes(claimData);
+        assertEqDecimal(lusdBribe, bribeAmount / 2, 18, "user1 didn't get their fair share of LUSD");
+        assertEqDecimal(lqtyBribe, bribeAmount / 2, 18, "user1 didn't get their fair share of LQTY");
     }
 
     /**
