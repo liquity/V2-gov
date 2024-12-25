@@ -998,7 +998,7 @@ abstract contract GovernanceTest is Test {
         // TODO: assertions re: initiative vote + veto offsets
 
         // should revert if the user doesn't have enough unallocated LQTY available
-        vm.expectRevert("Governance: must-allocate-zero");
+        vm.expectRevert("Governance: insufficient-unallocated-lqty");
         governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);
@@ -1112,7 +1112,7 @@ abstract contract GovernanceTest is Test {
         // TODO: offset vote + veto assertions
 
         // should revert if the user doesn't have enough unallocated LQTY available
-        vm.expectRevert("Governance: must-allocate-zero");
+        vm.expectRevert("Governance: insufficient-unallocated-lqty");
         governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);

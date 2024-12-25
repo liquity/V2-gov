@@ -200,6 +200,9 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         require(address(userProxy).code.length != 0, "Governance: user-proxy-not-deployed");
 
+        // check if user has enough unallocated lqty
+        require(_lqtyAmount <= userState.unallocatedLQTY, "Governance: insufficient-unallocated-lqty");
+
         // Update the offset tracker
         if (_lqtyAmount < userState.unallocatedLQTY) {
             // The offset decrease is proportional to the partial lqty decrease
@@ -212,8 +215,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
         // Update the user's LQTY tracker
         userState.unallocatedLQTY -= _lqtyAmount;
-
-        userStates[msg.sender] = userState;
 
         (
             uint256 lqtyReceived,
