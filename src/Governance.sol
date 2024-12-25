@@ -467,7 +467,10 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         }
 
         // == Unregister Condition == //
-        // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the 4th epoch flip that would result in SKIP, will result in the initiative being `UNREGISTERABLE`
+        // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the initiative will become unregisterable after spending 4 epochs
+        // while being in one of the following conditions:
+        //  - in `SKIP` state (not having received enough votes to cross the voting threshold)
+        //  - in `CLAIMABLE` state (having received enough votes to cross the voting threshold) but never being claimed
         if (
             (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < currentEpoch - 1)
                 || _votesForInitiativeSnapshot.vetos > _votesForInitiativeSnapshot.votes
@@ -847,7 +850,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
         globalState = state;
 
-        /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
+        /// Epoch will never reach 2^256 - 1
         registeredInitiatives[_initiative] = UNREGISTERED_INITIATIVE;
 
         // Replaces try / catch | Enforces sufficient gas is passed
