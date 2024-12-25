@@ -6,6 +6,7 @@ import {VmSafe} from "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
 
 import {IERC20Errors} from "openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import {Strings} from "openzeppelin/contracts/utils/Strings.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {ILUSD} from "../src/interfaces/ILUSD.sol";
@@ -52,6 +53,8 @@ contract GovernanceTester is Governance {
 }
 
 abstract contract GovernanceTest is Test {
+    using Strings for uint256;
+
     ILQTY internal lqty;
     ILUSD internal lusd;
     ILQTYStaking internal stakingV1;
@@ -2287,6 +2290,74 @@ abstract contract GovernanceTest is Test {
         assertEq(votes, currentInitiativePower, "voting power of initiative should not be affected by vetos");
     }
 
+    struct StakingOp {
+        uint256 lqtyAmount;
+        uint256 waitTime;
+    }
+
+    function test_NoDustInUnallocatedOffsetAfterAllocatingAllLQTY(uint256[3] memory _votes, StakingOp[4] memory _stakes)
+        external
+    {
+        address[] memory initiatives = new address[](_votes.length + 1);
+
+        // Ensure initiatives can be registered
+        vm.warp(block.timestamp + 2 * EPOCH_DURATION);
+
+        // Register as many initiatives as needed
+        vm.startPrank(lusdHolder);
+        for (uint256 i = 0; i < initiatives.length; ++i) {
+            initiatives[i] = makeAddr(string.concat("initiative", i.toString()));
+            lusd.approve(address(governance), REGISTRATION_FEE);
+            governance.registerInitiative(initiatives[i]);
+        }
+        vm.stopPrank();
+
+        // Ensure the new initiatives are votable
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        vm.startPrank(user);
+        {
+            // Don't wait too long or initiatives might time out
+            uint256 maxWaitTime = EPOCH_DURATION * UNREGISTRATION_AFTER_EPOCHS / _stakes.length;
+            address userProxy = governance.deriveUserProxyAddress(user);
+            uint256 lqtyBalance = lqty.balanceOf(user);
+            uint256 unallocatedLQTY_ = 0;
+
+            for (uint256 i = 0; i < _stakes.length; ++i) {
+                _stakes[i].lqtyAmount = _bound(_stakes[i].lqtyAmount, 1, lqtyBalance - (_stakes.length - 1 - i));
+                lqtyBalance -= _stakes[i].lqtyAmount;
+                unallocatedLQTY_ += _stakes[i].lqtyAmount;
+
+                lqty.approve(userProxy, _stakes[i].lqtyAmount);
+                governance.depositLQTY(_stakes[i].lqtyAmount);
+
+                _stakes[i].waitTime = _bound(_stakes[i].waitTime, 1, maxWaitTime);
+                vm.warp(block.timestamp + _stakes[i].waitTime);
+            }
+
+            address[] memory initiativesToReset; // left empty
+            int256[] memory votes = new int256[](initiatives.length);
+            int256[] memory vetos = new int256[](initiatives.length); // left zero
+
+            for (uint256 i = 0; i < initiatives.length - 1; ++i) {
+                uint256 vote = _bound(_votes[i], 1, unallocatedLQTY_ - (initiatives.length - 1 - i));
+                unallocatedLQTY_ -= vote;
+                votes[i] = int256(vote);
+            }
+
+            // Cast all remaining LQTY on the last initiative
+            votes[initiatives.length - 1] = int256(unallocatedLQTY_);
+
+            vm.assume(governance.secondsWithinEpoch() < EPOCH_VOTING_CUTOFF);
+            governance.allocateLQTY(initiativesToReset, initiatives, votes, vetos);
+        }
+        vm.stopPrank();
+
+        (uint256 unallocatedLQTY, uint256 unallocatedOffset,,) = governance.userStates(user);
+        assertEqDecimal(unallocatedLQTY, 0, 18, "user should have no unallocated LQTY");
+        assertEqDecimal(unallocatedOffset, 0, 18, "user should have no unallocated offset");
+    }
+
     function _stakeLQTY(address staker, uint256 amount) internal {
         vm.startPrank(staker);
         address userProxy = governance.deriveUserProxyAddress(staker);
@@ -2370,7 +2441,7 @@ contract MockedGovernanceTest is GovernanceTest, MockStakingV1Deployer {
     function setUp() public override {
         (MockStakingV1 mockStakingV1, MockERC20Tester mockLQTY, MockERC20Tester mockLUSD) = deployMockStakingV1();
 
-        mockLQTY.mint(user, 1_000e18);
+        mockLQTY.mint(user, 10_000e18);
         mockLQTY.mint(user2, 1_000e18);
         mockLUSD.mint(lusdHolder, 20_000e18);
 

@@ -606,6 +606,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         _requireNoNegatives(_absoluteLQTYVetos);
         // If the goal is to remove all votes from an initiative, including in _initiativesToReset is enough
         _requireNoNOP(_absoluteLQTYVotes, _absoluteLQTYVetos);
+        _requireNoSimultaneousVoteAndVeto(_absoluteLQTYVotes, _absoluteLQTYVetos);
 
         // You MUST always reset
         ResetInitiativeData[] memory cachedData = _resetInitiatives(_initiativesToReset);
@@ -649,10 +650,18 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
         // Calculate the offset portions that correspond to each LQTY vote and veto portion
         for (uint256 x; x < _initiatives.length; x++) {
-            absoluteOffsetVotes[x] =
-                _absoluteLQTYVotes[x] * int256(userState.unallocatedOffset) / int256(userState.unallocatedLQTY);
-            absoluteOffsetVetos[x] =
-                _absoluteLQTYVetos[x] * int256(userState.unallocatedOffset) / int256(userState.unallocatedLQTY);
+            // Either _absoluteLQTYVotes[x] or _absoluteLQTYVetos[x] is guaranteed to be zero
+            (int256[] calldata lqtyAmounts, int256[] memory offsets) = _absoluteLQTYVotes[x] > 0
+                ? (_absoluteLQTYVotes, absoluteOffsetVotes)
+                : (_absoluteLQTYVetos, absoluteOffsetVetos);
+
+            uint256 lqtyAmount = uint256(lqtyAmounts[x]);
+            uint256 offset = userState.unallocatedOffset * lqtyAmount / userState.unallocatedLQTY;
+
+            userState.unallocatedLQTY -= lqtyAmount;
+            userState.unallocatedOffset -= offset;
+
+            offsets[x] = int256(offset);
         }
 
         // Vote here, all values are now absolute changes
@@ -780,7 +789,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
             vars.allocation.atEpoch = vars.currentEpoch;
 
-            require(!(vars.allocation.voteLQTY != 0 && vars.allocation.vetoLQTY != 0), "Governance: vote-and-veto");
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = vars.allocation;
 
             // == USER STATE == //
@@ -907,6 +915,15 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     function _requireNoNOP(int256[] memory _absoluteLQTYVotes, int256[] memory _absoluteLQTYVetos) internal pure {
         for (uint256 i; i < _absoluteLQTYVotes.length; i++) {
             require(_absoluteLQTYVotes[i] > 0 || _absoluteLQTYVetos[i] > 0, "Governance: voting nothing");
+        }
+    }
+
+    function _requireNoSimultaneousVoteAndVeto(int256[] memory _absoluteLQTYVotes, int256[] memory _absoluteLQTYVetos)
+        internal
+        pure
+    {
+        for (uint256 i; i < _absoluteLQTYVotes.length; i++) {
+            require(_absoluteLQTYVotes[i] == 0 || _absoluteLQTYVetos[i] == 0, "Governance: vote-and-veto");
         }
     }
 }
