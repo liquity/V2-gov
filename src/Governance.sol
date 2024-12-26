@@ -594,8 +594,10 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         int256[] calldata _absoluteLQTYVotes,
         int256[] calldata _absoluteLQTYVetos
     ) external nonReentrant {
-        require(_initiatives.length == _absoluteLQTYVotes.length, "Length");
-        require(_absoluteLQTYVetos.length == _absoluteLQTYVotes.length, "Length");
+        require(
+            _initiatives.length == _absoluteLQTYVotes.length && _absoluteLQTYVotes.length == _absoluteLQTYVetos.length,
+            "Governance: array-length-mismatch"
+        );
 
         // To ensure the change is safe, enforce uniqueness
         _requireNoDuplicates(_initiativesToReset);
@@ -685,11 +687,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         int256[] memory _deltaOffsetVotes,
         int256[] memory _deltaOffsetVetos
     ) internal {
-        require(
-            _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
-            "Governance: array-length-mismatch"
-        );
-
         AllocateLQTYMemory memory vars;
         (vars.votesSnapshot_, vars.state) = _snapshotVotes();
         vars.currentEpoch = epoch();
