@@ -678,8 +678,9 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     }
 
     /// @dev For each given initiative applies relative changes to the allocation
-    /// NOTE: Given the current usage the function either: Resets the value to 0, or sets the value to a new value
-    ///     Review the flows as the function could be used in many ways, but it ends up being used in just those 2 ways
+    /// @dev Assumes that all the input arrays are of equal length
+    /// @dev NOTE: Given the current usage the function either: Resets the value to 0, or sets the value to a new value
+    ///      Review the flows as the function could be used in many ways, but it ends up being used in just those 2 ways
     function _allocateLQTY(
         address[] memory _initiatives,
         int256[] memory _deltaLQTYVotes,
