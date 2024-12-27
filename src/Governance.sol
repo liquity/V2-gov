@@ -194,7 +194,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     }
 
     function withdrawLQTY(uint256 _lqtyAmount, bool _doSendRewards, address _recipient) public nonReentrant {
-        // check that user has reset before changing lqty balance
         UserState storage userState = userStates[msg.sender];
 
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
