@@ -562,9 +562,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         return cachedData;
     }
 
-    /// @notice Reset the allocations for the initiatives being passed, must pass all initiatives else it will revert
-    ///     NOTE: If you reset at the last day of the epoch, you won't be able to vote again
-    ///         Use `allocateLQTY` to reset and vote
+    /// @inheritdoc IGovernance
     function resetAllocations(address[] calldata _initiativesToReset, bool checkAll) external nonReentrant {
         _requireNoDuplicates(_initiativesToReset);
         _resetInitiatives(_initiativesToReset);
