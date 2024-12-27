@@ -140,11 +140,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     function _increaseUserVoteTrackers(uint256 _lqtyAmount) private returns (UserProxy) {
         require(_lqtyAmount > 0, "Governance: zero-lqty-amount");
 
-        // Assert that we have resetted here
-        // TODO: Remove, as now unecessary
-        UserState memory userState = userStates[msg.sender];
-        require(userState.allocatedLQTY == 0, "Governance: must-be-zero-allocation");
-
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
         if (userProxyAddress.code.length == 0) {
@@ -154,10 +149,8 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         UserProxy userProxy = UserProxy(payable(userProxyAddress));
 
         // update the vote power trackers
-        userState.unallocatedLQTY += _lqtyAmount;
-        userState.unallocatedOffset += block.timestamp * _lqtyAmount;
-
-        userStates[msg.sender] = userState;
+        userStates[msg.sender].unallocatedLQTY += _lqtyAmount;
+        userStates[msg.sender].unallocatedOffset += block.timestamp * _lqtyAmount;
 
         return userProxy;
     }
@@ -201,12 +194,13 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     }
 
     function withdrawLQTY(uint256 _lqtyAmount, bool _doSendRewards, address _recipient) public nonReentrant {
-        // check that user has reset before changing lqty balance
         UserState storage userState = userStates[msg.sender];
-        require(userState.allocatedLQTY == 0, "Governance: must-allocate-zero");
 
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         require(address(userProxy).code.length != 0, "Governance: user-proxy-not-deployed");
+
+        // check if user has enough unallocated lqty
+        require(_lqtyAmount <= userState.unallocatedLQTY, "Governance: insufficient-unallocated-lqty");
 
         // Update the offset tracker
         if (_lqtyAmount < userState.unallocatedLQTY) {
@@ -220,8 +214,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
         // Update the user's LQTY tracker
         userState.unallocatedLQTY -= _lqtyAmount;
-
-        userStates[msg.sender] = userState;
 
         (
             uint256 lqtyReceived,
@@ -570,9 +562,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         return cachedData;
     }
 
-    /// @notice Reset the allocations for the initiatives being passed, must pass all initiatives else it will revert
-    ///     NOTE: If you reset at the last day of the epoch, you won't be able to vote again
-    ///         Use `allocateLQTY` to reset and vote
+    /// @inheritdoc IGovernance
     function resetAllocations(address[] calldata _initiativesToReset, bool checkAll) external nonReentrant {
         _requireNoDuplicates(_initiativesToReset);
         _resetInitiatives(_initiativesToReset);

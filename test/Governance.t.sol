@@ -998,7 +998,7 @@ abstract contract GovernanceTest is Test {
         // TODO: assertions re: initiative vote + veto offsets
 
         // should revert if the user doesn't have enough unallocated LQTY available
-        vm.expectRevert("Governance: must-allocate-zero");
+        vm.expectRevert("Governance: insufficient-unallocated-lqty");
         governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);
@@ -1112,7 +1112,7 @@ abstract contract GovernanceTest is Test {
         // TODO: offset vote + veto assertions
 
         // should revert if the user doesn't have enough unallocated LQTY available
-        vm.expectRevert("Governance: must-allocate-zero");
+        vm.expectRevert("Governance: insufficient-unallocated-lqty");
         governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);
@@ -2285,6 +2285,54 @@ abstract contract GovernanceTest is Test {
         // 4. votes should not affect accounting for votes
         (uint256 votes,,,) = governance.votesForInitiativeSnapshot(baseInitiative1);
         assertEq(votes, currentInitiativePower, "voting power of initiative should not be affected by vetos");
+    }
+
+    function test_Vote_Stake_Unvote() external {
+        address[] memory noInitiatives;
+        address[] memory initiatives = new address[](1);
+        int256[] memory noVotes;
+        int256[] memory votes = new int256[](1);
+        int256[] memory vetos = new int256[](1);
+        initiatives[0] = baseInitiative1;
+
+        // Ensure the initial initiatives are active
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // Have another user vote some on the initiative
+        vm.startPrank(user2);
+        {
+            address userProxy = governance.deriveUserProxyAddress(user2);
+            lqty.approve(userProxy, type(uint256).max);
+
+            governance.depositLQTY(1 ether);
+            votes[0] = 1 ether;
+            governance.allocateLQTY(noInitiatives, initiatives, votes, vetos);
+        }
+        vm.stopPrank();
+
+        (uint256 voteLQTYBefore, uint256 voteOffsetBefore,,,) = governance.initiativeStates(baseInitiative1);
+
+        vm.startPrank(user);
+        {
+            address userProxy = governance.deriveUserProxyAddress(user);
+            lqty.approve(userProxy, type(uint256).max);
+
+            // Vote 1 LQTY
+            governance.depositLQTY(1 ether);
+            votes[0] = 1 ether;
+            governance.allocateLQTY(noInitiatives, initiatives, votes, vetos);
+
+            vm.warp(block.timestamp + 1 days);
+
+            // Increase stake then unvote 1 LQTY
+            governance.depositLQTY(1 ether);
+            governance.allocateLQTY(initiatives, noInitiatives, noVotes, noVotes);
+        }
+        vm.stopPrank();
+
+        (uint256 voteLQTYAfter, uint256 voteOffsetAfter,,,) = governance.initiativeStates(baseInitiative1);
+        assertEqDecimal(voteLQTYAfter, voteLQTYBefore, 18, "voteLQTYAfter != voteLQTYBefore");
+        assertEqDecimal(voteOffsetAfter, voteOffsetBefore, 18, "voteOffsetAfter != voteOffsetBefore");
     }
 
     function _stakeLQTY(address staker, uint256 amount) internal {
