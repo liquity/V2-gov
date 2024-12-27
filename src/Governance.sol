@@ -587,8 +587,10 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         int256[] calldata _absoluteLQTYVotes,
         int256[] calldata _absoluteLQTYVetos
     ) external nonReentrant {
-        require(_initiatives.length == _absoluteLQTYVotes.length, "Length");
-        require(_absoluteLQTYVetos.length == _absoluteLQTYVotes.length, "Length");
+        require(
+            _initiatives.length == _absoluteLQTYVotes.length && _absoluteLQTYVotes.length == _absoluteLQTYVetos.length,
+            "Governance: array-length-mismatch"
+        );
 
         // To ensure the change is safe, enforce uniqueness
         _requireNoDuplicates(_initiativesToReset);
@@ -669,8 +671,9 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     }
 
     /// @dev For each given initiative applies relative changes to the allocation
-    /// NOTE: Given the current usage the function either: Resets the value to 0, or sets the value to a new value
-    ///     Review the flows as the function could be used in many ways, but it ends up being used in just those 2 ways
+    /// @dev Assumes that all the input arrays are of equal length
+    /// @dev NOTE: Given the current usage the function either: Resets the value to 0, or sets the value to a new value
+    ///      Review the flows as the function could be used in many ways, but it ends up being used in just those 2 ways
     function _allocateLQTY(
         address[] memory _initiatives,
         int256[] memory _deltaLQTYVotes,
@@ -678,11 +681,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         int256[] memory _deltaOffsetVotes,
         int256[] memory _deltaOffsetVetos
     ) internal {
-        require(
-            _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
-            "Governance: array-length-mismatch"
-        );
-
         AllocateLQTYMemory memory vars;
         (vars.votesSnapshot_, vars.state) = _snapshotVotes();
         vars.currentEpoch = epoch();
