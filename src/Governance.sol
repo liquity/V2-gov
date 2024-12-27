@@ -477,8 +477,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         uint256 currentEpoch = epoch();
         require(currentEpoch > 2, "Governance: registration-not-yet-enabled");
 
-        bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
-
         require(_initiative != address(0), "Governance: zero-address");
         (InitiativeStatus status,,) = getInitiativeState(_initiative);
         require(status == InitiativeStatus.NONEXISTENT, "Governance: initiative-already-registered");
@@ -486,6 +484,8 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
         (VoteSnapshot memory snapshot,) = _snapshotVotes();
         UserState memory userState = userStates[msg.sender];
+
+        bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
 
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
         // than the registration threshold derived from the previous epoch's total global votes
