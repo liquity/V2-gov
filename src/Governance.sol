@@ -140,11 +140,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     function _increaseUserVoteTrackers(uint256 _lqtyAmount) private returns (UserProxy) {
         require(_lqtyAmount > 0, "Governance: zero-lqty-amount");
 
-        // Assert that we have resetted here
-        // TODO: Remove, as now unecessary
-        UserState memory userState = userStates[msg.sender];
-        require(userState.allocatedLQTY == 0, "Governance: must-be-zero-allocation");
-
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
 
         if (userProxyAddress.code.length == 0) {
@@ -154,10 +149,8 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         UserProxy userProxy = UserProxy(payable(userProxyAddress));
 
         // update the vote power trackers
-        userState.unallocatedLQTY += _lqtyAmount;
-        userState.unallocatedOffset += block.timestamp * _lqtyAmount;
-
-        userStates[msg.sender] = userState;
+        userStates[msg.sender].unallocatedLQTY += _lqtyAmount;
+        userStates[msg.sender].unallocatedOffset += block.timestamp * _lqtyAmount;
 
         return userProxy;
     }
@@ -201,12 +194,13 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     }
 
     function withdrawLQTY(uint256 _lqtyAmount, bool _doSendRewards, address _recipient) public nonReentrant {
-        // check that user has reset before changing lqty balance
         UserState storage userState = userStates[msg.sender];
-        require(userState.allocatedLQTY == 0, "Governance: must-allocate-zero");
 
         UserProxy userProxy = UserProxy(payable(deriveUserProxyAddress(msg.sender)));
         require(address(userProxy).code.length != 0, "Governance: user-proxy-not-deployed");
+
+        // check if user has enough unallocated lqty
+        require(_lqtyAmount <= userState.unallocatedLQTY, "Governance: insufficient-unallocated-lqty");
 
         // Update the offset tracker
         if (_lqtyAmount < userState.unallocatedLQTY) {
@@ -220,8 +214,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
         // Update the user's LQTY tracker
         userState.unallocatedLQTY -= _lqtyAmount;
-
-        userStates[msg.sender] = userState;
 
         (
             uint256 lqtyReceived,
@@ -467,7 +459,10 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         }
 
         // == Unregister Condition == //
-        // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the 4th epoch flip that would result in SKIP, will result in the initiative being `UNREGISTERABLE`
+        // e.g. if `UNREGISTRATION_AFTER_EPOCHS` is 4, the initiative will become unregisterable after spending 4 epochs
+        // while being in one of the following conditions:
+        //  - in `SKIP` state (not having received enough votes to cross the voting threshold)
+        //  - in `CLAIMABLE` state (having received enough votes to cross the voting threshold) but never being claimed
         if (
             (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < currentEpoch - 1)
                 || _votesForInitiativeSnapshot.vetos > _votesForInitiativeSnapshot.votes
@@ -485,8 +480,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         uint256 currentEpoch = epoch();
         require(currentEpoch > 2, "Governance: registration-not-yet-enabled");
 
-        bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
-
         require(_initiative != address(0), "Governance: zero-address");
         (InitiativeStatus status,,) = getInitiativeState(_initiative);
         require(status == InitiativeStatus.NONEXISTENT, "Governance: initiative-already-registered");
@@ -494,6 +487,8 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         address userProxyAddress = deriveUserProxyAddress(msg.sender);
         (VoteSnapshot memory snapshot,) = _snapshotVotes();
         UserState memory userState = userStates[msg.sender];
+
+        bold.safeTransferFrom(msg.sender, address(this), REGISTRATION_FEE);
 
         // an initiative can be registered if the registrant has more voting power (LQTY * age)
         // than the registration threshold derived from the previous epoch's total global votes
@@ -570,9 +565,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         return cachedData;
     }
 
-    /// @notice Reset the allocations for the initiatives being passed, must pass all initiatives else it will revert
-    ///     NOTE: If you reset at the last day of the epoch, you won't be able to vote again
-    ///         Use `allocateLQTY` to reset and vote
+    /// @inheritdoc IGovernance
     function resetAllocations(address[] calldata _initiativesToReset, bool checkAll) external nonReentrant {
         _requireNoDuplicates(_initiativesToReset);
         _resetInitiatives(_initiativesToReset);
@@ -594,8 +587,10 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         int256[] calldata _absoluteLQTYVotes,
         int256[] calldata _absoluteLQTYVetos
     ) external nonReentrant {
-        require(_initiatives.length == _absoluteLQTYVotes.length, "Length");
-        require(_absoluteLQTYVetos.length == _absoluteLQTYVotes.length, "Length");
+        require(
+            _initiatives.length == _absoluteLQTYVotes.length && _absoluteLQTYVotes.length == _absoluteLQTYVetos.length,
+            "Governance: array-length-mismatch"
+        );
 
         // To ensure the change is safe, enforce uniqueness
         _requireNoDuplicates(_initiativesToReset);
@@ -685,8 +680,9 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     }
 
     /// @dev For each given initiative applies relative changes to the allocation
-    /// NOTE: Given the current usage the function either: Resets the value to 0, or sets the value to a new value
-    ///     Review the flows as the function could be used in many ways, but it ends up being used in just those 2 ways
+    /// @dev Assumes that all the input arrays are of equal length
+    /// @dev NOTE: Given the current usage the function either: Resets the value to 0, or sets the value to a new value
+    ///      Review the flows as the function could be used in many ways, but it ends up being used in just those 2 ways
     function _allocateLQTY(
         address[] memory _initiatives,
         int256[] memory _deltaLQTYVotes,
@@ -694,11 +690,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         int256[] memory _deltaOffsetVotes,
         int256[] memory _deltaOffsetVetos
     ) internal {
-        require(
-            _initiatives.length == _deltaLQTYVotes.length && _initiatives.length == _deltaLQTYVetos.length,
-            "Governance: array-length-mismatch"
-        );
-
         AllocateLQTYMemory memory vars;
         (vars.votesSnapshot_, vars.state) = _snapshotVotes();
         vars.currentEpoch = epoch();
@@ -855,7 +846,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
         globalState = state;
 
-        /// weeks * 2^16 > u32 so the contract will stop working before this is an issue
+        /// Epoch will never reach 2^256 - 1
         registeredInitiatives[_initiative] = UNREGISTERED_INITIATIVE;
 
         // Replaces try / catch | Enforces sufficient gas is passed

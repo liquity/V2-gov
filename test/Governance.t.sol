@@ -498,6 +498,74 @@ abstract contract GovernanceTest is Test {
         vm.stopPrank();
     }
 
+    function test_RegistrationFeesAreUsedAsRewardInNextEpoch() external {
+        IGovernance.Configuration memory config = IGovernance.Configuration({
+            registrationFee: REGISTRATION_FEE,
+            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+            minClaim: 0, // ensure REGISTRATION_FEE is enough to make a claim
+            minAccrual: 0,
+            epochStart: uint256(block.timestamp) - EPOCH_DURATION, // ensure initial initiative can be voted on
+            epochDuration: EPOCH_DURATION,
+            epochVotingCutoff: EPOCH_VOTING_CUTOFF
+        });
+
+        governance = new GovernanceTester(
+            address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), new address[](0)
+        );
+
+        baseInitiative1 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
+        baseInitiative2 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
+
+        address[] memory initiatives = new address[](1);
+        initiatives[0] = baseInitiative1;
+        governance.registerInitialInitiatives(initiatives);
+
+        // Send user enough LUSD to register a new initiative
+        vm.prank(lusdHolder);
+        lusd.transfer(user, REGISTRATION_FEE);
+
+        vm.startPrank(user);
+        {
+            uint256 lqtyAmount = 1 ether;
+
+            lqty.approve(governance.deriveUserProxyAddress(user), lqtyAmount);
+            governance.depositLQTY(lqtyAmount);
+
+            address[] memory initiativesToReset; // left empty
+            int256[] memory votes = new int256[](1);
+            int256[] memory vetos = new int256[](1); // left zero
+
+            // User votes some LQTY on baseInitiative1
+            votes[0] = int256(lqtyAmount);
+            governance.allocateLQTY(initiativesToReset, initiatives, votes, vetos);
+
+            // Jump into next epoch
+            vm.warp(governance.epochStart() + EPOCH_DURATION + 6 hours);
+
+            // Register new initiative
+            lusd.approve(address(governance), REGISTRATION_FEE);
+            governance.registerInitiative(baseInitiative2);
+        }
+        vm.stopPrank();
+
+        governance.claimForInitiative(baseInitiative1);
+        assertEqDecimal(lusd.balanceOf(baseInitiative1), 0, 18, "baseInitiative1 shouldn't have received LUSD yet");
+
+        // One epoch later
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        governance.claimForInitiative(baseInitiative1);
+        assertEqDecimal(
+            lusd.balanceOf(baseInitiative1),
+            REGISTRATION_FEE,
+            18,
+            "baseInitiative1 should have received the registration fee"
+        );
+    }
+
     // forge test --match-test test_unregisterInitiative -vv
     function test_unregisterInitiative() public {
         vm.startPrank(lusdHolder);
@@ -906,6 +974,24 @@ abstract contract GovernanceTest is Test {
     /// Ensure that at the end you remove 100%
     function test_fuzz_canRemoveExtact() public {}
 
+    function test_allocateLQTY_revertsWhenInputArraysAreOfDifferentLengths() external {
+        address[] memory initiativesToReset = new address[](0);
+        address[][2] memory initiatives = [new address[](2), new address[](3)];
+        int256[][2] memory votes = [new int256[](2), new int256[](3)];
+        int256[][2] memory vetos = [new int256[](2), new int256[](3)];
+
+        for (uint256 i = 0; i < 2; ++i) {
+            for (uint256 j = 0; j < 2; ++j) {
+                for (uint256 k = 0; k < 2; ++k) {
+                    if (i == j && j == k) continue;
+
+                    vm.expectRevert("Governance: array-length-mismatch");
+                    governance.allocateLQTY(initiativesToReset, initiatives[i], votes[j], vetos[k]);
+                }
+            }
+        }
+    }
+
     function test_allocateLQTY_single() public {
         vm.startPrank(user);
 
@@ -1001,7 +1087,7 @@ abstract contract GovernanceTest is Test {
         // TODO: assertions re: initiative vote + veto offsets
 
         // should revert if the user doesn't have enough unallocated LQTY available
-        vm.expectRevert("Governance: must-allocate-zero");
+        vm.expectRevert("Governance: insufficient-unallocated-lqty");
         governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);
@@ -1115,7 +1201,7 @@ abstract contract GovernanceTest is Test {
         // TODO: offset vote + veto assertions
 
         // should revert if the user doesn't have enough unallocated LQTY available
-        vm.expectRevert("Governance: must-allocate-zero");
+        vm.expectRevert("Governance: insufficient-unallocated-lqty");
         governance.withdrawLQTY(1e18);
 
         vm.warp(block.timestamp + EPOCH_DURATION - governance.secondsWithinEpoch() - 1);
@@ -2356,6 +2442,54 @@ abstract contract GovernanceTest is Test {
         (uint256 unallocatedLQTY, uint256 unallocatedOffset,,) = governance.userStates(user);
         assertEqDecimal(unallocatedLQTY, 0, 18, "user should have no unallocated LQTY");
         assertEqDecimal(unallocatedOffset, 0, 18, "user should have no unallocated offset");
+    }
+
+    function test_Vote_Stake_Unvote() external {
+        address[] memory noInitiatives;
+        address[] memory initiatives = new address[](1);
+        int256[] memory noVotes;
+        int256[] memory votes = new int256[](1);
+        int256[] memory vetos = new int256[](1);
+        initiatives[0] = baseInitiative1;
+
+        // Ensure the initial initiatives are active
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // Have another user vote some on the initiative
+        vm.startPrank(user2);
+        {
+            address userProxy = governance.deriveUserProxyAddress(user2);
+            lqty.approve(userProxy, type(uint256).max);
+
+            governance.depositLQTY(1 ether);
+            votes[0] = 1 ether;
+            governance.allocateLQTY(noInitiatives, initiatives, votes, vetos);
+        }
+        vm.stopPrank();
+
+        (uint256 voteLQTYBefore, uint256 voteOffsetBefore,,,) = governance.initiativeStates(baseInitiative1);
+
+        vm.startPrank(user);
+        {
+            address userProxy = governance.deriveUserProxyAddress(user);
+            lqty.approve(userProxy, type(uint256).max);
+
+            // Vote 1 LQTY
+            governance.depositLQTY(1 ether);
+            votes[0] = 1 ether;
+            governance.allocateLQTY(noInitiatives, initiatives, votes, vetos);
+
+            vm.warp(block.timestamp + 1 days);
+
+            // Increase stake then unvote 1 LQTY
+            governance.depositLQTY(1 ether);
+            governance.allocateLQTY(initiatives, noInitiatives, noVotes, noVotes);
+        }
+        vm.stopPrank();
+
+        (uint256 voteLQTYAfter, uint256 voteOffsetAfter,,,) = governance.initiativeStates(baseInitiative1);
+        assertEqDecimal(voteLQTYAfter, voteLQTYBefore, 18, "voteLQTYAfter != voteLQTYBefore");
+        assertEqDecimal(voteOffsetAfter, voteOffsetBefore, 18, "voteOffsetAfter != voteOffsetBefore");
     }
 
     function _stakeLQTY(address staker, uint256 amount) internal {
