@@ -18,6 +18,7 @@ import {MultiDelegateCall} from "./utils/MultiDelegateCall.sol";
 import {WAD, PermitParams} from "./utils/Types.sol";
 import {safeCallWithMinGas} from "./utils/SafeCallMinGas.sol";
 import {Ownable} from "./utils/Ownable.sol";
+import {_lqtyToVotes} from "./utils/VotingPower.sol";
 
 /// @title Governance: Modular Initiative based Governance
 contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Ownable, IGovernance {
@@ -266,8 +267,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
     /// @inheritdoc IGovernance
     function lqtyToVotes(uint256 _lqtyAmount, uint256 _timestamp, uint256 _offset) public pure returns (uint256) {
-        uint256 prod = _lqtyAmount * _timestamp;
-        return prod > _offset ? prod - _offset : 0;
+        return _lqtyToVotes(_lqtyAmount, _timestamp, _offset);
     }
 
     /*//////////////////////////////////////////////////////////////

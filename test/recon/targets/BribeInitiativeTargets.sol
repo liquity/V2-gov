@@ -28,11 +28,11 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
         lusd.approve(address(initiative), boldAmount);
         lqty.approve(address(initiative), bribeTokenAmount);
 
-        (uint256 boldAmountB4, uint256 bribeTokenAmountB4) = IBribeInitiative(initiative).bribeByEpoch(epoch);
+        (uint256 boldAmountB4, uint256 bribeTokenAmountB4,) = IBribeInitiative(initiative).bribeByEpoch(epoch);
 
         initiative.depositBribe(boldAmount, bribeTokenAmount, epoch);
 
-        (uint256 boldAmountAfter, uint256 bribeTokenAmountAfter) = IBribeInitiative(initiative).bribeByEpoch(epoch);
+        (uint256 boldAmountAfter, uint256 bribeTokenAmountAfter,) = IBribeInitiative(initiative).bribeByEpoch(epoch);
 
         eq(boldAmountB4 + boldAmount, boldAmountAfter, "Bold amount tracking is sound");
         eq(bribeTokenAmountB4 + bribeTokenAmount, bribeTokenAmountAfter, "Bribe amount tracking is sound");
@@ -99,7 +99,7 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
             }
 
             // Check if there are bribes
-            (uint256 boldAmount, uint256 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
+            (uint256 boldAmount, uint256 bribeTokenAmount,) = initiative.bribeByEpoch(epoch);
             bool bribeWasThere;
             if (boldAmount != 0 || bribeTokenAmount != 0) {
                 bribeWasThere = true;

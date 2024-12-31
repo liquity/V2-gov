@@ -22,15 +22,20 @@ interface IBribeInitiative {
     function bribeToken() external view returns (IERC20 bribeToken);
 
     struct Bribe {
-        uint256 boldAmount;
-        uint256 bribeTokenAmount; // [scaled as 10 ** bribeToken.decimals()]
+        uint256 remainingBoldAmount;
+        uint256 remainingBribeTokenAmount; // [scaled as 10 ** bribeToken.decimals()]
+        uint256 claimedVotes;
     }
 
     /// @notice Amount of bribe tokens deposited for a given epoch
     /// @param _epoch Epoch at which the bribe was deposited
-    /// @return boldAmount Amount of BOLD tokens deposited
-    /// @return bribeTokenAmount Amount of bribe tokens deposited
-    function bribeByEpoch(uint256 _epoch) external view returns (uint256 boldAmount, uint256 bribeTokenAmount);
+    /// @return remainingBoldAmount Amount of BOLD tokens that haven't been claimed yet
+    /// @return remainingBribeTokenAmount Amount of bribe tokens that haven't been claimed yet
+    /// @return claimedVotes Sum of voting power of users who have already claimed their bribes
+    function bribeByEpoch(uint256 _epoch)
+        external
+        view
+        returns (uint256 remainingBoldAmount, uint256 remainingBribeTokenAmount, uint256 claimedVotes);
     /// @notice Check if a user has claimed bribes for a given epoch
     /// @param _user Address of the user
     /// @param _epoch Epoch at which the bribe may have been claimed by the user

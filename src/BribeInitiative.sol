@@ -9,10 +9,14 @@ import {IInitiative} from "./interfaces/IInitiative.sol";
 import {IBribeInitiative} from "./interfaces/IBribeInitiative.sol";
 
 import {DoubleLinkedList} from "./utils/DoubleLinkedList.sol";
+import {_lqtyToVotes} from "./utils/VotingPower.sol";
 
 contract BribeInitiative is IInitiative, IBribeInitiative {
     using SafeERC20 for IERC20;
     using DoubleLinkedList for DoubleLinkedList.List;
+
+    uint256 internal immutable EPOCH_START;
+    uint256 internal immutable EPOCH_DURATION;
 
     /// @inheritdoc IBribeInitiative
     IGovernance public immutable governance;
@@ -37,6 +41,9 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         governance = IGovernance(_governance);
         bold = IERC20(_bold);
         bribeToken = IERC20(_bribeToken);
+
+        EPOCH_START = governance.EPOCH_START();
+        EPOCH_DURATION = governance.EPOCH_DURATION();
     }
 
     modifier onlyGovernance() {
@@ -46,12 +53,15 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
 
     /// @inheritdoc IBribeInitiative
     function totalLQTYAllocatedByEpoch(uint256 _epoch) external view returns (uint256, uint256) {
-        return _loadTotalLQTYAllocation(_epoch);
+        return (totalLQTYAllocationByEpoch.items[_epoch].lqty, totalLQTYAllocationByEpoch.items[_epoch].offset);
     }
 
     /// @inheritdoc IBribeInitiative
     function lqtyAllocatedByUserAtEpoch(address _user, uint256 _epoch) external view returns (uint256, uint256) {
-        return _loadLQTYAllocation(_user, _epoch);
+        return (
+            lqtyAllocationByUserAtEpoch[_user].items[_epoch].lqty,
+            lqtyAllocationByUserAtEpoch[_user].items[_epoch].offset
+        );
     }
 
     /// @inheritdoc IBribeInitiative
@@ -59,10 +69,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         uint256 epoch = governance.epoch();
         require(_epoch >= epoch, "BribeInitiative: now-or-future-epochs");
 
-        Bribe memory bribe = bribeByEpoch[_epoch];
-        bribe.boldAmount += _boldAmount;
-        bribe.bribeTokenAmount += _bribeTokenAmount;
-        bribeByEpoch[_epoch] = bribe;
+        bribeByEpoch[_epoch].remainingBoldAmount += _boldAmount;
+        bribeByEpoch[_epoch].remainingBribeTokenAmount += _bribeTokenAmount;
 
         emit DepositBribe(msg.sender, _boldAmount, _bribeTokenAmount, _epoch);
 
@@ -80,7 +88,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         require(!claimedBribeAtEpoch[_user][_epoch], "BribeInitiative: already-claimed");
 
         Bribe memory bribe = bribeByEpoch[_epoch];
-        require(bribe.boldAmount != 0 || bribe.bribeTokenAmount != 0, "BribeInitiative: no-bribe");
+        require(bribe.remainingBoldAmount != 0 || bribe.remainingBribeTokenAmount != 0, "BribeInitiative: no-bribe");
 
         DoubleLinkedList.Item memory lqtyAllocation =
             lqtyAllocationByUserAtEpoch[_user].getItem(_prevLQTYAllocationEpoch);
@@ -98,18 +106,20 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         );
 
         require(totalLQTYAllocation.lqty > 0, "BribeInitiative: total-lqty-allocation-zero");
+        require(lqtyAllocation.lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
-        uint256 epochEnd = governance.EPOCH_START() + _epoch * governance.EPOCH_DURATION();
+        uint256 epochEnd = EPOCH_START + _epoch * EPOCH_DURATION;
+        uint256 totalVotes = _lqtyToVotes(totalLQTYAllocation.lqty, epochEnd, totalLQTYAllocation.offset);
+        uint256 votes = _lqtyToVotes(lqtyAllocation.lqty, epochEnd, lqtyAllocation.offset);
+        uint256 remainingVotes = totalVotes - bribe.claimedVotes;
 
-        uint256 totalVotes = governance.lqtyToVotes(totalLQTYAllocation.lqty, epochEnd, totalLQTYAllocation.offset);
-        if (totalVotes != 0) {
-            require(lqtyAllocation.lqty > 0, "BribeInitiative: lqty-allocation-zero");
+        boldAmount = bribe.remainingBoldAmount * votes / remainingVotes;
+        bribeTokenAmount = bribe.remainingBribeTokenAmount * votes / remainingVotes;
+        bribe.remainingBoldAmount -= boldAmount;
+        bribe.remainingBribeTokenAmount -= bribeTokenAmount;
+        bribe.claimedVotes += votes;
 
-            uint256 votes = governance.lqtyToVotes(lqtyAllocation.lqty, epochEnd, lqtyAllocation.offset);
-            boldAmount = bribe.boldAmount * votes / totalVotes;
-            bribeTokenAmount = bribe.bribeTokenAmount * votes / totalVotes;
-        }
-
+        bribeByEpoch[_epoch] = bribe;
         claimedBribeAtEpoch[_user][_epoch] = true;
 
         emit ClaimBribe(_user, _epoch, boldAmount, bribeTokenAmount);
@@ -129,23 +139,8 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             bribeTokenAmount += bribeTokenAmount_;
         }
 
-        // NOTE: Due to rounding errors, bribes may slightly overpay compared to what they have allocated
-        // We cap to the available amount for this reason
-        if (boldAmount != 0) {
-            uint256 max = bold.balanceOf(address(this));
-            if (boldAmount > max) {
-                boldAmount = max;
-            }
-            bold.safeTransfer(msg.sender, boldAmount);
-        }
-
-        if (bribeTokenAmount != 0) {
-            uint256 max = bribeToken.balanceOf(address(this));
-            if (bribeTokenAmount > max) {
-                bribeTokenAmount = max;
-            }
-            bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
-        }
+        if (boldAmount != 0) bold.safeTransfer(msg.sender, boldAmount);
+        if (bribeTokenAmount != 0) bribeToken.safeTransfer(msg.sender, bribeTokenAmount);
     }
 
     /// @inheritdoc IInitiative
@@ -178,20 +173,6 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
             lqtyAllocationByUserAtEpoch[_user].items[_epoch].offset = _offset;
         }
         emit ModifyLQTYAllocation(_user, _epoch, _lqty, _offset);
-    }
-
-    function _loadTotalLQTYAllocation(uint256 _epoch) private view returns (uint256, uint256) {
-        require(_epoch <= governance.epoch(), "No future Lookup");
-        DoubleLinkedList.Item memory totalLqtyAllocation = totalLQTYAllocationByEpoch.items[_epoch];
-
-        return (totalLqtyAllocation.lqty, totalLqtyAllocation.offset);
-    }
-
-    function _loadLQTYAllocation(address _user, uint256 _epoch) private view returns (uint256, uint256) {
-        require(_epoch <= governance.epoch(), "No future Lookup");
-        DoubleLinkedList.Item memory lqtyAllocation = lqtyAllocationByUserAtEpoch[_user].items[_epoch];
-
-        return (lqtyAllocation.lqty, lqtyAllocation.offset);
     }
 
     /// @inheritdoc IBribeInitiative
