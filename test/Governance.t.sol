@@ -2477,6 +2477,7 @@ abstract contract GovernanceTest is Test {
             // By waiting `initialVotingPower` seconds while having 1 wei LQTY staked,
             // we accrue exactly `initialVotingPower`
             vm.warp(block.timestamp + initialVotingPower);
+
             governance.depositLQTY(583399417581888701);
 
             address[] memory initiativesToReset; // left empty
@@ -2499,6 +2500,43 @@ abstract contract GovernanceTest is Test {
         assertEq(
             votingPower,
             int256(initialVotingPower > numInitiatives ? initialVotingPower - numInitiatives : 0),
+            "voting power should stay non-negative"
+        );
+    }
+
+    function test_WhenWithdrawingTinyAmounts_VotingPowerDoesNotTurnNegativeDueToRoundingError(
+        uint256 initialVotingPower,
+        uint256 numWithdrawals
+    ) external {
+        initialVotingPower = bound(initialVotingPower, 1, 20);
+        numWithdrawals = bound(numWithdrawals, 1, 20);
+
+        vm.startPrank(user);
+        {
+            address userProxy = governance.deriveUserProxyAddress(user);
+            lqty.approve(userProxy, type(uint256).max);
+            governance.depositLQTY(1);
+
+            // By waiting `initialVotingPower` seconds while having 1 wei LQTY staked,
+            // we accrue exactly `initialVotingPower`
+            vm.warp(block.timestamp + initialVotingPower);
+
+            governance.depositLQTY(583399417581888701);
+
+            for (uint256 i = 0; i < numWithdrawals; ++i) {
+                governance.withdrawLQTY(1);
+            }
+        }
+        vm.stopPrank();
+
+        (uint256 unallocatedLQTY, uint256 unallocatedOffset,,) = governance.userStates(user);
+        int256 votingPower = int256(unallocatedLQTY * block.timestamp) - int256(unallocatedOffset);
+
+        // Even though we are withdrawing tiny amounts, each withdrawal
+        // reduces voting power by 1 (due to rounding), but not below zero
+        assertEq(
+            votingPower,
+            int256(initialVotingPower > numWithdrawals ? initialVotingPower - numWithdrawals : 0),
             "voting power should stay non-negative"
         );
     }
