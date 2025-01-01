@@ -108,6 +108,11 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         require(totalLQTYAllocation.lqty > 0, "BribeInitiative: total-lqty-allocation-zero");
         require(lqtyAllocation.lqty > 0, "BribeInitiative: lqty-allocation-zero");
 
+        // `Governance` guarantees that `votes` evaluates to 0 or greater for each initiative at the time of allocation.
+        // Since the last possible moment to allocate within this epoch is 1 second before `epochEnd`, we have that:
+        //  - `lqtyAllocation.lqty > 0` implies `votes > 0`
+        //  - `totalLQTYAllocation.lqty > 0` implies `totalVotes > 0`
+
         uint256 epochEnd = EPOCH_START + _epoch * EPOCH_DURATION;
         uint256 totalVotes = _lqtyToVotes(totalLQTYAllocation.lqty, epochEnd, totalLQTYAllocation.offset);
         uint256 votes = _lqtyToVotes(lqtyAllocation.lqty, epochEnd, lqtyAllocation.offset);
