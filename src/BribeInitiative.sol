@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {IGovernance} from "./interfaces/IGovernance.sol";
+import {IGovernance, UNREGISTERED_INITIATIVE} from "./interfaces/IGovernance.sol";
 import {IInitiative} from "./interfaces/IInitiative.sol";
 import {IBribeInitiative} from "./interfaces/IBribeInitiative.sol";
 
@@ -78,6 +78,73 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         bribeToken.safeTransferFrom(msg.sender, address(this), _bribeTokenAmount);
     }
 
+    function _getValidatedLQTYAllocation(
+        DoubleLinkedList.List storage _list,
+        uint256 _epoch,
+        uint256 _prevAllocationEpoch,
+        string memory _errorMsg
+    ) internal view returns (DoubleLinkedList.Item memory _item) {
+        if (_prevAllocationEpoch == 0) {
+            require(_list.isEmpty(), _errorMsg);
+            // Leaving _item uninitialized, as there's never been an allocation
+        } else {
+            require(_list.contains(_prevAllocationEpoch), _errorMsg);
+            _item = _list.getItem(_prevAllocationEpoch);
+            require(_prevAllocationEpoch <= _epoch && (_item.next > _epoch || _item.next == 0), _errorMsg);
+        }
+    }
+
+    // Returns true if there are no existing LQTY allocations to the initiative, and there's no possibility of
+    // allocating any more because the initiative's been unregistered.
+    function _noPresentOrFutureAllocation() internal view returns (bool) {
+        // Note that the initiative could already be unregisterable but not yet unregistered, which we ignore here.
+        // In that case, the stuck bribes can always be extracted in the next epoch _after_ unregistering the initiative.
+        uint256 latestTotalAllocationEpoch = getMostRecentTotalEpoch();
+        return (
+            latestTotalAllocationEpoch == 0 || totalLQTYAllocationByEpoch.getItem(latestTotalAllocationEpoch).lqty == 0
+        ) && governance.registeredInitiatives(address(this)) == UNREGISTERED_INITIATIVE;
+    }
+
+    /// @inheritdoc IBribeInitiative
+    function redepositBribe(uint256 _originalEpoch, uint256 _prevTotalLQTYAllocationEpoch) external {
+        Bribe memory bribe = bribeByEpoch[_originalEpoch];
+        require(bribe.remainingBoldAmount != 0 || bribe.remainingBribeTokenAmount != 0, "BribeInitiative: no-bribe");
+
+        DoubleLinkedList.Item memory totalLQTYAllocation = _getValidatedLQTYAllocation(
+            totalLQTYAllocationByEpoch,
+            _originalEpoch,
+            _prevTotalLQTYAllocationEpoch,
+            "BribeInitiative: invalid-prev-total-lqty-allocation-epoch"
+        );
+
+        require(totalLQTYAllocation.lqty == 0, "BribeInitiative: total-lqty-allocation-not-zero");
+        assert(bribe.claimedVotes == 0); // Can't possibly have claimed anything
+
+        if (_noPresentOrFutureAllocation()) {
+            if (bribe.remainingBoldAmount != 0) {
+                bold.safeTransfer(msg.sender, bribe.remainingBoldAmount);
+            }
+            if (bribe.remainingBribeTokenAmount != 0) {
+                bribeToken.safeTransfer(msg.sender, bribe.remainingBribeTokenAmount);
+            }
+
+            emit ExtractUnclaimableBribe(
+                msg.sender, _originalEpoch, bribe.remainingBoldAmount, bribe.remainingBribeTokenAmount
+            );
+        } else {
+            uint256 currentEpoch = governance.epoch();
+            bribeByEpoch[currentEpoch].remainingBoldAmount += bribe.remainingBoldAmount;
+            bribeByEpoch[currentEpoch].remainingBribeTokenAmount += bribe.remainingBribeTokenAmount;
+
+            emit RedepositBribe(
+                msg.sender, bribe.remainingBoldAmount, bribe.remainingBribeTokenAmount, _originalEpoch, currentEpoch
+            );
+        }
+
+        delete bribeByEpoch[_originalEpoch].remainingBoldAmount;
+        delete bribeByEpoch[_originalEpoch].remainingBribeTokenAmount;
+    }
+
     function _claimBribe(
         address _user,
         uint256 _epoch,
@@ -90,18 +157,16 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
         Bribe memory bribe = bribeByEpoch[_epoch];
         require(bribe.remainingBoldAmount != 0 || bribe.remainingBribeTokenAmount != 0, "BribeInitiative: no-bribe");
 
-        DoubleLinkedList.Item memory lqtyAllocation =
-            lqtyAllocationByUserAtEpoch[_user].getItem(_prevLQTYAllocationEpoch);
-
-        require(
-            _prevLQTYAllocationEpoch <= _epoch && (lqtyAllocation.next > _epoch || lqtyAllocation.next == 0),
+        DoubleLinkedList.Item memory lqtyAllocation = _getValidatedLQTYAllocation(
+            lqtyAllocationByUserAtEpoch[_user],
+            _epoch,
+            _prevLQTYAllocationEpoch,
             "BribeInitiative: invalid-prev-lqty-allocation-epoch"
         );
-        DoubleLinkedList.Item memory totalLQTYAllocation =
-            totalLQTYAllocationByEpoch.getItem(_prevTotalLQTYAllocationEpoch);
-        require(
-            _prevTotalLQTYAllocationEpoch <= _epoch
-                && (totalLQTYAllocation.next > _epoch || totalLQTYAllocation.next == 0),
+        DoubleLinkedList.Item memory totalLQTYAllocation = _getValidatedLQTYAllocation(
+            totalLQTYAllocationByEpoch,
+            _epoch,
+            _prevTotalLQTYAllocationEpoch,
             "BribeInitiative: invalid-prev-total-lqty-allocation-epoch"
         );
 
@@ -188,7 +253,7 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IBribeInitiative
-    function getMostRecentTotalEpoch() external view returns (uint256) {
+    function getMostRecentTotalEpoch() public view returns (uint256) {
         uint256 mostRecentTotalEpoch = totalLQTYAllocationByEpoch.getHead();
 
         return mostRecentTotalEpoch;
