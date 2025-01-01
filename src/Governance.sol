@@ -644,6 +644,10 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         int256[] memory absoluteOffsetVetos = new int256[](_initiatives.length);
 
         // Calculate the offset portions that correspond to each LQTY vote and veto portion
+        // By recalculating `unallocatedLQTY` & `unallocatedOffset` after each step, we ensure that rounding error
+        // doesn't accumulate in `unallocatedOffset`.
+        // However, it should be noted that this makes the exact offset allocations dependent on the ordering of the
+        // `_initiatives` array.
         for (uint256 x; x < _initiatives.length; x++) {
             // Either _absoluteLQTYVotes[x] or _absoluteLQTYVetos[x] is guaranteed to be zero
             (int256[] calldata lqtyAmounts, int256[] memory offsets) = _absoluteLQTYVotes[x] > 0
