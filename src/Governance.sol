@@ -780,6 +780,11 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
 
             vars.allocation.atEpoch = vars.currentEpoch;
 
+            // Voting power allocated to initiatives should never be negative, else it might break reward allocation
+            // schemes such as `BribeInitiative` which distribute rewards in proportion to voting power allocated.
+            assert(vars.allocation.voteLQTY * block.timestamp >= vars.allocation.voteOffset);
+            assert(vars.allocation.vetoLQTY * block.timestamp >= vars.allocation.vetoOffset);
+
             lqtyAllocatedByUserToInitiative[msg.sender][initiative] = vars.allocation;
 
             // == USER STATE == //
