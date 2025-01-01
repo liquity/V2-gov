@@ -2444,6 +2444,65 @@ abstract contract GovernanceTest is Test {
         assertEqDecimal(unallocatedOffset, 0, 18, "user should have no unallocated offset");
     }
 
+    function test_WhenAllocatingTinyAmounts_VotingPowerDoesNotTurnNegativeDueToRoundingError(
+        uint256 initialVotingPower,
+        uint256 numInitiatives
+    ) external {
+        initialVotingPower = bound(initialVotingPower, 1, 20);
+        numInitiatives = bound(numInitiatives, 1, 20);
+
+        address[] memory initiatives = new address[](numInitiatives);
+
+        // Ensure initiatives can be registered
+        vm.warp(block.timestamp + 2 * EPOCH_DURATION);
+
+        // Register as many initiatives as needed
+        vm.startPrank(lusdHolder);
+        for (uint256 i = 0; i < initiatives.length; ++i) {
+            initiatives[i] = makeAddr(string.concat("initiative", i.toString()));
+            lusd.approve(address(governance), REGISTRATION_FEE);
+            governance.registerInitiative(initiatives[i]);
+        }
+        vm.stopPrank();
+
+        // Ensure the new initiatives are votable
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        vm.startPrank(user);
+        {
+            address userProxy = governance.deriveUserProxyAddress(user);
+            lqty.approve(userProxy, type(uint256).max);
+            governance.depositLQTY(1);
+
+            // By waiting `initialVotingPower` seconds while having 1 wei LQTY staked,
+            // we accrue exactly `initialVotingPower`
+            vm.warp(block.timestamp + initialVotingPower);
+            governance.depositLQTY(583399417581888701);
+
+            address[] memory initiativesToReset; // left empty
+            int256[] memory votes = new int256[](initiatives.length);
+            int256[] memory vetos = new int256[](initiatives.length); // left zero
+
+            for (uint256 i = 0; i < initiatives.length; ++i) {
+                votes[i] = 1;
+            }
+
+            governance.allocateLQTY(initiativesToReset, initiatives, votes, vetos);
+        }
+        vm.stopPrank();
+
+        (uint256 unallocatedLQTY, uint256 unallocatedOffset,,) = governance.userStates(user);
+        int256 votingPower = int256(unallocatedLQTY * block.timestamp) - int256(unallocatedOffset);
+
+        // Even though we are allocating tiny amounts, each allocation
+        // reduces voting power by 1 (due to rounding), but not below zero
+        assertEq(
+            votingPower,
+            int256(initialVotingPower > numInitiatives ? initialVotingPower - numInitiatives : 0),
+            "voting power should stay non-negative"
+        );
+    }
+
     function test_Vote_Stake_Unvote() external {
         address[] memory noInitiatives;
         address[] memory initiatives = new address[](1);
