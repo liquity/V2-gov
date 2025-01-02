@@ -126,7 +126,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
                 _initiatives[i], MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onRegisterInitiative, (1))
             );
 
-            emit RegisterInitiative(_initiatives[i], msg.sender, 1, success);
+            emit RegisterInitiative(_initiatives[i], msg.sender, 1, success ? HookStatus.Succeeded : HookStatus.Failed);
         }
 
         _renounceOwnership();
@@ -511,7 +511,9 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             _initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onRegisterInitiative, (currentEpoch))
         );
 
-        emit RegisterInitiative(_initiative, msg.sender, currentEpoch, success);
+        emit RegisterInitiative(
+            _initiative, msg.sender, currentEpoch, success ? HookStatus.Succeeded : HookStatus.Failed
+        );
     }
 
     struct ResetInitiativeData {
@@ -803,19 +805,30 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             vars.userState.allocatedOffset =
                 add(vars.userState.allocatedOffset, (vars.deltaOffsetVotes + vars.deltaOffsetVetos));
 
-            // Replaces try / catch | Enforces sufficient gas is passed
-            bool success = safeCallWithMinGas(
-                initiative,
-                MIN_GAS_TO_HOOK,
-                0,
-                abi.encodeCall(
-                    IInitiative.onAfterAllocateLQTY,
-                    (vars.currentEpoch, msg.sender, vars.userState, vars.allocation, vars.initiativeState)
-                )
-            );
+            HookStatus hookStatus;
+
+            // See https://github.com/liquity/V2-gov/issues/125
+            // A malicious initiative could try to dissuade voters from casting vetos by consuming as much gas as
+            // possible in the `onAfterAllocateLQTY` hook when detecting vetos.
+            // We deem that the risks of calling into malicous initiatives upon veto allocation far outweigh the
+            // benefits of notifying benevolent initiatives of vetos.
+            if (vars.allocation.vetoLQTY == 0) {
+                // Replaces try / catch | Enforces sufficient gas is passed
+                hookStatus = safeCallWithMinGas(
+                    initiative,
+                    MIN_GAS_TO_HOOK,
+                    0,
+                    abi.encodeCall(
+                        IInitiative.onAfterAllocateLQTY,
+                        (vars.currentEpoch, msg.sender, vars.userState, vars.allocation, vars.initiativeState)
+                    )
+                ) ? HookStatus.Succeeded : HookStatus.Failed;
+            } else {
+                hookStatus = HookStatus.NotCalled;
+            }
 
             emit AllocateLQTY(
-                msg.sender, initiative, vars.deltaLQTYVotes, vars.deltaLQTYVetos, vars.currentEpoch, success
+                msg.sender, initiative, vars.deltaLQTYVotes, vars.deltaLQTYVetos, vars.currentEpoch, hookStatus
             );
         }
 
@@ -861,7 +874,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             _initiative, MIN_GAS_TO_HOOK, 0, abi.encodeCall(IInitiative.onUnregisterInitiative, (currentEpoch))
         );
 
-        emit UnregisterInitiative(_initiative, currentEpoch, success);
+        emit UnregisterInitiative(_initiative, currentEpoch, success ? HookStatus.Succeeded : HookStatus.Failed);
     }
 
     /// @inheritdoc IGovernance
@@ -905,7 +918,9 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
             abi.encodeCall(IInitiative.onClaimForInitiative, (votesSnapshot_.forEpoch, claimableAmount))
         );
 
-        emit ClaimForInitiative(_initiative, claimableAmount, votesSnapshot_.forEpoch, success);
+        emit ClaimForInitiative(
+            _initiative, claimableAmount, votesSnapshot_.forEpoch, success ? HookStatus.Succeeded : HookStatus.Failed
+        );
 
         return claimableAmount;
     }
