@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {IGovernance} from "./interfaces/IGovernance.sol";
+import {IGovernance, UNREGISTERED_INITIATIVE} from "./interfaces/IGovernance.sol";
 import {IInitiative} from "./interfaces/IInitiative.sol";
 import {IBribeInitiative} from "./interfaces/IBribeInitiative.sol";
 

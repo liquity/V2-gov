@@ -7,6 +7,8 @@ import {ILQTYStaking} from "./ILQTYStaking.sol";
 
 import {PermitParams} from "../utils/Types.sol";
 
+uint256 constant UNREGISTERED_INITIATIVE = type(uint256).max;
+
 interface IGovernance {
     /// @notice Emitted when a user deposits LQTY
     /// @param user The account depositing LQTY
@@ -216,7 +218,9 @@ interface IGovernance {
 
     /// @notice Returns when an initiative was registered
     /// @param _initiative Address of the initiative
-    /// @return atEpoch Epoch at which the initiative was registered
+    /// @return atEpoch If `_initiative` is an active initiative, returns the epoch at which it was registered.
+    ///                 If `_initiative` hasn't been registered, returns 0.
+    ///                 If `_initiative` has been unregistered, returns `UNREGISTERED_INITIATIVE`.
     function registeredInitiatives(address _initiative) external view returns (uint256 atEpoch);
 
     /*//////////////////////////////////////////////////////////////
