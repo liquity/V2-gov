@@ -8,6 +8,12 @@ import {ILQTYStaking} from "./ILQTYStaking.sol";
 import {PermitParams} from "../utils/Types.sol";
 
 interface IGovernance {
+    enum HookStatus {
+        Failed,
+        Succeeded,
+        NotCalled
+    }
+
     /// @notice Emitted when a user deposits LQTY
     /// @param user The account depositing LQTY
     /// @param rewardRecipient The account receiving the LUSD/ETH rewards earned from staking in V1, if claimed
@@ -49,8 +55,8 @@ interface IGovernance {
     event SnapshotVotes(uint256 votes, uint256 forEpoch, uint256 boldAccrued);
     event SnapshotVotesForInitiative(address indexed initiative, uint256 votes, uint256 vetos, uint256 forEpoch);
 
-    event RegisterInitiative(address initiative, address registrant, uint256 atEpoch, bool hookSuccess);
-    event UnregisterInitiative(address initiative, uint256 atEpoch, bool hookSuccess);
+    event RegisterInitiative(address initiative, address registrant, uint256 atEpoch, HookStatus hookStatus);
+    event UnregisterInitiative(address initiative, uint256 atEpoch, HookStatus hookStatus);
 
     event AllocateLQTY(
         address indexed user,
@@ -58,9 +64,9 @@ interface IGovernance {
         int256 deltaVoteLQTY,
         int256 deltaVetoLQTY,
         uint256 atEpoch,
-        bool hookSuccess
+        HookStatus hookStatus
     );
-    event ClaimForInitiative(address indexed initiative, uint256 bold, uint256 forEpoch, bool hookSuccess);
+    event ClaimForInitiative(address indexed initiative, uint256 bold, uint256 forEpoch, HookStatus hookStatus);
 
     struct Configuration {
         uint256 registrationFee;
