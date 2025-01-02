@@ -76,6 +76,10 @@ library DoubleLinkedList {
         return (list.items[id].prev != 0 || list.items[id].next != 0 || list.items[0].next == id);
     }
 
+    function isEmpty(List storage list) internal view returns (bool) {
+        return list.items[0].next == 0;
+    }
+
     /// @notice Inserts an item with `id` in the list before item `next`
     /// - if `next` is 0, the item is inserted at the start (head) of the list
     /// @dev This function should not be called with an `id` that is already in the list.

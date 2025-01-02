@@ -802,8 +802,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         vm.startPrank(user1);
         BribeInitiative.ClaimData[] memory epochs = new BribeInitiative.ClaimData[](1);
         epochs[0].epoch = governance.epoch() - 1;
-        epochs[0].prevLQTYAllocationEpoch = governance.epoch() - 2;
-        epochs[0].prevTotalLQTYAllocationEpoch = governance.epoch() - 2;
+        epochs[0].prevLQTYAllocationEpoch = 0;
+        epochs[0].prevTotalLQTYAllocationEpoch = 0;
         vm.expectRevert("BribeInitiative: total-lqty-allocation-zero");
         (uint256 boldAmount, uint256 bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
         vm.stopPrank();
@@ -920,6 +920,113 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         (uint256 lusdBribe, uint256 lqtyBribe) = bribeInitiative.claimBribes(claimData);
         assertEqDecimal(lusdBribe, bribeAmount / 2, 18, "user1 didn't get their fair share of LUSD");
         assertEqDecimal(lqtyBribe, bribeAmount / 2, 18, "user1 didn't get their fair share of LQTY");
+    }
+
+    function test_RedepositBribe_Reverts_WhenNoUnclaimableBribes() external {
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        uint256 currentEpoch = governance.epoch();
+        vm.expectRevert("BribeInitiative: no-bribe");
+        bribeInitiative.redepositBribe(currentEpoch - 1, 0);
+    }
+
+    function test_RedepositBribe_Reverts_WhenPrevTotalLQTYAllocationEpochIsWrong() external {
+        // No allocations initially
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // Some bribes and some allocations an epoch later
+        _depositBribe(1 ether, 1 ether, governance.epoch());
+        _stakeLQTY(user1, 1 ether);
+        _allocateLQTY(user1, 1 ether, 0);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // Attempt to redeposit the previous epoch's bribes while pointing
+        // to the initial epoch as latest total allocation epoch
+        uint256 currentEpoch = governance.epoch();
+        vm.expectRevert("BribeInitiative: invalid-prev-total-lqty-allocation-epoch");
+        bribeInitiative.redepositBribe(currentEpoch - 1, currentEpoch - 2);
+    }
+
+    function test_RedepositBribe_Reverts_WhenBribesAreClaimable() external {
+        // Wait for warm-up to finish
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // Some bribes and some allocations
+        _depositBribe(1 ether, 1 ether, governance.epoch());
+        _stakeLQTY(user1, 1 ether);
+        _allocateLQTY(user1, 1 ether, 0);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // Attempt to redeposit the previous epoch's bribes
+        uint256 currentEpoch = governance.epoch();
+        vm.expectRevert("BribeInitiative: total-lqty-allocation-not-zero");
+        bribeInitiative.redepositBribe(currentEpoch - 1, currentEpoch - 1);
+    }
+
+    function test_UnclaimableBribes_WhenInitiativeIsNotUnregistered_CanBeRedeposited() external {
+        uint256 unclaimableBoldAmount = 1e5 ether;
+        uint256 unclaimableBribeTokenAmount = 2e5 ether;
+        _depositBribe(unclaimableBoldAmount, unclaimableBribeTokenAmount, governance.epoch());
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // Redeposit bribes and allocate on the initiative
+        bribeInitiative.redepositBribe(governance.epoch() - 1, 0);
+        _stakeLQTY(user1, 1 ether);
+        _allocateLQTY(user1, 1 ether, 0);
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        // Claim redeposited bribes an epoch later
+        uint256 currentEpoch = governance.epoch();
+        (uint256 claimedBoldAmount, uint256 claimedBribeTokenAmount) =
+            _claimBribe(user1, currentEpoch - 1, currentEpoch - 1, currentEpoch - 1);
+
+        assertEqDecimal(claimedBoldAmount, unclaimableBoldAmount, 18, "claimedBoldAmount != unclaimableBoldAmount");
+        assertEqDecimal(
+            claimedBribeTokenAmount,
+            unclaimableBribeTokenAmount,
+            18,
+            "claimedBribeTokenAmount != unclaimableBribeTokenAmount"
+        );
+    }
+
+    function test_UnclaimableBribes_WhenInitiativeIsNotUnregistered_CannotBeRedepositedTwiceFromTheSameEpoch()
+        external
+    {
+        _depositBribe(1e5 ether, 2e5 ether, governance.epoch());
+
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        uint256 currentEpoch = governance.epoch();
+        bribeInitiative.redepositBribe(currentEpoch - 1, 0);
+        vm.expectRevert("BribeInitiative: no-bribe");
+        bribeInitiative.redepositBribe(currentEpoch - 1, 0);
+    }
+
+    function test_UnclaimableBribes_WhenInitiativeIsUnregistered_CanBeExtracted() external {
+        uint256 unclaimableBoldAmount = 1e5 ether;
+        uint256 unclaimableBribeTokenAmount = 2e5 ether;
+        _depositBribe(unclaimableBoldAmount, unclaimableBribeTokenAmount, governance.epoch());
+
+        vm.warp(block.timestamp + 5 * EPOCH_DURATION);
+
+        // Unregister initiative then extract stuck bribes
+        governance.unregisterInitiative(address(bribeInitiative));
+        bribeInitiative.redepositBribe(governance.epoch() - 5, 0);
+
+        assertEqDecimal(
+            lusd.balanceOf(address(this)), unclaimableBoldAmount, 18, "claimedBoldAmount != unclaimableBoldAmount"
+        );
+        assertEqDecimal(
+            lqty.balanceOf(address(this)),
+            unclaimableBribeTokenAmount,
+            18,
+            "claimedBribeTokenAmount != unclaimableBribeTokenAmount"
+        );
     }
 
     /**

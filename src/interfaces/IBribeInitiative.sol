@@ -7,9 +7,13 @@ import {IGovernance} from "./IGovernance.sol";
 
 interface IBribeInitiative {
     event DepositBribe(address depositor, uint256 boldAmount, uint256 bribeTokenAmount, uint256 epoch);
+    event RedepositBribe(
+        address depositor, uint256 boldAmount, uint256 bribeTokenAmount, uint256 originalEpoch, uint256 newEpoch
+    );
     event ModifyLQTYAllocation(address user, uint256 epoch, uint256 lqtyAllocated, uint256 offset);
     event ModifyTotalLQTYAllocation(uint256 epoch, uint256 totalLQTYAllocated, uint256 offset);
     event ClaimBribe(address user, uint256 epoch, uint256 boldAmount, uint256 bribeTokenAmount);
+    event ExtractUnclaimableBribe(address recipient, uint256 epoch, uint256 boldAmount, uint256 bribeTokenAmount);
 
     /// @notice Address of the governance contract
     /// @return governance Adress of the governance contract
@@ -69,6 +73,14 @@ interface IBribeInitiative {
     /// @param _bribeTokenAmount Amount of bribe tokens to deposit
     /// @param _epoch Epoch at which the bribe is deposited
     function depositBribe(uint256 _boldAmount, uint256 _bribeTokenAmount, uint256 _epoch) external;
+
+    /// @notice Take previously deposited BOLD and/or bribe tokens from an epoch in which nobody voted for the
+    ///         initiative and deposit them as bribes into the current epoch. In case there are no present LQTY
+    ///         allocations, and it's no longer possible to allocate LQTY to the initiative because it's been
+    ///         unregistered, the bribes are paid out to the caller instead.
+    /// @param _originalEpoch Epoch at which the bribes were originally deposited
+    /// @param _prevTotalLQTYAllocationEpoch Epoch at which the total allocated LQTY became zero
+    function redepositBribe(uint256 _originalEpoch, uint256 _prevTotalLQTYAllocationEpoch) external;
 
     struct ClaimData {
         // Epoch at which the user wants to claim the bribes
