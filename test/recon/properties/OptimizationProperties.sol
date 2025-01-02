@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 pragma solidity ^0.8.0;
 
-import {BeforeAfter} from "../BeforeAfter.sol";
 import {Governance} from "src/Governance.sol";
 import {IGovernance} from "src/interfaces/IGovernance.sol";
-import {MockStakingV1} from "test/mocks/MockStakingV1.sol";
 import {vm} from "@chimera/Hevm.sol";
 import {IUserProxy} from "src/interfaces/IUserProxy.sol";
 import {GovernanceProperties} from "./GovernanceProperties.sol";
@@ -47,7 +45,7 @@ abstract contract OptimizationProperties is GovernanceProperties {
         uint256 claimableSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
             // NOTE: Non view so it accrues state
-            (Governance.InitiativeStatus status,, uint256 claimableAmount) =
+            (IGovernance.InitiativeStatus status,, uint256 claimableAmount) =
                 governance.getInitiativeState(deployedInitiatives[i]);
 
             claimableSum += claimableAmount;
@@ -70,7 +68,7 @@ abstract contract OptimizationProperties is GovernanceProperties {
         uint256 claimableSum;
         for (uint256 i; i < deployedInitiatives.length; i++) {
             // NOTE: Non view so it accrues state
-            (Governance.InitiativeStatus status,, uint256 claimableAmount) =
+            (IGovernance.InitiativeStatus status,, uint256 claimableAmount) =
                 governance.getInitiativeState(deployedInitiatives[i]);
 
             claimableSum += claimableAmount;

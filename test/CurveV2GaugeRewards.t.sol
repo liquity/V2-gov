@@ -13,9 +13,7 @@ import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
 import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
 import {Governance} from "../src/Governance.sol";
 
-import {MockGovernance} from "./mocks/MockGovernance.sol";
-
-contract CurveV2GaugeRewardsTest is Test {
+contract ForkedCurveV2GaugeRewardsTest is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
     IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
     IERC20 private constant usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
@@ -28,11 +26,10 @@ contract CurveV2GaugeRewardsTest is Test {
     uint128 private constant REGISTRATION_FEE = 1e18;
     uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
     uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint16 private constant REGISTRATION_WARM_UP_PERIOD = 4;
     uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
     uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint88 private constant MIN_CLAIM = 500e18;
-    uint88 private constant MIN_ACCRUAL = 1000e18;
+    uint256 private constant MIN_CLAIM = 500e18;
+    uint256 private constant MIN_ACCRUAL = 1000e18;
     uint32 private constant EPOCH_DURATION = 604800;
     uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
@@ -42,10 +39,25 @@ contract CurveV2GaugeRewardsTest is Test {
     ILiquidityGauge private gauge;
     CurveV2GaugeRewards private curveV2GaugeRewards;
 
-    address mockGovernance = address(0x123123);
-
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+
+        IGovernance.Configuration memory config = IGovernance.Configuration({
+            registrationFee: REGISTRATION_FEE,
+            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+            minClaim: MIN_CLAIM,
+            minAccrual: MIN_ACCRUAL,
+            epochStart: uint32(block.timestamp),
+            epochDuration: EPOCH_DURATION,
+            epochVotingCutoff: EPOCH_VOTING_CUTOFF
+        });
+
+        governance = new Governance(
+            address(lqty), address(lusd), stakingV1, address(lusd), config, address(this), initialInitiatives
+        );
 
         address[] memory _coins = new address[](2);
         _coins[0] = address(lusd);
@@ -70,37 +82,15 @@ contract CurveV2GaugeRewardsTest is Test {
 
         curveV2GaugeRewards = new CurveV2GaugeRewards(
             // address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
-            address(mockGovernance),
+            address(governance),
             address(lusd),
             address(lqty),
             address(gauge),
             604800
         );
 
-        initialInitiatives = new address[](1);
-        initialInitiatives[0] = address(curveV2GaugeRewards);
-
-        governance = new Governance(
-            address(lqty),
-            address(lusd),
-            stakingV1,
-            address(lusd),
-            IGovernance.Configuration({
-                registrationFee: REGISTRATION_FEE,
-                registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-                unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-                registrationWarmUpPeriod: REGISTRATION_WARM_UP_PERIOD,
-                unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-                votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-                minClaim: MIN_CLAIM,
-                minAccrual: MIN_ACCRUAL,
-                epochStart: uint32(block.timestamp),
-                epochDuration: EPOCH_DURATION,
-                epochVotingCutoff: EPOCH_VOTING_CUTOFF
-            }),
-            address(this),
-            initialInitiatives
-        );
+        initialInitiatives.push(address(curveV2GaugeRewards));
+        governance.registerInitialInitiatives(initialInitiatives);
 
         vm.startPrank(curveFactory.admin());
         gauge.add_reward(address(lusd), address(curveV2GaugeRewards));
@@ -121,11 +111,11 @@ contract CurveV2GaugeRewardsTest is Test {
     }
 
     function test_claimAndDepositIntoGaugeFuzz(uint128 amt) public {
-        deal(address(lusd), mockGovernance, amt);
+        deal(address(lusd), address(governance), amt);
         vm.assume(amt > 604800);
 
         // Pretend a Proposal has passed
-        vm.startPrank(address(mockGovernance));
+        vm.startPrank(address(governance));
         lusd.transfer(address(curveV2GaugeRewards), amt);
 
         assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), amt);
@@ -136,10 +126,10 @@ contract CurveV2GaugeRewardsTest is Test {
     /// @dev If the amount rounds down below 1 per second it reverts
     function test_claimAndDepositIntoGaugeGrief() public {
         uint256 amt = 604800 - 1;
-        deal(address(lusd), mockGovernance, amt);
+        deal(address(lusd), address(governance), amt);
 
         // Pretend a Proposal has passed
-        vm.startPrank(address(mockGovernance));
+        vm.startPrank(address(governance));
         lusd.transfer(address(curveV2GaugeRewards), amt);
 
         assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), amt);
@@ -150,10 +140,10 @@ contract CurveV2GaugeRewardsTest is Test {
     /// @dev Fuzz test that shows that given a total = amt + dust, the dust is lost permanently
     function test_noDustGriefFuzz(uint128 amt, uint128 dust) public {
         uint256 total = uint256(amt) + uint256(dust);
-        deal(address(lusd), mockGovernance, total);
+        deal(address(lusd), address(governance), total);
 
         // Pretend a Proposal has passed
-        vm.startPrank(address(mockGovernance));
+        vm.startPrank(address(governance));
         // Dust amount
         lusd.transfer(address(curveV2GaugeRewards), amt);
         // Rest
