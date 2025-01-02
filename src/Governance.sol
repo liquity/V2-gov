@@ -5,7 +5,7 @@ import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 import {SafeERC20} from "openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import {IGovernance} from "./interfaces/IGovernance.sol";
+import {IGovernance, UNREGISTERED_INITIATIVE} from "./interfaces/IGovernance.sol";
 import {IInitiative} from "./interfaces/IInitiative.sol";
 import {ILQTYStaking} from "./interfaces/ILQTYStaking.sol";
 
@@ -72,8 +72,6 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     mapping(address => mapping(address => Allocation)) public lqtyAllocatedByUserToInitiative;
     /// @inheritdoc IGovernance
     mapping(address => uint256) public override registeredInitiatives;
-
-    uint256 constant UNREGISTERED_INITIATIVE = type(uint256).max;
 
     constructor(
         address _lqty,
