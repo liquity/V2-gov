@@ -6,6 +6,7 @@ import {VmSafe} from "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
 
 import {IERC20Errors} from "openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import {Strings} from "openzeppelin/contracts/utils/Strings.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {ILUSD} from "../src/interfaces/ILUSD.sol";
@@ -52,6 +53,8 @@ contract GovernanceTester is Governance {
 }
 
 abstract contract GovernanceTest is Test {
+    using Strings for uint256;
+
     ILQTY internal lqty;
     ILUSD internal lusd;
     ILQTYStaking internal stakingV1;
@@ -2373,6 +2376,203 @@ abstract contract GovernanceTest is Test {
         assertEq(votes, currentInitiativePower, "voting power of initiative should not be affected by vetos");
     }
 
+    struct StakingOp {
+        uint256 lqtyAmount;
+        uint256 waitTime;
+    }
+
+    function test_NoDustInUnallocatedOffsetAfterAllocatingAllLQTY(uint256[3] memory _votes, StakingOp[4] memory _stakes)
+        external
+    {
+        address[] memory initiatives = new address[](_votes.length + 1);
+
+        // Ensure initiatives can be registered
+        vm.warp(block.timestamp + 2 * EPOCH_DURATION);
+
+        // Register as many initiatives as needed
+        vm.startPrank(lusdHolder);
+        for (uint256 i = 0; i < initiatives.length; ++i) {
+            initiatives[i] = makeAddr(string.concat("initiative", i.toString()));
+            lusd.approve(address(governance), REGISTRATION_FEE);
+            governance.registerInitiative(initiatives[i]);
+        }
+        vm.stopPrank();
+
+        // Ensure the new initiatives are votable
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        vm.startPrank(user);
+        {
+            // Don't wait too long or initiatives might time out
+            uint256 maxWaitTime = EPOCH_DURATION * UNREGISTRATION_AFTER_EPOCHS / _stakes.length;
+            address userProxy = governance.deriveUserProxyAddress(user);
+            uint256 lqtyBalance = lqty.balanceOf(user);
+            uint256 unallocatedLQTY_ = 0;
+
+            for (uint256 i = 0; i < _stakes.length; ++i) {
+                _stakes[i].lqtyAmount = _bound(_stakes[i].lqtyAmount, 1, lqtyBalance - (_stakes.length - 1 - i));
+                lqtyBalance -= _stakes[i].lqtyAmount;
+                unallocatedLQTY_ += _stakes[i].lqtyAmount;
+
+                lqty.approve(userProxy, _stakes[i].lqtyAmount);
+                governance.depositLQTY(_stakes[i].lqtyAmount);
+
+                _stakes[i].waitTime = _bound(_stakes[i].waitTime, 1, maxWaitTime);
+                vm.warp(block.timestamp + _stakes[i].waitTime);
+            }
+
+            address[] memory initiativesToReset; // left empty
+            int256[] memory votes = new int256[](initiatives.length);
+            int256[] memory vetos = new int256[](initiatives.length); // left zero
+
+            for (uint256 i = 0; i < initiatives.length - 1; ++i) {
+                uint256 vote = _bound(_votes[i], 1, unallocatedLQTY_ - (initiatives.length - 1 - i));
+                unallocatedLQTY_ -= vote;
+                votes[i] = int256(vote);
+            }
+
+            // Cast all remaining LQTY on the last initiative
+            votes[initiatives.length - 1] = int256(unallocatedLQTY_);
+
+            vm.assume(governance.secondsWithinEpoch() < EPOCH_VOTING_CUTOFF);
+            governance.allocateLQTY(initiativesToReset, initiatives, votes, vetos);
+        }
+        vm.stopPrank();
+
+        (uint256 unallocatedLQTY, uint256 unallocatedOffset,,) = governance.userStates(user);
+        assertEqDecimal(unallocatedLQTY, 0, 18, "user should have no unallocated LQTY");
+        assertEqDecimal(unallocatedOffset, 0, 18, "user should have no unallocated offset");
+    }
+
+    function test_WhenAllocatingTinyAmounts_VotingPowerDoesNotTurnNegativeDueToRoundingError(
+        uint256 initialVotingPower,
+        uint256 numInitiatives
+    ) external {
+        initialVotingPower = bound(initialVotingPower, 1, 20);
+        numInitiatives = bound(numInitiatives, 1, 20);
+
+        address[] memory initiatives = new address[](numInitiatives);
+
+        // Ensure initiatives can be registered
+        vm.warp(block.timestamp + 2 * EPOCH_DURATION);
+
+        // Register as many initiatives as needed
+        vm.startPrank(lusdHolder);
+        for (uint256 i = 0; i < initiatives.length; ++i) {
+            initiatives[i] = makeAddr(string.concat("initiative", i.toString()));
+            lusd.approve(address(governance), REGISTRATION_FEE);
+            governance.registerInitiative(initiatives[i]);
+        }
+        vm.stopPrank();
+
+        // Ensure the new initiatives are votable
+        vm.warp(block.timestamp + EPOCH_DURATION);
+
+        vm.startPrank(user);
+        {
+            address userProxy = governance.deriveUserProxyAddress(user);
+            lqty.approve(userProxy, type(uint256).max);
+            governance.depositLQTY(1);
+
+            // By waiting `initialVotingPower` seconds while having 1 wei LQTY staked,
+            // we accrue exactly `initialVotingPower`
+            vm.warp(block.timestamp + initialVotingPower);
+
+            governance.depositLQTY(1 ether);
+
+            address[] memory initiativesToReset; // left empty
+            int256[] memory votes = new int256[](initiatives.length);
+            int256[] memory vetos = new int256[](initiatives.length); // left zero
+
+            for (uint256 i = 0; i < initiatives.length; ++i) {
+                votes[i] = 1;
+            }
+
+            governance.allocateLQTY(initiativesToReset, initiatives, votes, vetos);
+        }
+        vm.stopPrank();
+
+        (uint256 unallocatedLQTY, uint256 unallocatedOffset,,) = governance.userStates(user);
+        int256 votingPower = int256(unallocatedLQTY * block.timestamp) - int256(unallocatedOffset);
+
+        // Even though we are allocating tiny amounts, each allocation
+        // reduces voting power by 1 (due to rounding), but not below zero
+        assertEq(
+            votingPower,
+            int256(initialVotingPower > numInitiatives ? initialVotingPower - numInitiatives : 0),
+            "voting power should stay non-negative"
+        );
+    }
+
+    // We find that a user's unallocated voting power can't be turned negative through manipulation, which is
+    // demonstrated in the next test.
+    //
+    // Whenever a user withdraws LQTY, they can lose more voting power than they should, due to rounding error in the
+    // calculation of their remaining offset:
+    //
+    //   unallocatedOffset -= FLOOR(lqtyDecrease * unallocatedOffset / unallocatedLQTY)
+    //   unallocatedLQTY -= lqtyDecrease
+    //
+    // For reference, unallocated voting power at time `t` is calculated as:
+    //
+    //   unallocatedLQTY * t - unallocatedOffset
+    //
+    // The decrement of `unallocatedOffset` is rounded down, consequently `unallocatedOffset` is rounded up, in turn the
+    // voting power is rounded down. So when time a user has some relatively small positive unallocated voting power and
+    // a significant amount of unallocated LQTY, and withdraws a tiny amount of LQTY (corresponding to less than a unit
+    // of voting power), they lose a full unit of voting power.
+    //
+    // One might think that this can be done repeatedly in an attempt to manipulate unallocated voting power into
+    // negative range, thus being able to allocate negative voting power to an initiative (if done very close to the
+    // end of the present epoch), which would be bad as it would result in insolvency in initiatives that distribute
+    // rewards in proportion to voting power allocated by voters (such as `BribeInitiative`).
+    //
+    // However, we find that this manipulation stops being effective once unallocated voting power reaches zero. Having
+    // zero unallocated voting power means:
+    //
+    //   unallocatedLQTY * t - unallocatedOffset = 0
+    //   unallocatedLQTY * t = unallocatedOffset
+    //
+    // Thus when unallocated voting power is zero, `unallocatedOffset` is a multiple of `unallocatedLQTY`, so there can
+    // be no more rounding error when re-calculating `unallocatedOffset` on withdrawals.
+
+    function test_WhenWithdrawingTinyAmounts_VotingPowerDoesNotTurnNegativeDueToRoundingError(
+        uint256 initialVotingPower,
+        uint256 numWithdrawals
+    ) external {
+        initialVotingPower = bound(initialVotingPower, 1, 20);
+        numWithdrawals = bound(numWithdrawals, 1, 20);
+
+        vm.startPrank(user);
+        {
+            address userProxy = governance.deriveUserProxyAddress(user);
+            lqty.approve(userProxy, type(uint256).max);
+            governance.depositLQTY(1);
+
+            // By waiting `initialVotingPower` seconds while having 1 wei LQTY staked,
+            // we accrue exactly `initialVotingPower`
+            vm.warp(block.timestamp + initialVotingPower);
+
+            governance.depositLQTY(1 ether);
+
+            for (uint256 i = 0; i < numWithdrawals; ++i) {
+                governance.withdrawLQTY(1);
+            }
+        }
+        vm.stopPrank();
+
+        (uint256 unallocatedLQTY, uint256 unallocatedOffset,,) = governance.userStates(user);
+        int256 votingPower = int256(unallocatedLQTY * block.timestamp) - int256(unallocatedOffset);
+
+        // Even though we are withdrawing tiny amounts, each withdrawal
+        // reduces voting power by 1 (due to rounding), but not below zero
+        assertEq(
+            votingPower,
+            int256(initialVotingPower > numWithdrawals ? initialVotingPower - numWithdrawals : 0),
+            "voting power should stay non-negative"
+        );
+    }
+
     function test_Vote_Stake_Unvote() external {
         address[] memory noInitiatives;
         address[] memory initiatives = new address[](1);
@@ -2504,7 +2704,7 @@ contract MockedGovernanceTest is GovernanceTest, MockStakingV1Deployer {
     function setUp() public override {
         (MockStakingV1 mockStakingV1, MockERC20Tester mockLQTY, MockERC20Tester mockLUSD) = deployMockStakingV1();
 
-        mockLQTY.mint(user, 1_000e18);
+        mockLQTY.mint(user, 10_000e18);
         mockLQTY.mint(user2, 1_000e18);
         mockLUSD.mint(lusdHolder, 20_000e18);
 
