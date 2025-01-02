@@ -2478,7 +2478,7 @@ abstract contract GovernanceTest is Test {
             // we accrue exactly `initialVotingPower`
             vm.warp(block.timestamp + initialVotingPower);
 
-            governance.depositLQTY(583399417581888701);
+            governance.depositLQTY(1 ether);
 
             address[] memory initiativesToReset; // left empty
             int256[] memory votes = new int256[](initiatives.length);
@@ -2553,7 +2553,7 @@ abstract contract GovernanceTest is Test {
             // we accrue exactly `initialVotingPower`
             vm.warp(block.timestamp + initialVotingPower);
 
-            governance.depositLQTY(583399417581888701);
+            governance.depositLQTY(1 ether);
 
             for (uint256 i = 0; i < numWithdrawals; ++i) {
                 governance.withdrawLQTY(1);
