@@ -2504,6 +2504,38 @@ abstract contract GovernanceTest is Test {
         );
     }
 
+    // We find that a user's unallocated voting power can't be turned negative through manipulation, which is
+    // demonstrated in the next test.
+    //
+    // Whenever a user withdraws LQTY, they can lose more voting power than they should, due to rounding error in the
+    // calculation of their remaining offset:
+    //
+    //   unallocatedOffset -= FLOOR(lqtyDecrease * unallocatedOffset / unallocatedLQTY)
+    //   unallocatedLQTY -= lqtyDecrease
+    //
+    // For reference, unallocated voting power at time `t` is calculated as:
+    //
+    //   unallocatedLQTY * t - unallocatedOffset
+    //
+    // The decrement of `unallocatedOffset` is rounded down, consequently `unallocatedOffset` is rounded up, in turn the
+    // voting power is rounded down. So when time a user has some relatively small positive unallocated voting power and
+    // a significant amount of unallocated LQTY, and withdraws a tiny amount of LQTY (corresponding to less than a unit
+    // of voting power), they lose a full unit of voting power.
+    //
+    // One might think that this can be done repeatedly in an attempt to manipulate unallocated voting power into
+    // negative range, thus being able to allocate negative voting power to an initiative (if done very close to the
+    // end of the present epoch), which would be bad as it would result in insolvency in initiatives that distribute
+    // rewards in proportion to voting power allocated by voters (such as `BribeInitiative`).
+    //
+    // However, we find that this manipulation stops being effective once unallocated voting power reaches zero. Having
+    // zero unallocated voting power means:
+    //
+    //   unallocatedLQTY * t - unallocatedOffset = 0
+    //   unallocatedLQTY * t = unallocatedOffset
+    //
+    // Thus when unallocated voting power is zero, `unallocatedOffset` is a multiple of `unallocatedLQTY`, so there can
+    // be no more rounding error when re-calculating `unallocatedOffset` on withdrawals.
+
     function test_WhenWithdrawingTinyAmounts_VotingPowerDoesNotTurnNegativeDueToRoundingError(
         uint256 initialVotingPower,
         uint256 numWithdrawals
