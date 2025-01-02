@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Test, console2} from "forge-std/Test.sol";
+import {Strings} from "openzeppelin/contracts/utils/Strings.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {IBribeInitiative} from "../src/interfaces/IBribeInitiative.sol";
@@ -14,6 +15,8 @@ import {MockStakingV1} from "./mocks/MockStakingV1.sol";
 import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
 
 contract BribeInitiativeTest is Test, MockStakingV1Deployer {
+    using Strings for uint256;
+
     MockERC20Tester private lqty;
     MockERC20Tester private lusd;
     MockStakingV1 private stakingV1;
@@ -342,13 +345,13 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         assertEq(5, governance.epoch(), "not in epoch 5");
 
         // check amount of bribes in epoch 3
-        (uint256 boldAmountFromStorage, uint256 bribeTokenAmountFromStorage) =
+        (uint256 boldAmountFromStorage, uint256 bribeTokenAmountFromStorage,) =
             IBribeInitiative(bribeInitiative).bribeByEpoch(governance.epoch() - 2);
         assertEq(boldAmountFromStorage, 1e18, "boldAmountFromStorage != 1e18");
         assertEq(bribeTokenAmountFromStorage, 1e18, "bribeTokenAmountFromStorage != 1e18");
 
         // check amount of bribes in epoch 4
-        (boldAmountFromStorage, bribeTokenAmountFromStorage) =
+        (boldAmountFromStorage, bribeTokenAmountFromStorage,) =
             IBribeInitiative(bribeInitiative).bribeByEpoch(governance.epoch() - 1);
         assertEq(boldAmountFromStorage, 1e18, "boldAmountFromStorage != 1e18");
         assertEq(bribeTokenAmountFromStorage, 1e18, "bribeTokenAmountFromStorage != 1e18");
@@ -403,61 +406,44 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         (uint256 boldAmount, uint256 bribeTokenAmount) =
             _claimBribe(user1, claimEpoch, prevAllocationEpoch, prevAllocationEpoch);
 
-        // calculate user share of total allocation for initiative for the given epoch as percentage
-        (uint256 userLqtyAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, 3);
-        (uint256 totalLqtyAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(3);
-        uint256 userShareOfTotalAllocated = uint256((userLqtyAllocated * 10_000) / totalLqtyAllocated);
-        console2.log("userLqtyAllocated: ", userLqtyAllocated);
-        console2.log("totalLqtyAllocated: ", totalLqtyAllocated);
-
-        // calculate user received bribes as share of total bribes as percentage
-        (uint256 boldAmountForEpoch, uint256 bribeTokenAmountForEpoch) = bribeInitiative.bribeByEpoch(3);
-        uint256 userShareOfTotalBoldForEpoch = (boldAmount * 10_000) / uint256(boldAmountForEpoch);
-        uint256 userShareOfTotalBribeForEpoch = (bribeTokenAmount * 10_000) / uint256(bribeTokenAmountForEpoch);
-
-        // check that they're equivalent
-        assertEq(
-            userShareOfTotalAllocated,
-            userShareOfTotalBoldForEpoch,
-            "userShareOfTotalAllocated != userShareOfTotalBoldForEpoch"
-        );
-        assertEq(
-            userShareOfTotalAllocated,
-            userShareOfTotalBribeForEpoch,
-            "userShareOfTotalAllocated != userShareOfTotalBribeForEpoch"
-        );
+        assertEq(boldAmount, 0.5e18, "wrong BOLD amount");
+        assertEq(bribeTokenAmount, 0.5e18, "wrong bribe token amount");
     }
 
     function test_claimedBribes_fraction_fuzz(
-        uint256 user1StakeAmount,
-        uint256 user2StakeAmount,
-        uint256 user3StakeAmount
+        uint256[3] memory userStakeAmount,
+        uint256 boldAmount,
+        uint256 bribeTokenAmount
     ) public {
+        address[3] memory user = [user1, user2, user3];
+        assertEq(user.length, userStakeAmount.length, "user.length != userStakeAmount.length");
+
         // =========== epoch 1 ==================
-        user1StakeAmount = uint256(bound(uint256(user1StakeAmount), 1, lqty.balanceOf(user1)));
-        user2StakeAmount = uint256(bound(uint256(user2StakeAmount), 1, lqty.balanceOf(user2)));
-        user3StakeAmount = uint256(bound(uint256(user3StakeAmount), 1, lqty.balanceOf(user3)));
+        boldAmount = bound(boldAmount, 1, lusd.balanceOf(lusdHolder));
+        bribeTokenAmount = bound(bribeTokenAmount, 1, lqty.balanceOf(lusdHolder));
 
         // all users stake in epoch 1
-        _stakeLQTY(user1, user1StakeAmount);
-        _stakeLQTY(user2, user2StakeAmount);
-        _stakeLQTY(user3, user3StakeAmount);
+        uint256 totalStakeAmount;
+        for (uint256 i = 0; i < user.length; ++i) {
+            totalStakeAmount += userStakeAmount[i] = bound(userStakeAmount[i], 1, lqty.balanceOf(user[i]));
+            _stakeLQTY(user[i], userStakeAmount[i]);
+        }
 
         // =========== epoch 2 ==================
         vm.warp(block.timestamp + EPOCH_DURATION);
         assertEq(2, governance.epoch(), "not in epoch 2");
 
         // lusdHolder deposits lqty and lusd bribes claimable in epoch 3
-        _depositBribe(1e18, 1e18, governance.epoch() + 1);
+        _depositBribe(boldAmount, bribeTokenAmount, governance.epoch() + 1);
 
         // =========== epoch 3 ==================
         vm.warp(block.timestamp + EPOCH_DURATION);
         assertEq(3, governance.epoch(), "not in epoch 3");
 
         // users all vote on bribeInitiative
-        _allocateLQTY(user1, int256(user1StakeAmount), 0);
-        _allocateLQTY(user2, int256(user2StakeAmount), 0);
-        _allocateLQTY(user3, int256(user3StakeAmount), 0);
+        for (uint256 i = 0; i < user.length; ++i) {
+            _allocateLQTY(user[i], int256(userStakeAmount[i]), 0);
+        }
 
         // =========== epoch 4 ==================
         vm.warp(block.timestamp + EPOCH_DURATION);
@@ -466,60 +452,31 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         // all users claim bribes for epoch 3
         uint256 claimEpoch = governance.epoch() - 1; // claim for epoch 3
         uint256 prevAllocationEpoch = governance.epoch() - 1; // epoch 3
-        (uint256 boldAmount1, uint256 bribeTokenAmount1) =
-            _claimBribe(user1, claimEpoch, prevAllocationEpoch, prevAllocationEpoch);
-        (uint256 boldAmount2, uint256 bribeTokenAmount2) =
-            _claimBribe(user2, claimEpoch, prevAllocationEpoch, prevAllocationEpoch);
-        (uint256 boldAmount3, uint256 bribeTokenAmount3) =
-            _claimBribe(user3, claimEpoch, prevAllocationEpoch, prevAllocationEpoch);
+        uint256 totalClaimedBoldAmount;
+        uint256 totalClaimedBribeTokenAmount;
 
-        // calculate user share of total allocation for initiative for the given epoch as percentage
-        uint256 userShareOfTotalAllocated1 = _getUserShareOfAllocationAsPercentage(user1, 3);
-        uint256 userShareOfTotalAllocated2 = _getUserShareOfAllocationAsPercentage(user2, 3);
-        uint256 userShareOfTotalAllocated3 = _getUserShareOfAllocationAsPercentage(user3, 3);
+        for (uint256 i = 0; i < user.length; ++i) {
+            (uint256 claimedBoldAmount, uint256 claimedBribeTokenAmount) =
+                _claimBribe(user[i], claimEpoch, prevAllocationEpoch, prevAllocationEpoch);
 
-        // calculate user received bribes as share of total bribes as percentage
-        (uint256 userShareOfTotalBoldForEpoch1, uint256 userShareOfTotalBribeForEpoch1) =
-            _getBribesAsPercentageOfTotal(3, boldAmount1, bribeTokenAmount1);
-        (uint256 userShareOfTotalBoldForEpoch2, uint256 userShareOfTotalBribeForEpoch2) =
-            _getBribesAsPercentageOfTotal(3, boldAmount2, bribeTokenAmount2);
-        (uint256 userShareOfTotalBoldForEpoch3, uint256 userShareOfTotalBribeForEpoch3) =
-            _getBribesAsPercentageOfTotal(3, boldAmount3, bribeTokenAmount3);
+            assertApproxEqAbs(
+                claimedBoldAmount,
+                boldAmount * userStakeAmount[i] / totalStakeAmount,
+                // we expect `claimedBoldAmount` to be within `idealAmount +/- 1`
+                // where `idealAmount = boldAmount * userStakeAmount[i] / totalStakeAmount`,
+                // however our calculation of `idealAmount` itself has a rounding error of `(-1, 0]`,
+                // so the total difference can add up to 2
+                2,
+                string.concat("wrong BOLD amount for user[", i.toString(), "]")
+            );
 
-        // check that they're equivalent
-        // user1
-        assertEq(
-            userShareOfTotalAllocated1,
-            userShareOfTotalBoldForEpoch1,
-            "userShareOfTotalAllocated1 != userShareOfTotalBoldForEpoch1"
-        );
-        assertEq(
-            userShareOfTotalAllocated1,
-            userShareOfTotalBribeForEpoch1,
-            "userShareOfTotalAllocated1 != userShareOfTotalBribeForEpoch1"
-        );
-        // user2
-        assertEq(
-            userShareOfTotalAllocated2,
-            userShareOfTotalBoldForEpoch2,
-            "userShareOfTotalAllocated2 != userShareOfTotalBoldForEpoch2"
-        );
-        assertEq(
-            userShareOfTotalAllocated2,
-            userShareOfTotalBribeForEpoch2,
-            "userShareOfTotalAllocated2 != userShareOfTotalBribeForEpoch2"
-        );
-        // user3
-        assertEq(
-            userShareOfTotalAllocated3,
-            userShareOfTotalBoldForEpoch3,
-            "userShareOfTotalAllocated3 != userShareOfTotalBoldForEpoch3"
-        );
-        assertEq(
-            userShareOfTotalAllocated3,
-            userShareOfTotalBribeForEpoch3,
-            "userShareOfTotalAllocated3 != userShareOfTotalBribeForEpoch3"
-        );
+            totalClaimedBoldAmount += claimedBoldAmount;
+            totalClaimedBribeTokenAmount += claimedBribeTokenAmount;
+        }
+
+        // total
+        assertEq(totalClaimedBoldAmount, boldAmount, "there should be no BOLD dust left");
+        assertEq(totalClaimedBribeTokenAmount, bribeTokenAmount, "there should be no bribe token dust left");
     }
 
     // only users that voted receive bribe, vetoes shouldn't receive anything
@@ -1038,18 +995,18 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         vm.stopPrank();
     }
 
-    function _depositBribe(uint128 boldAmount, uint256 bribeAmount, uint256 epoch) public {
+    function _depositBribe(uint256 boldAmount, uint256 bribeAmount, uint256 epoch) public {
         vm.startPrank(lusdHolder);
-        lqty.approve(address(bribeInitiative), boldAmount);
-        lusd.approve(address(bribeInitiative), bribeAmount);
+        lusd.approve(address(bribeInitiative), boldAmount);
+        lqty.approve(address(bribeInitiative), bribeAmount);
         bribeInitiative.depositBribe(boldAmount, bribeAmount, epoch);
         vm.stopPrank();
     }
 
     function _depositBribe(address _initiative, uint256 boldAmount, uint256 bribeAmount, uint256 epoch) public {
         vm.startPrank(lusdHolder);
-        lqty.approve(_initiative, boldAmount);
-        lusd.approve(_initiative, bribeAmount);
+        lusd.approve(_initiative, boldAmount);
+        lqty.approve(_initiative, bribeAmount);
         BribeInitiative(_initiative).depositBribe(boldAmount, bribeAmount, epoch);
         vm.stopPrank();
     }
@@ -1080,24 +1037,5 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         }
         (boldAmount, bribeTokenAmount) = bribeInitiative.claimBribes(epochs);
         vm.stopPrank();
-    }
-
-    function _getUserShareOfAllocationAsPercentage(address user, uint256 epoch)
-        internal
-        returns (uint256 userShareOfTotalAllocated)
-    {
-        (uint256 userLqtyAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user, epoch);
-        (uint256 totalLqtyAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(epoch);
-        userShareOfTotalAllocated = (uint256(userLqtyAllocated) * 10_000) / uint256(totalLqtyAllocated);
-    }
-
-    function _getBribesAsPercentageOfTotal(uint256 epoch, uint256 userBoldAmount, uint256 userBribeTokenAmount)
-        internal
-        returns (uint256 userShareOfTotalBoldForEpoch, uint256 userShareOfTotalBribeForEpoch)
-    {
-        (uint256 boldAmountForEpoch, uint256 bribeTokenAmountForEpoch) = bribeInitiative.bribeByEpoch(epoch);
-        uint256 userShareOfTotalBoldForEpoch = (userBoldAmount * 10_000) / uint256(boldAmountForEpoch);
-        uint256 userShareOfTotalBribeForEpoch = (userBribeTokenAmount * 10_000) / uint256(bribeTokenAmountForEpoch);
-        return (userShareOfTotalBoldForEpoch, userShareOfTotalBribeForEpoch);
     }
 }

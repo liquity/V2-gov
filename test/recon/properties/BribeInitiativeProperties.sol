@@ -22,7 +22,7 @@ abstract contract BribeInitiativeProperties is BeforeAfter {
 
                     // calculate balance delta as a percentage of the total bribe for this epoch
                     // this is what user DOES receive
-                    (uint256 bribeBoldAmount, uint256 bribeBribeTokenAmount) =
+                    (uint256 bribeBoldAmount, uint256 bribeBribeTokenAmount,) =
                         IBribeInitiative(initiative).bribeByEpoch(currentEpoch);
                     uint256 lqtyPercentageOfBribe = (userLqtyBalanceDelta * 10_000) / bribeBribeTokenAmount;
                     uint256 lusdPercentageOfBribe = (userLusdBalanceDelta * 10_000) / bribeBoldAmount;

@@ -39,10 +39,25 @@ contract ForkedCurveV2GaugeRewardsTest is Test {
     ILiquidityGauge private gauge;
     CurveV2GaugeRewards private curveV2GaugeRewards;
 
-    address mockGovernance = address(0x123123);
-
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+
+        IGovernance.Configuration memory config = IGovernance.Configuration({
+            registrationFee: REGISTRATION_FEE,
+            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
+            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
+            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
+            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
+            minClaim: MIN_CLAIM,
+            minAccrual: MIN_ACCRUAL,
+            epochStart: uint32(block.timestamp),
+            epochDuration: EPOCH_DURATION,
+            epochVotingCutoff: EPOCH_VOTING_CUTOFF
+        });
+
+        governance = new Governance(
+            address(lqty), address(lusd), stakingV1, address(lusd), config, address(this), initialInitiatives
+        );
 
         address[] memory _coins = new address[](2);
         _coins[0] = address(lusd);
@@ -67,7 +82,7 @@ contract ForkedCurveV2GaugeRewardsTest is Test {
 
         curveV2GaugeRewards = new CurveV2GaugeRewards(
             // address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
-            address(mockGovernance),
+            address(governance),
             address(lusd),
             address(lqty),
             address(gauge),
@@ -75,23 +90,7 @@ contract ForkedCurveV2GaugeRewardsTest is Test {
         );
 
         initialInitiatives.push(address(curveV2GaugeRewards));
-
-        IGovernance.Configuration memory config = IGovernance.Configuration({
-            registrationFee: REGISTRATION_FEE,
-            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-            minClaim: MIN_CLAIM,
-            minAccrual: MIN_ACCRUAL,
-            epochStart: uint32(block.timestamp),
-            epochDuration: EPOCH_DURATION,
-            epochVotingCutoff: EPOCH_VOTING_CUTOFF
-        });
-
-        governance = new Governance(
-            address(lqty), address(lusd), stakingV1, address(lusd), config, address(this), initialInitiatives
-        );
+        governance.registerInitialInitiatives(initialInitiatives);
 
         vm.startPrank(curveFactory.admin());
         gauge.add_reward(address(lusd), address(curveV2GaugeRewards));
@@ -112,11 +111,11 @@ contract ForkedCurveV2GaugeRewardsTest is Test {
     }
 
     function test_claimAndDepositIntoGaugeFuzz(uint128 amt) public {
-        deal(address(lusd), mockGovernance, amt);
+        deal(address(lusd), address(governance), amt);
         vm.assume(amt > 604800);
 
         // Pretend a Proposal has passed
-        vm.startPrank(address(mockGovernance));
+        vm.startPrank(address(governance));
         lusd.transfer(address(curveV2GaugeRewards), amt);
 
         assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), amt);
@@ -127,10 +126,10 @@ contract ForkedCurveV2GaugeRewardsTest is Test {
     /// @dev If the amount rounds down below 1 per second it reverts
     function test_claimAndDepositIntoGaugeGrief() public {
         uint256 amt = 604800 - 1;
-        deal(address(lusd), mockGovernance, amt);
+        deal(address(lusd), address(governance), amt);
 
         // Pretend a Proposal has passed
-        vm.startPrank(address(mockGovernance));
+        vm.startPrank(address(governance));
         lusd.transfer(address(curveV2GaugeRewards), amt);
 
         assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), amt);
@@ -141,10 +140,10 @@ contract ForkedCurveV2GaugeRewardsTest is Test {
     /// @dev Fuzz test that shows that given a total = amt + dust, the dust is lost permanently
     function test_noDustGriefFuzz(uint128 amt, uint128 dust) public {
         uint256 total = uint256(amt) + uint256(dust);
-        deal(address(lusd), mockGovernance, total);
+        deal(address(lusd), address(governance), total);
 
         // Pretend a Proposal has passed
-        vm.startPrank(address(mockGovernance));
+        vm.startPrank(address(governance));
         // Dust amount
         lusd.transfer(address(curveV2GaugeRewards), amt);
         // Rest
