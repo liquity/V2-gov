@@ -11,7 +11,6 @@ import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 
 import {Governance} from "../src/Governance.sol";
-import {UniV4Donations} from "../src/UniV4Donations.sol";
 import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
 import {Hooks} from "../src/utils/BaseHook.sol";
 
@@ -42,17 +41,12 @@ contract DeploySepoliaScript is Script, Deployers, MockStakingV1Deployer {
     uint32 private constant EPOCH_DURATION = 604800;
     uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
-    // UniV4Donations Constants
-    uint24 private constant FEE = 400;
-    int24 constant MAX_TICK_SPACING = 32767;
-
     // CurveV2GaugeRewards Constants
     uint256 private constant DURATION = 7 days;
 
     // Contracts
     Governance private governance;
     address[] private initialInitiatives;
-    UniV4Donations private uniV4Donations;
     CurveV2GaugeRewards private curveV2GaugeRewards;
     ICurveStableswapNG private curvePool;
     ILiquidityGauge private gauge;
@@ -96,44 +90,6 @@ contract DeploySepoliaScript is Script, Deployers, MockStakingV1Deployer {
             deployer,
             initialInitiatives
         );
-        assert(governance == uniV4Donations.governance());
-    }
-
-    function deployUniV4Donations(uint256 _nonce) private {
-        address gov = address(vm.computeCreateAddress(deployer, _nonce));
-        uint160 flags = uint160(Hooks.AFTER_INITIALIZE_FLAG | Hooks.AFTER_ADD_LIQUIDITY_FLAG);
-
-        (, bytes32 salt) = HookMiner.find(
-            0x4e59b44847b379578588920cA78FbF26c0B4956C,
-            // address(this),
-            flags,
-            type(UniV4Donations).creationCode,
-            abi.encode(
-                gov,
-                address(bold),
-                address(lqty),
-                block.timestamp,
-                EPOCH_DURATION,
-                address(poolManager),
-                address(usdc),
-                FEE,
-                MAX_TICK_SPACING
-            )
-        );
-
-        uniV4Donations = new UniV4Donations{salt: salt}(
-            gov,
-            address(bold),
-            address(lqty),
-            block.timestamp,
-            EPOCH_DURATION,
-            address(poolManager),
-            address(usdc),
-            FEE,
-            MAX_TICK_SPACING
-        );
-
-        initialInitiatives.push(address(uniV4Donations));
     }
 
     function deployCurveV2GaugeRewards(uint256 _nonce) private {
@@ -172,7 +128,6 @@ contract DeploySepoliaScript is Script, Deployers, MockStakingV1Deployer {
     function run() public {
         vm.startBroadcast(privateKey);
         deployEnvironment();
-        deployUniV4Donations(nonce + 8);
         deployGovernance();
         vm.stopBroadcast();
     }
