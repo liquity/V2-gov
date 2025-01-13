@@ -1,5 +1,53 @@
 # Liquity v2 Governance
 
+# Table of Contents for Liquity v2 Governance
+
+- [Overview](#overview)
+- [Core Smart Contracts](#core-smart-contracts)
+  - [Governance](#governance)
+  - [UserProxyFactory](#userproxyfactory)
+  - [UserProxy](#userproxy)
+  - [BribeInitiative](#bribeinitiative)
+- [Epochs](#epochs)
+  - [Epoch Structure](#epoch-structure)
+  - [Epoch Transitions](#epoch-transitions)
+- [LQTY Deposits, Withdrawals, and v1 Staking](#lqty-deposits-withdrawals-and-v1-staking)
+- [Voting Power Accrual](#voting-power-accrual)
+  - [Multiple Deposits Over Time](#multiple-deposits-over-time)
+  - [Voting Power Calculation and Internal Accounting](#voting-power-calculation-and-internal-accounting)
+- [Withdrawals and Voting Power](#withdrawals-and-voting-power)
+- [Allocating Voting Power to Initiatives](#allocating-voting-power-to-initiatives)
+  - [Allocation in Practice](#allocation-in-practice)
+- [Vetoing Initiatives](#vetoing-initiatives)
+- [Allocations Across Epochs](#allocations-across-epochs)
+- [Path Dependence of Voting Power Actions](#path-dependence-of-voting-power-actions)
+- [Registering Initiatives](#registering-initiatives)
+- [Unregistering Initiatives](#unregistering-initiatives)
+- [Snapshots](#snapshots)
+  - [Initiative Vote Snapshots](#initiative-vote-snapshots)
+  - [Total Vote Snapshots](#total-vote-snapshots)
+  - [Total BOLD Snapshots](#total-bold-snapshots)
+  - [Snapshot Mechanics](#snapshot-mechanics)
+- [Initiative States](#initiative-states)
+- [Voting Threshold Calculation](#voting-threshold-calculation)
+- [Claiming for Initiatives](#claiming-for-initiatives)
+  - [Claim Frequency](#claim-frequency)
+- [Bribes](#bribes)
+  - [How Bribing Works](#how-bribing-works)
+  - [Claiming Bribes](#claiming-bribes)
+  - [Tracking Allocations and Votes](#tracking-allocations-and-votes)
+- [Known Issues](#known-issues)
+  - [Path Dependency of Depositing/Withdrawing LQTY](#path-dependency-of-depositingwithdrawing-lqty)
+  - [Trust Assumption: Bribe Token](#trust-assumption-bribe-token)
+  - [Trust Assumption: Initiative](#trust-assumption-initiative)
+  - [Impact of Vetoed or Low-Vote Initiatives](#impact-of-vetoed-or-low-vote-initiatives)
+- [Testing](#testing)
+  - [Running Foundry Tests](#running-foundry-tests)
+  - [Invariant Testing](#invariant-testing)
+
+
+
+
 ## Overview
 
 The core Liquity v2 protocol has built-in incentives on each collateral branch that encourage both price stability as well as liquidity for the BOLD stablecoin. 75% of revenues from borrowing activities are used to incentivize the core system Stability Pools, and the remaining 25% of revenues from all borrowing activities (incentive portion) are allocated to the Modular Initiative based Governance.
@@ -310,12 +358,12 @@ Per-user and total LQTY allocations by epoch are recorded in the above lists eve
 ### Path dependency of depositing/withdrawing LQTY
 Depositing and withdrawing LQTY when unallocated voting power is non-zero reduces the User’s unallocated voting power. See this section [LINK]
 
-### Trust assumption: Bribe token is non-malcious standard ERC20
+### Trust assumption: Bribe token is non-malicious standard ERC20
 Since an arbitrary bribe token may be used, issues can arise if the token is non-standard - e.g. has fee-on-transfer or is rebasing, or indeed if the token is malicious and/or upgradeable.  
 
 Any of the above situatons could result in Users receiving less bribe rewards than expected.
 
-### Trust-assumption: Initiative will not “rug” voters
+### Trust-assumption: Initiative will not rug voters
 
 The owner of an upgradeable Initiative could arbitrarily change its logic, and thus change the destination of funds to one different from that which was voted for by Users. 
 
