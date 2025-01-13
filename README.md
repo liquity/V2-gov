@@ -1,6 +1,6 @@
 # Liquity v2 Governance
 
-# Table of Contents for Liquity v2 Governance
+## Table of Contents
 
 - [Overview](#overview)
 - [Core Smart Contracts](#core-smart-contracts)
