@@ -285,7 +285,8 @@ In a given epoch, Initiatives can be in one of several states based on the previ
 Following are the states Initiatives can be in, the conditions that lead to the states, and their consequences.
 _(Note that the state machine checks conditions in the order they are presented below - e.g. an Initiative in the CLAIMABLE state is by definition not in any of the states above CLAIMABLE)_:
 
-<img width="581" alt="image" src="https://github.com/user-attachments/assets/677847b9-beba-49d1-8eac-bfdf4649178b" />
+<img width="581" alt="image" src="https://github.com/user-attachments/assets/ab9c5df1-0372-43b4-87d9-73c1daea1a62" />
+
 
 
 ## Voting threshold calculation
