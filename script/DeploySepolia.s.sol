@@ -3,7 +3,6 @@ pragma solidity ^0.8.13;
 
 import {Script} from "forge-std/Script.sol";
 
-import {PoolManager, Deployers, Hooks} from "v4-core/test/utils/Deployers.sol";
 import {ICurveStableswapFactoryNG} from "../src/interfaces/ICurveStableswapFactoryNG.sol";
 import {ICurveStableswapNG} from "../src/interfaces/ICurveStableswapNG.sol";
 import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
@@ -12,21 +11,19 @@ import {IGovernance} from "../src/interfaces/IGovernance.sol";
 
 import {Governance} from "../src/Governance.sol";
 import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
-import {Hooks} from "../src/utils/BaseHook.sol";
 
 import {MockERC20Tester} from "../test/mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "../test/mocks/MockStakingV1.sol";
 import {MockStakingV1Deployer} from "../test/mocks/MockStakingV1Deployer.sol";
 import {HookMiner} from "./utils/HookMiner.sol";
 
-contract DeploySepoliaScript is Script, Deployers, MockStakingV1Deployer {
+contract DeploySepoliaScript is Script, MockStakingV1Deployer {
     // Environment Constants
     MockERC20Tester private lqty;
     MockERC20Tester private bold;
     MockStakingV1 private stakingV1;
     MockERC20Tester private usdc;
 
-    PoolManager private constant poolManager = PoolManager(0xE8E23e97Fa135823143d6b9Cba9c699040D51F70);
     ICurveStableswapFactoryNG private constant curveFactory =
         ICurveStableswapFactoryNG(address(0xfb37b8D939FFa77114005e61CFc2e543d6F49A81));
 
