@@ -368,7 +368,7 @@ Any of the above situatons could result in Users receiving less bribe rewards th
 
 The owner of an upgradeable Initiative could arbitrarily change its logic, and thus change the destination of funds to one different from that which was voted for by Users. 
 
-### Vetoed Initiatives and Initiatives that receive votes that are below the treshold cause a loss of emissions to the voted initiatives
+### Vetoed Initiatives and Initiatives that receive votes that are below the threshold cause a loss of emissions to the voted initiatives
 
 Because the system spits rewards in proportion to: `valid_votes / total_votes`, then by definition, Initiatives that Increase the  total_votes without receiving any rewards are "stealing" the rewards from other initiatives. The rewards will be re-queued in the next epoch.
 
