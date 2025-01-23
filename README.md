@@ -86,7 +86,7 @@ The purpose of Phase 2 is to prevent last-minute vote allocation by a bad-faith 
 
 The short veto phase at least gives other stakers a chance to veto such bad-faith Initiatives, even if they have to pull voting power away from other Initiatives.
 ### Epoch Transitions
-Epochs transition automatically at fixed 7-day intervals. No manual intervention is required to trigger a new epoch. The first epoch-based operation in a new epoch triggers relevant snapshots - see the snapshots section [LINK].
+Epochs transition automatically at fixed 7-day intervals. No manual intervention is required to trigger a new epoch. The first epoch-based operation in a new epoch triggers relevant snapshots - see the [snapshots section](#snapshots).
 
 ## LQTY deposits, withdrawals and v1 staking
 
@@ -172,7 +172,7 @@ LQTY amounts and offsets are recorded for:
 - Per-Initative allocations
 - Per-user-per-Initiative allocations
 
-The full scheme is outlined in this paper [LINK].
+The full scheme is outlined in [this paper](https://docs.google.com/document/d/1nPdD-w1n_0KIzAgi3Y5c8h2t2wkFiFD5YDHKsc6KxH8/edit?usp=sharing).
 
 
 
@@ -196,7 +196,7 @@ Under the hood, allocation is performed in two steps internally: all their curre
 
 Users may also allocate vetos to Initiatives via `Governance.allocateLQTY`. Just like voting power, LQTY allocated for vetoing accrues “veto power” linearly, and internal calculations and accounting are identical.
 
-An Initiative which has received a sufficient quantity of vetoes is not claimable, and can be permissionlessly unregistered - see the “Initiative states” section for the precise threshold formulation [LINK]
+An Initiative which has received a sufficient quantity of vetoes is not claimable, and can be permissionlessly unregistered - see the [Initiative states section](#initiative-states) for the precise threshold formulation.
 
 
 ## Allocations across epochs
@@ -209,7 +209,7 @@ LQTY allocations to an Initiative persist across epochs, and thus the correspond
 
 **Allocating** and **deallocating** LQTY/voting power is path independent - that is, when a user allocates `x` voting power to an Initiative then immediately deallocates it, their voting power remains the same.
 
-In contrast, **depositing** and **withdrawing** LQTY is path-dependent - for a User with non-zero voting power, a top-up and withdrawal of `x` LQTY will reduce their voting power. This is because the top-up LQTY chunk has 0 voting power, but the proportional nature of the withdrawal (see above - [LINK]) reduces the voting power of all previous LQTY chunks comprising their deposit.
+In contrast, **depositing** and **withdrawing** LQTY is path-dependent - for a User with non-zero voting power, a top-up and withdrawal of `x` LQTY will reduce their voting power. This is because the top-up LQTY chunk has 0 voting power, but the [proportional nature of the withdrawal](#allocating-voting-power-to-initiatives) reduces the voting power of all previous LQTY chunks comprising their deposit.
 
 
 ## Registering Initiatives
