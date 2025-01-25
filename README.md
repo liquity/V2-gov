@@ -312,7 +312,7 @@ An Initiative qualifies for claim when its votes exceed both:
 - The voting threshold
 - The vetos received
   
-The reward amount for a qualifying Initiative is calculated as the pro-rata share of the epoch's BOLD accrual, based on the Initiative's share of total votes among all Initiatives, including non-qualifying ones. For example, if an Initiative received 25% of all votes in an epoch, it will receive 25% of that epoch's accrued BOLD rewards. The BOLD share of non-qualifying initiatives is automatically rolled over into the next epoch's reward pool.
+The reward amount for a qualifying Initiative is calculated as the pro-rata share of the epoch's BOLD accrual (plus the previous epoch's unclaimed BOLD, if any), based on the Initiative's share of total votes among all Initiatives, including non-qualifying ones. For example, if an Initiative received 25% of all votes in an epoch, it will receive 25% of that epoch's accrued BOLD rewards. The BOLD share of non-qualifying initiatives is automatically rolled over into the next epoch's reward pool.
 
 If a qualifying Initiative fails to claim during the epoch following its snapshot, its potential rewards are automatically rolled over into the next epoch's reward pool. This means unclaimed rewards are not lost, but rather redistributed to the next epoch's qualifying Initiatives.
 
