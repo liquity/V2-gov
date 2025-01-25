@@ -8,34 +8,33 @@ import {IBribeInitiative} from "src/interfaces/IBribeInitiative.sol";
 
 abstract contract SynchProperties is BeforeAfter {
     // Properties that ensure that the states are synched
-
     // Go through each initiative
     // Go through each user
-    // Ensure that a non zero vote uses the user latest TS
+    // Ensure that a non zero vote uses the user latest offset
     // This ensures that the math is correct in removal and addition
-    function property_initiative_ts_matches_user_when_non_zero() public {
+    // TODO: check whether this property really holds for offsets, since they are sums
+    function property_initiative_offset_matches_user_when_non_zero() public {
         // For all strategies
         for (uint256 i; i < deployedInitiatives.length; i++) {
             for (uint256 j; j < users.length; j++) {
-                (uint88 votes,, uint16 epoch) =
+                (uint256 votes,,,, uint256 epoch) =
                     governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
 
                 // Grab epoch from initiative
-                (uint88 lqtyAllocatedByUserAtEpoch, uint120 ts) =
+                (uint256 lqtyAllocatedByUserAtEpoch, uint256 allocOffset) =
                     IBribeInitiative(deployedInitiatives[i]).lqtyAllocatedByUserAtEpoch(users[j], epoch);
 
-                // Check that TS matches (only for votes)
+                // Check that votes match
                 eq(lqtyAllocatedByUserAtEpoch, votes, "Votes must match at all times");
 
                 if (votes != 0) {
                     // if we're voting and the votes are different from 0
-                    // then we check user TS
-                    (, uint120 averageStakingTimestamp) = governance.userStates(users[j]);
+                    // then we check user offset
+                    (,,, uint256 allocatedOffset) = governance.userStates(users[j]);
 
-                    eq(averageStakingTimestamp, ts, "Timestamp must be most recent when it's non zero");
+                    eq(allocatedOffset, allocOffset, "Offsets must match");
                 } else {
-                    // NOTE: If votes are zero the TS is passed, but it is not a useful value
-                    // This is left here as a note for the reviewer
+                    // NOTE: If votes are zero the offset is zero
                 }
             }
         }

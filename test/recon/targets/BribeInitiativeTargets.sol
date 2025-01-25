@@ -15,24 +15,24 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
     // NOTE: initiatives that get called here are deployed but not necessarily registered
 
-    function initiative_depositBribe(uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch, uint8 initiativeIndex)
+    function initiative_depositBribe(uint256 boldAmount, uint256 bribeTokenAmount, uint256 epoch, uint8 initiativeIndex)
         public
         withChecks
     {
         IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
 
         // clamp token amounts using user balance
-        boldAmount = uint128(boldAmount % lusd.balanceOf(user));
-        bribeTokenAmount = uint128(bribeTokenAmount % lqty.balanceOf(user));
+        boldAmount = uint256(boldAmount % lusd.balanceOf(user));
+        bribeTokenAmount = uint256(bribeTokenAmount % lqty.balanceOf(user));
 
         lusd.approve(address(initiative), boldAmount);
         lqty.approve(address(initiative), bribeTokenAmount);
 
-        (uint128 boldAmountB4, uint128 bribeTokenAmountB4) = IBribeInitiative(initiative).bribeByEpoch(epoch);
+        (uint256 boldAmountB4, uint256 bribeTokenAmountB4,) = IBribeInitiative(initiative).bribeByEpoch(epoch);
 
         initiative.depositBribe(boldAmount, bribeTokenAmount, epoch);
 
-        (uint128 boldAmountAfter, uint128 bribeTokenAmountAfter) = IBribeInitiative(initiative).bribeByEpoch(epoch);
+        (uint256 boldAmountAfter, uint256 bribeTokenAmountAfter,) = IBribeInitiative(initiative).bribeByEpoch(epoch);
 
         eq(boldAmountB4 + boldAmount, boldAmountAfter, "Bold amount tracking is sound");
         eq(bribeTokenAmountB4 + bribeTokenAmount, bribeTokenAmountAfter, "Bribe amount tracking is sound");
@@ -40,10 +40,10 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
 
     // Canaries are no longer necessary
     // function canary_bribeWasThere(uint8 initiativeIndex) public {
-    //     uint16 epoch = governance.epoch();
+    //     uint256 epoch = governance.epoch();
     //     IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
 
-    //     (uint128 boldAmount, uint128 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
+    //     (uint256 boldAmount, uint256 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
     //     t(boldAmount == 0 && bribeTokenAmount == 0, "A bribe was found");
     // }
 
@@ -55,15 +55,15 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
     function clamped_claimBribes(uint8 initiativeIndex) public {
         IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
 
-        uint16 userEpoch = initiative.getMostRecentUserEpoch(user);
-        uint16 stateEpoch = initiative.getMostRecentTotalEpoch();
+        uint256 userEpoch = initiative.getMostRecentUserEpoch(user);
+        uint256 stateEpoch = initiative.getMostRecentTotalEpoch();
         initiative_claimBribes(governance.epoch() - 1, userEpoch, stateEpoch, initiativeIndex);
     }
 
     function initiative_claimBribes(
-        uint16 epoch,
-        uint16 prevAllocationEpoch,
-        uint16 prevTotalAllocationEpoch,
+        uint256 epoch,
+        uint256 prevAllocationEpoch,
+        uint256 prevTotalAllocationEpoch,
         uint8 initiativeIndex
     ) public withChecks {
         IBribeInitiative initiative = IBribeInitiative(_getDeployedInitiative(initiativeIndex));
@@ -92,14 +92,14 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
             // NOTE: This is not a full check, but a sufficient check for some cases
             /// Specifically we may have to look at the user last epoch
             /// And see if we need to port over that balance from then
-            (uint88 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, epoch);
+            (uint256 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, epoch);
             bool claimedBribe = initiative.claimedBribeAtEpoch(user, epoch);
             if (initiative.getMostRecentTotalEpoch() != prevTotalAllocationEpoch) {
                 return; // We are in a edge case
             }
 
             // Check if there are bribes
-            (uint128 boldAmount, uint128 bribeTokenAmount) = initiative.bribeByEpoch(epoch);
+            (uint256 boldAmount, uint256 bribeTokenAmount,) = initiative.bribeByEpoch(epoch);
             bool bribeWasThere;
             if (boldAmount != 0 || bribeTokenAmount != 0) {
                 bribeWasThere = true;

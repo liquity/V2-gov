@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity 0.8.24;
 
 import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
 
@@ -22,11 +22,10 @@ contract CurveV2GaugeRewards is BribeInitiative {
 
     /// @notice Governance transfers Bold, and we deposit it into the gauge
     /// @dev Doing this allows anyone to trigger the claim
-    function onClaimForInitiative(uint16, uint256 _bold) external override onlyGovernance {
+    function onClaimForInitiative(uint256, uint256 _bold) external override onlyGovernance {
         _depositIntoGauge(_bold);
     }
 
-    // TODO: If this is capped, we may need to donate here, so cap it here as well
     function _depositIntoGauge(uint256 amount) internal {
         uint256 total = amount + remainder;
 

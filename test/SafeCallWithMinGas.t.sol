@@ -23,7 +23,8 @@ contract FallbackRecipient {
 
 contract SafeCallWithMinGasTests is Test {
     function test_basic_nonExistent(uint256 gas, uint256 value, bytes memory theData) public {
-        vm.assume(gas < 30_000_000);
+        gas = bound(gas, 0, 30_000_000);
+
         // Call to non existent succeeds
         address nonExistent = address(0x123123123);
         assert(nonExistent.code.length == 0);
@@ -32,8 +33,8 @@ contract SafeCallWithMinGasTests is Test {
     }
 
     function test_basic_contractData(uint256 gas, uint256 value, bytes memory theData) public {
-        vm.assume(gas < 30_000_000);
-        vm.assume(gas > 50_000 + theData.length * 2_100);
+        gas = bound(gas, 50_000 + theData.length * 2_100, 30_000_000);
+
         /// @audit Approximation
         FallbackRecipient recipient = new FallbackRecipient();
         // Call to non existent succeeds

@@ -6,10 +6,10 @@ import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 import {IGovernance} from "./IGovernance.sol";
 
 interface IBribeInitiative {
-    event DepositBribe(address depositor, uint128 boldAmount, uint128 bribeTokenAmount, uint16 epoch);
-    event ModifyLQTYAllocation(address user, uint16 epoch, uint88 lqtyAllocated, uint120 averageTimestamp);
-    event ModifyTotalLQTYAllocation(uint16 epoch, uint88 totalLQTYAllocated, uint120 averageTimestamp);
-    event ClaimBribe(address user, uint16 epoch, uint256 boldAmount, uint256 bribeTokenAmount);
+    event DepositBribe(address depositor, uint256 boldAmount, uint256 bribeTokenAmount, uint256 epoch);
+    event ModifyLQTYAllocation(address user, uint256 epoch, uint256 lqtyAllocated, uint256 offset);
+    event ModifyTotalLQTYAllocation(uint256 epoch, uint256 totalLQTYAllocated, uint256 offset);
+    event ClaimBribe(address user, uint256 epoch, uint256 boldAmount, uint256 bribeTokenAmount);
 
     /// @notice Address of the governance contract
     /// @return governance Adress of the governance contract
@@ -22,36 +22,45 @@ interface IBribeInitiative {
     function bribeToken() external view returns (IERC20 bribeToken);
 
     struct Bribe {
-        uint128 boldAmount;
-        uint128 bribeTokenAmount; // [scaled as 10 ** bribeToken.decimals()]
+        uint256 remainingBoldAmount;
+        uint256 remainingBribeTokenAmount; // [scaled as 10 ** bribeToken.decimals()]
+        uint256 claimedVotes;
     }
 
     /// @notice Amount of bribe tokens deposited for a given epoch
     /// @param _epoch Epoch at which the bribe was deposited
-    /// @return boldAmount Amount of BOLD tokens deposited
-    /// @return bribeTokenAmount Amount of bribe tokens deposited
-    function bribeByEpoch(uint16 _epoch) external view returns (uint128 boldAmount, uint128 bribeTokenAmount);
+    /// @return remainingBoldAmount Amount of BOLD tokens that haven't been claimed yet
+    /// @return remainingBribeTokenAmount Amount of bribe tokens that haven't been claimed yet
+    /// @return claimedVotes Sum of voting power of users who have already claimed their bribes
+    function bribeByEpoch(uint256 _epoch)
+        external
+        view
+        returns (uint256 remainingBoldAmount, uint256 remainingBribeTokenAmount, uint256 claimedVotes);
     /// @notice Check if a user has claimed bribes for a given epoch
     /// @param _user Address of the user
     /// @param _epoch Epoch at which the bribe may have been claimed by the user
     /// @return claimed If the user has claimed the bribe
-    function claimedBribeAtEpoch(address _user, uint16 _epoch) external view returns (bool claimed);
+    function claimedBribeAtEpoch(address _user, uint256 _epoch) external view returns (bool claimed);
 
     /// @notice Total LQTY allocated to the initiative at a given epoch
+    ///         Voting power can be calculated as `totalLQTYAllocated * timestamp - offset`
     /// @param _epoch Epoch at which the LQTY was allocated
     /// @return totalLQTYAllocated Total LQTY allocated
-    function totalLQTYAllocatedByEpoch(uint16 _epoch)
+    /// @return offset Voting power offset
+    function totalLQTYAllocatedByEpoch(uint256 _epoch)
         external
         view
-        returns (uint88 totalLQTYAllocated, uint120 averageTimestamp);
+        returns (uint256 totalLQTYAllocated, uint256 offset);
     /// @notice LQTY allocated by a user to the initiative at a given epoch
+    ///         Voting power can be calculated as `lqtyAllocated * timestamp - offset`
     /// @param _user Address of the user
     /// @param _epoch Epoch at which the LQTY was allocated by the user
     /// @return lqtyAllocated LQTY allocated by the user
-    function lqtyAllocatedByUserAtEpoch(address _user, uint16 _epoch)
+    /// @return offset Voting power offset
+    function lqtyAllocatedByUserAtEpoch(address _user, uint256 _epoch)
         external
         view
-        returns (uint88 lqtyAllocated, uint120 averageTimestamp);
+        returns (uint256 lqtyAllocated, uint256 offset);
 
     /// @notice Deposit bribe tokens for a given epoch
     /// @dev The caller has to approve this contract to spend the BOLD and bribe tokens.
@@ -59,15 +68,15 @@ interface IBribeInitiative {
     /// @param _boldAmount Amount of BOLD tokens to deposit
     /// @param _bribeTokenAmount Amount of bribe tokens to deposit
     /// @param _epoch Epoch at which the bribe is deposited
-    function depositBribe(uint128 _boldAmount, uint128 _bribeTokenAmount, uint16 _epoch) external;
+    function depositBribe(uint256 _boldAmount, uint256 _bribeTokenAmount, uint256 _epoch) external;
 
     struct ClaimData {
         // Epoch at which the user wants to claim the bribes
-        uint16 epoch;
+        uint256 epoch;
         // Epoch at which the user updated the LQTY allocation for this initiative
-        uint16 prevLQTYAllocationEpoch;
+        uint256 prevLQTYAllocationEpoch;
         // Epoch at which the total LQTY allocation is updated for this initiative
-        uint16 prevTotalLQTYAllocationEpoch;
+        uint256 prevTotalLQTYAllocationEpoch;
     }
 
     /// @notice Claim bribes for a user
@@ -80,8 +89,8 @@ interface IBribeInitiative {
         returns (uint256 boldAmount, uint256 bribeTokenAmount);
 
     /// @notice Given a user address return the last recorded epoch for their allocation
-    function getMostRecentUserEpoch(address _user) external view returns (uint16);
+    function getMostRecentUserEpoch(address _user) external view returns (uint256);
 
     /// @notice Return the last recorded epoch for the system
-    function getMostRecentTotalEpoch() external view returns (uint16);
+    function getMostRecentTotalEpoch() external view returns (uint256);
 }
