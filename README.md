@@ -312,21 +312,16 @@ An Initiative qualifies for claim when its votes exceed both:
 - The voting threshold
 - The vetos received
   
-The reward amount for a qualifying Initiative is calculated as the pro-rata share of the epoch's BOLD accrual, based on the Initiative's share of total votes among all qualifying Initiatives. For example, if an Initiative received 25% of all votes in an epoch, it will receive 25% of that epoch's accrued BOLD rewards.
+The reward amount for a qualifying Initiative is calculated as the pro-rata share of the epoch's BOLD accrual, based on the Initiative's share of total votes among all Initiatives, including non-qualifying ones. For example, if an Initiative received 25% of all votes in an epoch, it will receive 25% of that epoch's accrued BOLD rewards. The BOLD share of non-qualifying initiatives is automatically rolled over into the next epoch's reward pool.
 
 If a qualifying Initiative fails to claim during the epoch following its snapshot, its potential rewards are automatically rolled over into the next epoch's reward pool. This means unclaimed rewards are not lost, but rather redistributed to the next epoch's qualifying Initiatives.
 
 When a successful claim is made, the BOLD tokens are immediately transferred to the Initiative address, and the `onClaimForInitiative`hook is called on the Initiative contract (if implemented). This hook allows Initiatives to execute custom logic upon receiving rewards, making the system highly flexible for different use cases.
-Note that Initiatives must be claimed individually - there is no batch claim mechanism. 
+Note that Initiatives must be claimed individually - however the [multiDelegateCall()](src/utils/MultiDelegateCall.sol) function of `Governance` may be used to claim for multiple Initiatives in a single call.
 
 ### Claim frequency
 
-It’s possible that an Initiative maintains qualifying voting power across multiple consecutive epochs.
-
-However: 
-
-- An Initiative can be claimed for at most once per epoch
-- It cannot be claimed for in consecutive epochs. After a claim in epoch `x`, the earliest new epoch in which a claim can be made is epoch `x+2`. 
+An Initiative can be claimed for at most once per epoch. After a claim in epoch `x`, the Initiative will be claimable again in epoch `x+1` as long as it maintains qualifying voting power. 
 
 These constraints are enforced by the Initiative state machine [LINK].
 
