@@ -20,7 +20,7 @@ import {UserProxy} from "../src/UserProxy.sol";
 import {PermitParams} from "../src/utils/Types.sol";
 
 import {MockERC20Tester} from "./mocks/MockERC20Tester.sol";
-import {MockInitiative} from "./mocks/MockInitiative.sol";
+import {MockReentrantInitiative} from "./mocks/MockInitiative.sol";
 import {MockStakingV1} from "./mocks/MockStakingV1.sol";
 import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
 import "./constants.sol";
@@ -1531,7 +1531,7 @@ abstract contract GovernanceTest is Test {
     /*
      * TODO
     function test_nonReentrant() public {
-        MockInitiative mockInitiative = new MockInitiative(address(governance));
+        MockReentrantInitiative mockInitiative = new MockReentrantInitiative(address(governance));
 
         vm.startPrank(user);
 

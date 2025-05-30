@@ -5,40 +5,9 @@ import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {IInitiative} from "../src/interfaces/IInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 import {MockERC20Tester} from "./mocks/MockERC20Tester.sol";
+import {MockInitiative} from "./mocks/MockInitiative.sol";
 import {MockStakingV1} from "./mocks/MockStakingV1.sol";
 import {MockStakingV1Deployer} from "./mocks/MockStakingV1Deployer.sol";
-
-contract MockInitiative is IInitiative {
-    struct OnAfterAllocateLQTYParams {
-        uint256 currentEpoch;
-        address user;
-        IGovernance.UserState userState;
-        IGovernance.Allocation allocation;
-        IGovernance.InitiativeState initiativeStat;
-    }
-
-    OnAfterAllocateLQTYParams[] public onAfterAllocateLQTYCalls;
-
-    function numOnAfterAllocateLQTYCalls() external view returns (uint256) {
-        return onAfterAllocateLQTYCalls.length;
-    }
-
-    function onAfterAllocateLQTY(
-        uint256 _currentEpoch,
-        address _user,
-        IGovernance.UserState calldata _userState,
-        IGovernance.Allocation calldata _allocation,
-        IGovernance.InitiativeState calldata _initiativeState
-    ) external override {
-        onAfterAllocateLQTYCalls.push(
-            OnAfterAllocateLQTYParams(_currentEpoch, _user, _userState, _allocation, _initiativeState)
-        );
-    }
-
-    function onRegisterInitiative(uint256) external override {}
-    function onUnregisterInitiative(uint256) external override {}
-    function onClaimForInitiative(uint256, uint256) external override {}
-}
 
 contract InitiativeHooksTest is MockStakingV1Deployer {
     uint32 constant START_TIME = 1732873631;

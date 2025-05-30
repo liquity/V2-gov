@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {IGovernance} from "../../src/interfaces/IGovernance.sol";
 import {IInitiative} from "../../src/interfaces/IInitiative.sol";
 
-contract MockInitiative is IInitiative {
+contract MockReentrantInitiative is IInitiative {
     IGovernance public immutable governance;
 
     constructor(address _governance) {
@@ -39,4 +39,36 @@ contract MockInitiative is IInitiative {
     function onClaimForInitiative(uint256, uint256) external virtual override {
         governance.claimForInitiative(address(0));
     }
+}
+
+contract MockInitiative is IInitiative {
+    struct OnAfterAllocateLQTYParams {
+        uint256 currentEpoch;
+        address user;
+        IGovernance.UserState userState;
+        IGovernance.Allocation allocation;
+        IGovernance.InitiativeState initiativeStat;
+    }
+
+    OnAfterAllocateLQTYParams[] public onAfterAllocateLQTYCalls;
+
+    function numOnAfterAllocateLQTYCalls() external view returns (uint256) {
+        return onAfterAllocateLQTYCalls.length;
+    }
+
+    function onAfterAllocateLQTY(
+        uint256 _currentEpoch,
+        address _user,
+        IGovernance.UserState calldata _userState,
+        IGovernance.Allocation calldata _allocation,
+        IGovernance.InitiativeState calldata _initiativeState
+    ) external override {
+        onAfterAllocateLQTYCalls.push(
+            OnAfterAllocateLQTYParams(_currentEpoch, _user, _userState, _allocation, _initiativeState)
+        );
+    }
+
+    function onRegisterInitiative(uint256) external override {}
+    function onUnregisterInitiative(uint256) external override {}
+    function onClaimForInitiative(uint256, uint256) external override {}
 }
