@@ -124,9 +124,9 @@ As such, a User with non-zero unallocated voting power who deposits m LQTY then 
 
 LQTY may be assigned to:
 
-A User
-An Initiative, as allocated “vote” LQTY
-An Initiative, as allocated “veto” LQTY
+- A User
+- An Initiative, as allocated “vote” LQTY
+- An Initiative, as allocated “veto” LQTY
 
 Deposited LQTY accrues voting power continuously over time, for whichever entity it is assigned to (i.e. User or Initiative).
 
