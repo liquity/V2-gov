@@ -29,6 +29,9 @@ interface IDistributionCreator {
         bytes campaignData;
     }
 
+    function distributor() external view returns(address);
+    function campaign(bytes32 _campaignId) external view returns (CampaignParameters memory);
+
     function acceptConditions() external;
     function campaignId(CampaignParameters memory campaignData) external returns (bytes32);
     function createCampaign(CampaignParameters memory newCampaign) external returns (bytes32);
