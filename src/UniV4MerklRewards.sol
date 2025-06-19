@@ -11,7 +11,7 @@ import {IInitiative} from "./interfaces/IInitiative.sol";
 contract UniV4MerklRewards is IInitiative {
     using SafeERC20 for IERC20;
 
-    uint32 constant CAMPAIGN_TYPE = 2; // TODO!!
+    uint32 constant public CAMPAIGN_TYPE = 13;
     IDistributionCreator constant merklDistributionCreator = IDistributionCreator(0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd);
 
     IGovernance public immutable governance;
@@ -23,7 +23,9 @@ contract UniV4MerklRewards is IInitiative {
     uint256 internal immutable EPOCH_START;
     uint256 internal immutable EPOCH_DURATION;
 
-    event NewCampaign(uint256 indexed claimEpoch, uint256 boldAmount, bytes32 campaingId);
+    // TODO: bytes32 public immutable data;
+
+    event NewMerklCampaign(uint256 indexed claimEpoch, uint256 boldAmount, bytes32 campaingId);
 
     modifier onlyGovernance() {
         require(msg.sender == address(governance), "UniV4MerklInitiative: invalid-sender");
@@ -42,6 +44,9 @@ contract UniV4MerklRewards is IInitiative {
 
         // Approve BOLD to Merkl
         boldToken.approve(address(merklDistributionCreator), type(uint256).max);
+
+        // Accept conditions
+        merklDistributionCreator.acceptConditions();
     }
 
     function onRegisterInitiative(uint256 _atEpoch) external override {}
@@ -75,9 +80,6 @@ contract UniV4MerklRewards is IInitiative {
         // Avoid if rewards too low
         if (amount < CAMPAIGN_BOLD_AMOUNT_THRESHOLD) { return; }
 
-        // Accept conditions
-        merklDistributionCreator.acceptConditions();
-
         // (Only once per epoch)
         uint256 epochEnd = EPOCH_START + _claimEpoch * EPOCH_DURATION;
         IDistributionCreator.CampaignParameters memory params = IDistributionCreator.CampaignParameters({
@@ -93,6 +95,6 @@ contract UniV4MerklRewards is IInitiative {
         //params.campaignId = merklDistributionCreator.campaignId(params);
         bytes32 campaignId = merklDistributionCreator.createCampaign(params);
 
-        emit NewCampaign(_claimEpoch, _bold, campaignId);
+        emit NewMerklCampaign(_claimEpoch, _bold, campaignId);
     }
 }
