@@ -59,25 +59,31 @@ contract UniV4MerklRewards is IInitiative {
     }
 
     function getCampaignData() public view returns (bytes memory) {
-        address[] memory blacklist = new address[](1);
-        blacklist[0] = LIQUTY_FUNDS_SAFE;
-
-        return abi.encode(
-            bytes.concat(UNIV4_POOL_ID),
-            IS_OUT_OF_RANGE_INCENTIVIZED,
-            WEIGHT_FEES,
-            WEIGHT_TOKEN_0,
-            WEIGHT_TOKEN_1,
-            new address[](0), // whitelist
-            blacklist,
-            new bytes[](0), // hooks
-            /*
-            uint32(0), // lowerPriceTolerance
-            uint32(0), // upperPriceTolerance
-            uint32(0), // lowerPriceBound
-            uint32(0), // upperPriceBound
-            */
-            new address[](0)
+        return bytes.concat(
+            abi.encode(
+                416, // 13 * 32, offset for poolId bytes
+                IS_OUT_OF_RANGE_INCENTIVIZED,
+                WEIGHT_FEES,
+                WEIGHT_TOKEN_0,
+                WEIGHT_TOKEN_1,
+                480, // 15 * 32, offset for whitelist address
+                512, // 16 * 32, offset for blacklist address
+                576 // 18 * 32, offset for hooks
+            ),
+            abi.encode(
+                0, // lowerPriceTolerance
+                0, // upperPriceTolerance
+                0, // lowerPriceBound
+                0, // upperPriceBound
+                608, // 19 * 32, offset for empty unknown last param
+                32, // poolId len as bytes
+                UNIV4_POOL_ID,
+                0, // empty whitelist
+                1, // blacklist len
+                LIQUTY_FUNDS_SAFE, // blacklisted address
+                0, // empty hooks
+                0 // empty last unknown param
+            )
         );
     }
 
