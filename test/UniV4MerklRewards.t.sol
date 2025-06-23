@@ -21,7 +21,10 @@ contract UniV4MerklE2ETests is Test {
 
     Governance private constant governance = Governance(0x807DEf5E7d057DF05C796F4bc75C3Fe82Bd6EeE1);
     IDistributionCreator constant merklDistributionCreator = IDistributionCreator(0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd);
-    address private constant UNIV4_POOL_ADDRESS = address(0); // TODO
+    bytes32 private constant UNIV4_POOL_ID = 0x5d0ed52610c76d7bf729130ce7ddc0488b2f4bd0a0db1f12adbe6a32deaff893;
+    uint32 private constant WEIGHT_FEES = 1500;
+    uint32 private constant WEIGHT_TOKEN_0 = 4500;
+    uint32 private constant WEIGHT_TOKEN_1 = 4000;
 
     uint256 private REGISTRATION_FEE;
     uint256 private EPOCH_START;
@@ -38,7 +41,18 @@ contract UniV4MerklE2ETests is Test {
         EPOCH_START = governance.EPOCH_START();
         EPOCH_DURATION = governance.EPOCH_DURATION();
 
-        uniV4MerklRewardsInitiative = new UniV4MerklRewards(address(governance), address(boldToken), CAMPAIGN_BOLD_AMOUNT_THRESHOLD, UNIV4_POOL_ADDRESS);
+        uniV4MerklRewardsInitiative = new UniV4MerklRewards(
+            address(governance),
+            address(boldToken),
+            CAMPAIGN_BOLD_AMOUNT_THRESHOLD,
+            UNIV4_POOL_ID,
+            WEIGHT_FEES,
+            WEIGHT_TOKEN_0,
+            WEIGHT_TOKEN_1
+        );
+
+
+        console2.logBytes(uniV4MerklRewardsInitiative.getCampaignData());
 
         // Register initiative
         vm.startPrank(GOVERNANCE_WHALE);
@@ -90,7 +104,7 @@ contract UniV4MerklE2ETests is Test {
             campaignType: uniV4MerklRewardsInitiative.CAMPAIGN_TYPE(),
             startTimestamp: uint32(epochEnd),
             duration: uint32(EPOCH_DURATION),
-            campaignData: new bytes(0) // TODO
+            campaignData: uniV4MerklRewardsInitiative.getCampaignData()
         });
         bytes32 campaignId = merklDistributionCreator.campaignId(params);
         IDistributionCreator.CampaignParameters memory campaign = merklDistributionCreator.campaign(campaignId);

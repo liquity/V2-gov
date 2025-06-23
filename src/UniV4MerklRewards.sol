@@ -11,6 +11,8 @@ import {IInitiative} from "./interfaces/IInitiative.sol";
 contract UniV4MerklRewards is IInitiative {
     using SafeERC20 for IERC20;
 
+    address public constant LIQUTY_FUNDS_SAFE = address(0xF06016D822943C42e3Cb7FC3a6A3B1889C1045f8); // to blacklist
+
     uint32 constant public CAMPAIGN_TYPE = 13;
     IDistributionCreator constant merklDistributionCreator = IDistributionCreator(0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd);
 
@@ -18,12 +20,14 @@ contract UniV4MerklRewards is IInitiative {
     IERC20 public immutable boldToken;
 
     uint256 public immutable CAMPAIGN_BOLD_AMOUNT_THRESHOLD;
-    address public immutable UNIV4_POOL_ADDRESS;
+    bool constant IS_OUT_OF_RANGE_INCENTIVIZED = false;
+    bytes32 public immutable UNIV4_POOL_ID;
+    uint32 public immutable WEIGHT_FEES;    // With 2 decimals
+    uint32 public immutable WEIGHT_TOKEN_0;
+    uint32 public immutable WEIGHT_TOKEN_1;
 
     uint256 internal immutable EPOCH_START;
     uint256 internal immutable EPOCH_DURATION;
-
-    // TODO: bytes32 public immutable data;
 
     event NewMerklCampaign(uint256 indexed claimEpoch, uint256 boldAmount, bytes32 campaingId);
 
@@ -32,12 +36,17 @@ contract UniV4MerklRewards is IInitiative {
         _;
     }
 
-    constructor(address _governanceAddress, address _boldTokenAddress, uint256 _campaignBoldAmountThreshold, address _uniV4PoolAddress) {
+    constructor(address _governanceAddress, address _boldTokenAddress, uint256 _campaignBoldAmountThreshold, bytes32 _uniV4PoolId,uint32 _weightFees, uint32 _weightToken0, uint32 _weightToken1) {
+        require(_weightFees + _weightToken0 + _weightToken1 == 10000, "Wrong weigths");
+
         governance = IGovernance(_governanceAddress);
         boldToken = IERC20(_boldTokenAddress);
 
         CAMPAIGN_BOLD_AMOUNT_THRESHOLD = _campaignBoldAmountThreshold;
-        UNIV4_POOL_ADDRESS = _uniV4PoolAddress;
+        UNIV4_POOL_ID = _uniV4PoolId;
+        WEIGHT_FEES = _weightFees;
+        WEIGHT_TOKEN_0 = _weightToken0;
+        WEIGHT_TOKEN_1 = _weightToken1;
 
         EPOCH_START = governance.EPOCH_START();
         EPOCH_DURATION = governance.EPOCH_DURATION();
@@ -47,6 +56,29 @@ contract UniV4MerklRewards is IInitiative {
 
         // Accept conditions
         merklDistributionCreator.acceptConditions();
+    }
+
+    function getCampaignData() public view returns (bytes memory) {
+        address[] memory blacklist = new address[](1);
+        blacklist[0] = LIQUTY_FUNDS_SAFE;
+
+        return abi.encode(
+            bytes.concat(UNIV4_POOL_ID),
+            IS_OUT_OF_RANGE_INCENTIVIZED,
+            WEIGHT_FEES,
+            WEIGHT_TOKEN_0,
+            WEIGHT_TOKEN_1,
+            new address[](0), // whitelist
+            blacklist,
+            new bytes[](0), // hooks
+            /*
+            uint32(0), // lowerPriceTolerance
+            uint32(0), // upperPriceTolerance
+            uint32(0), // lowerPriceBound
+            uint32(0), // upperPriceBound
+            */
+            new address[](0)
+        );
     }
 
     function onRegisterInitiative(uint256 _atEpoch) external override {}
@@ -90,7 +122,7 @@ contract UniV4MerklRewards is IInitiative {
             campaignType: CAMPAIGN_TYPE,
             startTimestamp: uint32(epochEnd),
             duration: uint32(EPOCH_DURATION),
-            campaignData: new bytes(0) // TODO
+            campaignData: getCampaignData()
         });
         //params.campaignId = merklDistributionCreator.campaignId(params);
         bytes32 campaignId = merklDistributionCreator.createCampaign(params);
