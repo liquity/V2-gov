@@ -51,8 +51,7 @@ contract UniV4MerklE2ETests is Test {
             WEIGHT_TOKEN_1
         );
 
-
-        console2.logBytes(uniV4MerklRewardsInitiative.getCampaignData());
+        //console2.logBytes(uniV4MerklRewardsInitiative.getCampaignData());
 
         // Register initiative
         vm.startPrank(GOVERNANCE_WHALE);
@@ -79,7 +78,7 @@ contract UniV4MerklE2ETests is Test {
         assertEq(boldToken.balanceOf(address(merklDistributionCreator.distributor())), 0, "Merkl Distributor should not have any BOLD");
     }
 
-    function testOnClaimCreatesCampaign() external {
+    function testClaimCreatesCampaign() external {
         vm.startPrank(LQTY_WHALE);
         uint256 lqtyAmount = lqty.balanceOf(LQTY_WHALE);
         //console2.log(lqtyAmount, "lqtyAmount");
@@ -93,7 +92,7 @@ contract UniV4MerklE2ETests is Test {
 
         (/*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/,, uint256 claimableAmount) = governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
 
-        governance.claimForInitiative(address(uniV4MerklRewardsInitiative));
+        uniV4MerklRewardsInitiative.claimForInitiative();
 
         uint256 epochEnd = EPOCH_START + (governance.epoch() - 1) * EPOCH_DURATION;
         IDistributionCreator.CampaignParameters memory params = IDistributionCreator.CampaignParameters({
@@ -107,6 +106,96 @@ contract UniV4MerklE2ETests is Test {
             campaignData: uniV4MerklRewardsInitiative.getCampaignData()
         });
         bytes32 campaignId = merklDistributionCreator.campaignId(params);
+        IDistributionCreator.CampaignParameters memory campaign = merklDistributionCreator.campaign(campaignId);
+        assertEq(campaign.creator, params.creator, "creator");
+        assertEq(campaign.rewardToken, params.rewardToken, "rewardToken");
+        assertEq(campaign.amount, params.amount * 97 / 100, "amount minus fees");
+        assertEq(campaign.campaignType, params.campaignType, "campaignType");
+        assertEq(campaign.startTimestamp, params.startTimestamp, "startTimestamp");
+        assertEq(campaign.duration, params.duration, "duration");
+        assertEq(campaign.campaignData, params.campaignData, "campaignData");
+
+        assertGt(boldToken.balanceOf(address(merklDistributionCreator.distributor())), 0, "Merkl Distributor should have some BOLD");
+    }
+
+    function testClaimDoesNotCreatesAnotherCampaignIfCalledTwiceInAnEpoch() external {
+        vm.startPrank(LQTY_WHALE);
+        uint256 lqtyAmount = lqty.balanceOf(LQTY_WHALE);
+        //console2.log(lqtyAmount, "lqtyAmount");
+        _deposit(lqtyAmount);
+
+        _allocate(address(uniV4MerklRewardsInitiative), lqtyAmount, 0);
+        vm.stopPrank();
+
+        // Gain some voting power
+        vm.warp(block.timestamp + 30 days);
+
+        (/*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/,, uint256 claimableAmount) = governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
+
+        uniV4MerklRewardsInitiative.claimForInitiative();
+
+        uint256 epochEnd = EPOCH_START + (governance.epoch() - 1) * EPOCH_DURATION;
+        IDistributionCreator.CampaignParameters memory params = IDistributionCreator.CampaignParameters({
+            campaignId: bytes32(0),
+            creator: address(uniV4MerklRewardsInitiative),
+            rewardToken: address(boldToken),
+            amount: claimableAmount,
+            campaignType: uniV4MerklRewardsInitiative.CAMPAIGN_TYPE(),
+            startTimestamp: uint32(epochEnd),
+            duration: uint32(EPOCH_DURATION),
+            campaignData: uniV4MerklRewardsInitiative.getCampaignData()
+        });
+        bytes32 campaignId = merklDistributionCreator.campaignId(params);
+        IDistributionCreator.CampaignParameters memory campaign = merklDistributionCreator.campaign(campaignId);
+        assertEq(campaign.creator, params.creator, "creator");
+        assertEq(campaign.rewardToken, params.rewardToken, "rewardToken");
+        assertEq(campaign.amount, params.amount * 97 / 100, "amount minus fees");
+        assertEq(campaign.campaignType, params.campaignType, "campaignType");
+        assertEq(campaign.startTimestamp, params.startTimestamp, "startTimestamp");
+        assertEq(campaign.duration, params.duration, "duration");
+        assertEq(campaign.campaignData, params.campaignData, "campaignData");
+
+        assertGt(boldToken.balanceOf(address(merklDistributionCreator.distributor())), 0, "Merkl Distributor should have some BOLD");
+        // Try to call again, without success
+        vm.expectRevert("UniV4MerklInitiative: no funds for campaign");
+        uniV4MerklRewardsInitiative.claimForInitiative();
+    }
+
+    function testClaimWorksEvenIfClaimedWasAlreadyDone() external {
+        vm.startPrank(LQTY_WHALE);
+        uint256 lqtyAmount = lqty.balanceOf(LQTY_WHALE);
+        //console2.log(lqtyAmount, "lqtyAmount");
+        _deposit(lqtyAmount);
+
+        _allocate(address(uniV4MerklRewardsInitiative), lqtyAmount, 0);
+        vm.stopPrank();
+
+        // Gain some voting power
+        vm.warp(block.timestamp + 30 days);
+
+        (/*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/,, uint256 claimableAmount) = governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
+
+        uint256 epochEnd = EPOCH_START + (governance.epoch() - 1) * EPOCH_DURATION;
+        IDistributionCreator.CampaignParameters memory params = IDistributionCreator.CampaignParameters({
+            campaignId: bytes32(0),
+            creator: address(uniV4MerklRewardsInitiative),
+            rewardToken: address(boldToken),
+            amount: claimableAmount,
+            campaignType: uniV4MerklRewardsInitiative.CAMPAIGN_TYPE(),
+            startTimestamp: uint32(epochEnd),
+            duration: uint32(EPOCH_DURATION),
+            campaignData: uniV4MerklRewardsInitiative.getCampaignData()
+        });
+        bytes32 campaignId = merklDistributionCreator.campaignId(params);
+
+        governance.claimForInitiative(address(uniV4MerklRewardsInitiative));
+        // Check campaign is not created yet
+        vm.expectRevert();
+        merklDistributionCreator.campaignLookup(campaignId);
+
+        uniV4MerklRewardsInitiative.claimForInitiative();
+        assertGt(merklDistributionCreator.campaignLookup(campaignId), 0, "Campaign should have been created");
+
         IDistributionCreator.CampaignParameters memory campaign = merklDistributionCreator.campaign(campaignId);
         assertEq(campaign.creator, params.creator, "creator");
         assertEq(campaign.rewardToken, params.rewardToken, "rewardToken");

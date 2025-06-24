@@ -111,20 +111,21 @@ contract UniV4MerklRewards is IInitiative {
     /// to the initiative
     /// @param _claimEpoch Epoch at which the claim was distributed
     /// @param _bold Amount of BOLD that was distributed
-    function onClaimForInitiative(uint256 _claimEpoch, uint256 _bold) external override onlyGovernance {
-        uint256 amount = boldToken.balanceOf(address(this));
-        assert(amount >= _bold);
+    function onClaimForInitiative(uint256 _claimEpoch, uint256 _bold) external override onlyGovernance {}
 
+    function createCampaign(uint256 _amount) internal {
         // Avoid if rewards too low
-        if (amount < CAMPAIGN_BOLD_AMOUNT_THRESHOLD) { return; }
+        if (_amount < CAMPAIGN_BOLD_AMOUNT_THRESHOLD) { return; }
+
+        uint256 claimEpoch = governance.epoch() - 1;
 
         // (Only once per epoch)
-        uint256 epochEnd = EPOCH_START + _claimEpoch * EPOCH_DURATION;
+        uint256 epochEnd = EPOCH_START + claimEpoch * EPOCH_DURATION;
         IDistributionCreator.CampaignParameters memory params = IDistributionCreator.CampaignParameters({
             campaignId: bytes32(0),
             creator: address(this),
             rewardToken: address(boldToken),
-            amount: amount,
+            amount: _amount,
             campaignType: CAMPAIGN_TYPE,
             startTimestamp: uint32(epochEnd),
             duration: uint32(EPOCH_DURATION),
@@ -133,6 +134,16 @@ contract UniV4MerklRewards is IInitiative {
         //params.campaignId = merklDistributionCreator.campaignId(params);
         bytes32 campaignId = merklDistributionCreator.createCampaign(params);
 
-        emit NewMerklCampaign(_claimEpoch, _bold, campaignId);
+        emit NewMerklCampaign(claimEpoch, _amount, campaignId);
+    }
+
+    // Wrapper to avoid gas limitation
+    function claimForInitiative() external {
+        uint256 claimableAmount = governance.claimForInitiative(address(this));
+        uint256 amount = boldToken.balanceOf(address(this));
+        assert(amount >= claimableAmount);
+        require(amount > 0, "UniV4MerklInitiative: no funds for campaign");
+
+        createCampaign(amount);
     }
 }

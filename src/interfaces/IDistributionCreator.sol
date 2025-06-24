@@ -31,6 +31,7 @@ interface IDistributionCreator {
 
     function distributor() external view returns(address);
     function campaign(bytes32 _campaignId) external view returns (CampaignParameters memory);
+    function campaignLookup(bytes32 _campaignId) external view returns (uint256);
 
     function acceptConditions() external;
     function campaignId(CampaignParameters memory campaignData) external returns (bytes32);
