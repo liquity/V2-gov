@@ -20,7 +20,8 @@ contract UniV4MerklE2ETests is Test {
     address public LQTY_WHALE = 0xF977814e90dA44bFA03b6295A0616a897441aceC;
 
     Governance private constant governance = Governance(0x807DEf5E7d057DF05C796F4bc75C3Fe82Bd6EeE1);
-    IDistributionCreator constant merklDistributionCreator = IDistributionCreator(0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd);
+    IDistributionCreator constant merklDistributionCreator =
+        IDistributionCreator(0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd);
     bytes32 private constant UNIV4_POOL_ID = 0x5d0ed52610c76d7bf729130ce7ddc0488b2f4bd0a0db1f12adbe6a32deaff893;
     uint32 private constant WEIGHT_FEES = 1500;
     uint32 private constant WEIGHT_TOKEN_0 = 4500;
@@ -60,7 +61,9 @@ contract UniV4MerklE2ETests is Test {
         governance.registerInitiative(address(uniV4MerklRewardsInitiative));
         vm.stopPrank();
 
-        assertGt(governance.registeredInitiatives(address(uniV4MerklRewardsInitiative)), 0, "Initiative should be registered");
+        assertGt(
+            governance.registeredInitiatives(address(uniV4MerklRewardsInitiative)), 0, "Initiative should be registered"
+        );
 
         // Move to next epoch
         vm.warp(block.timestamp + EPOCH_DURATION);
@@ -75,7 +78,11 @@ contract UniV4MerklE2ETests is Test {
     function testOnClaimDoesNothingIfRewardsTooLow() external {
         governance.claimForInitiative(address(uniV4MerklRewardsInitiative));
 
-        assertEq(boldToken.balanceOf(address(merklDistributionCreator.distributor())), 0, "Merkl Distributor should not have any BOLD");
+        assertEq(
+            boldToken.balanceOf(address(merklDistributionCreator.distributor())),
+            0,
+            "Merkl Distributor should not have any BOLD"
+        );
     }
 
     function testClaimCreatesCampaign() external {
@@ -90,7 +97,8 @@ contract UniV4MerklE2ETests is Test {
         // Gain some voting power
         vm.warp(block.timestamp + 30 days);
 
-        (/*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/,, uint256 claimableAmount) = governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
+        ( /*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/ ,, uint256 claimableAmount) =
+            governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
 
         uniV4MerklRewardsInitiative.claimForInitiative();
 
@@ -115,7 +123,11 @@ contract UniV4MerklE2ETests is Test {
         assertEq(campaign.duration, params.duration, "duration");
         assertEq(campaign.campaignData, params.campaignData, "campaignData");
 
-        assertGt(boldToken.balanceOf(address(merklDistributionCreator.distributor())), 0, "Merkl Distributor should have some BOLD");
+        assertGt(
+            boldToken.balanceOf(address(merklDistributionCreator.distributor())),
+            0,
+            "Merkl Distributor should have some BOLD"
+        );
     }
 
     function testClaimDoesNotCreatesAnotherCampaignIfCalledTwiceInAnEpoch() external {
@@ -130,7 +142,8 @@ contract UniV4MerklE2ETests is Test {
         // Gain some voting power
         vm.warp(block.timestamp + 30 days);
 
-        (/*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/,, uint256 claimableAmount) = governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
+        ( /*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/ ,, uint256 claimableAmount) =
+            governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
 
         uniV4MerklRewardsInitiative.claimForInitiative();
 
@@ -155,7 +168,11 @@ contract UniV4MerklE2ETests is Test {
         assertEq(campaign.duration, params.duration, "duration");
         assertEq(campaign.campaignData, params.campaignData, "campaignData");
 
-        assertGt(boldToken.balanceOf(address(merklDistributionCreator.distributor())), 0, "Merkl Distributor should have some BOLD");
+        assertGt(
+            boldToken.balanceOf(address(merklDistributionCreator.distributor())),
+            0,
+            "Merkl Distributor should have some BOLD"
+        );
         // Try to call again, without success
         vm.expectRevert("UniV4MerklInitiative: no funds for campaign");
         uniV4MerklRewardsInitiative.claimForInitiative();
@@ -173,7 +190,8 @@ contract UniV4MerklE2ETests is Test {
         // Gain some voting power
         vm.warp(block.timestamp + 30 days);
 
-        (/*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/,, uint256 claimableAmount) = governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
+        ( /*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/ ,, uint256 claimableAmount) =
+            governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
 
         uint256 epochEnd = EPOCH_START + (governance.epoch() - 1) * EPOCH_DURATION;
         IDistributionCreator.CampaignParameters memory params = IDistributionCreator.CampaignParameters({
@@ -205,7 +223,11 @@ contract UniV4MerklE2ETests is Test {
         assertEq(campaign.duration, params.duration, "duration");
         assertEq(campaign.campaignData, params.campaignData, "campaignData");
 
-        assertGt(boldToken.balanceOf(address(merklDistributionCreator.distributor())), 0, "Merkl Distributor should have some BOLD");
+        assertGt(
+            boldToken.balanceOf(address(merklDistributionCreator.distributor())),
+            0,
+            "Merkl Distributor should have some BOLD"
+        );
     }
 
     function _deposit(uint256 amt) internal {

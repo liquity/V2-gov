@@ -13,8 +13,9 @@ contract UniV4MerklRewards is IInitiative {
 
     address public constant LIQUTY_FUNDS_SAFE = address(0xF06016D822943C42e3Cb7FC3a6A3B1889C1045f8); // to blacklist
 
-    uint32 constant public CAMPAIGN_TYPE = 13;
-    IDistributionCreator constant merklDistributionCreator = IDistributionCreator(0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd);
+    uint32 public constant CAMPAIGN_TYPE = 13;
+    IDistributionCreator constant merklDistributionCreator =
+        IDistributionCreator(0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd);
 
     IGovernance public immutable governance;
     IERC20 public immutable boldToken;
@@ -22,7 +23,7 @@ contract UniV4MerklRewards is IInitiative {
     uint256 public immutable CAMPAIGN_BOLD_AMOUNT_THRESHOLD;
     bool constant IS_OUT_OF_RANGE_INCENTIVIZED = false;
     bytes32 public immutable UNIV4_POOL_ID;
-    uint32 public immutable WEIGHT_FEES;    // With 2 decimals
+    uint32 public immutable WEIGHT_FEES; // With 2 decimals
     uint32 public immutable WEIGHT_TOKEN_0;
     uint32 public immutable WEIGHT_TOKEN_1;
 
@@ -36,7 +37,15 @@ contract UniV4MerklRewards is IInitiative {
         _;
     }
 
-    constructor(address _governanceAddress, address _boldTokenAddress, uint256 _campaignBoldAmountThreshold, bytes32 _uniV4PoolId,uint32 _weightFees, uint32 _weightToken0, uint32 _weightToken1) {
+    constructor(
+        address _governanceAddress,
+        address _boldTokenAddress,
+        uint256 _campaignBoldAmountThreshold,
+        bytes32 _uniV4PoolId,
+        uint32 _weightFees,
+        uint32 _weightToken0,
+        uint32 _weightToken1
+    ) {
         require(_weightFees + _weightToken0 + _weightToken1 == 10000, "Wrong weigths");
 
         governance = IGovernance(_governanceAddress);
@@ -115,7 +124,7 @@ contract UniV4MerklRewards is IInitiative {
 
     function createCampaign(uint256 _amount) internal {
         // Avoid if rewards too low
-        if (_amount < CAMPAIGN_BOLD_AMOUNT_THRESHOLD) { return; }
+        if (_amount < CAMPAIGN_BOLD_AMOUNT_THRESHOLD) return;
 
         uint256 claimEpoch = governance.epoch() - 1;
 
