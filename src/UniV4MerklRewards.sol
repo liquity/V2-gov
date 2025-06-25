@@ -11,9 +11,9 @@ import {IInitiative} from "./interfaces/IInitiative.sol";
 contract UniV4MerklRewards is IInitiative {
     using SafeERC20 for IERC20;
 
-    address public constant LIQUTY_FUNDS_SAFE = address(0xF06016D822943C42e3Cb7FC3a6A3B1889C1045f8); // to blacklist
+    address public constant LIQUITY_FUNDS_SAFE = address(0xF06016D822943C42e3Cb7FC3a6A3B1889C1045f8); // to blacklist
 
-    uint32 public constant CAMPAIGN_TYPE = 13;
+    uint32 public constant CAMPAIGN_TYPE = 13; // UNISWAP_V4
     IDistributionCreator constant merklDistributionCreator =
         IDistributionCreator(0x8BB4C975Ff3c250e0ceEA271728547f3802B36Fd);
 
@@ -89,7 +89,7 @@ contract UniV4MerklRewards is IInitiative {
                 UNIV4_POOL_ID,
                 0, // empty whitelist
                 1, // blacklist len
-                LIQUTY_FUNDS_SAFE, // blacklisted address
+                LIQUITY_FUNDS_SAFE, // blacklisted address
                 0, // empty hooks
                 0 // empty last unknown param
             )

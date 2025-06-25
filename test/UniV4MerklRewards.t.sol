@@ -31,7 +31,7 @@ contract UniV4MerklE2ETests is Test {
     uint256 private EPOCH_START;
     uint256 private EPOCH_DURATION;
 
-    uint256 private constant CAMPAIGN_BOLD_AMOUNT_THRESHOLD = 100e18;
+    uint256 private constant CAMPAIGN_BOLD_AMOUNT_THRESHOLD = 168e18 + 1; // 168 = 7*24, thus > 1 BOLD/h
 
     UniV4MerklRewards private uniV4MerklRewardsInitiative;
 
@@ -173,8 +173,15 @@ contract UniV4MerklE2ETests is Test {
             0,
             "Merkl Distributor should have some BOLD"
         );
+
         // Try to call again, without success
         vm.expectRevert("UniV4MerklInitiative: no funds for campaign");
+        uniV4MerklRewardsInitiative.claimForInitiative();
+
+        // Try again, a minute later and with some funds added to the contract, still fails
+        deal(address(boldToken), address(uniV4MerklRewardsInitiative), CAMPAIGN_BOLD_AMOUNT_THRESHOLD);
+        vm.warp(block.timestamp + 1 minutes);
+        vm.expectRevert(IDistributionCreator.CampaignAlreadyExists.selector);
         uniV4MerklRewardsInitiative.claimForInitiative();
     }
 
@@ -208,7 +215,7 @@ contract UniV4MerklE2ETests is Test {
 
         governance.claimForInitiative(address(uniV4MerklRewardsInitiative));
         // Check campaign is not created yet
-        vm.expectRevert();
+        vm.expectRevert(IDistributionCreator.CampaignDoesNotExist.selector);
         merklDistributionCreator.campaignLookup(campaignId);
 
         uniV4MerklRewardsInitiative.claimForInitiative();

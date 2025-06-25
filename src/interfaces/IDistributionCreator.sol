@@ -29,6 +29,9 @@ interface IDistributionCreator {
         bytes campaignData;
     }
 
+    error CampaignDoesNotExist();
+    error CampaignAlreadyExists();
+
     function distributor() external view returns (address);
     function campaign(bytes32 _campaignId) external view returns (CampaignParameters memory);
     function campaignLookup(bytes32 _campaignId) external view returns (uint256);
