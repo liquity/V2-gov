@@ -63,7 +63,7 @@ contract UniV4MerklRewards is IInitiative {
         // Approve BOLD to Merkl
         boldToken.approve(address(merklDistributionCreator), type(uint256).max);
 
-        // Accept conditions
+        // whitelist ourselves to be able to create campaigs without signature
         merklDistributionCreator.acceptConditions();
     }
 
