@@ -93,7 +93,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         // allocate LQTY to the bribeInitiative
         _allocateLQTY(user1, 10e18, 0);
         // total LQTY allocated for this epoch should increase
-        (uint256 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 totalLQTYAllocated,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocated, 10e18);
     }
 
@@ -107,7 +107,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         // allocate LQTY to veto bribeInitiative
         _allocateLQTY(user1, 0, 10e18);
         // total LQTY allocated for this epoch should not increase
-        (uint256 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 totalLQTYAllocated,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocated, 0);
     }
 
@@ -122,8 +122,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         _allocateLQTY(user1, 5e18, 0);
 
         // total LQTY allocated for this epoch should increase
-        (uint256 totalLQTYAllocated1,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated1,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated1,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated1,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated1, 5e18);
         assertEq(userLQTYAllocated1, 5e18);
 
@@ -133,8 +133,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         _allocateLQTY(user1, 5e18, 0);
 
         // total LQTY allocated for this epoch should not change
-        (uint256 totalLQTYAllocated2,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated2,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated2,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated2,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated2, 5e18);
         assertEq(userLQTYAllocated1, 5e18);
     }
@@ -147,14 +147,14 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         // user1 allocates in first epoch
         _allocateLQTY(user1, 5e18, 0);
-        (uint256 totalLQTYAllocated1,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated1,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated1,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated1,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated1, 5e18);
         assertEq(userLQTYAllocated1, 5e18);
 
         _allocateLQTY(user1, 5e18, 0);
-        (uint256 totalLQTYAllocated2,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated2,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated2,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated2,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated2, 5e18);
         assertEq(userLQTYAllocated2, 5e18);
     }
@@ -166,14 +166,14 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         // user1 allocates in first epoch
         _allocateLQTY(user1, 5e18, 0);
-        (uint256 totalLQTYAllocated1,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated1,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated1,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated1,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated1, 5e18);
         assertEq(userLQTYAllocated1, 5e18);
 
         console2.log("current governance epoch: ", governance.epoch());
         // user's linked-list should be updated to have a value for the current epoch
-        (uint256 allocatedAtEpoch,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 allocatedAtEpoch,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         console2.log("allocatedAtEpoch: ", allocatedAtEpoch);
     }
 
@@ -186,8 +186,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         // user1 allocates in first epoch
         _allocateLQTY(user1, 10e18, 0);
-        (uint256 totalLQTYAllocated1,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated1,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated1,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated1,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated1, 10e18);
         assertEq(userLQTYAllocated1, 10e18);
 
@@ -196,8 +196,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         // user allocations should be disjoint because they're in separate epochs
         _allocateLQTY(user2, 10e18, 0);
-        (uint256 totalLQTYAllocated2,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated2,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
+        (uint256 totalLQTYAllocated2,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated2,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
         assertEq(totalLQTYAllocated2, 20e18);
         assertEq(userLQTYAllocated2, 10e18);
     }
@@ -211,14 +211,14 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         // user1 allocates in first epoch
         _allocateLQTY(user1, 10e18, 0);
-        (uint256 totalLQTYAllocated1,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated1,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated1,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated1,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated1, 10e18);
         assertEq(userLQTYAllocated1, 10e18);
 
         _allocateLQTY(user2, 10e18, 0);
-        (uint256 totalLQTYAllocated2,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated2,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
+        (uint256 totalLQTYAllocated2,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated2,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user2, governance.epoch());
         assertEq(totalLQTYAllocated2, 20e18);
         assertEq(userLQTYAllocated2, 10e18);
     }
@@ -232,13 +232,13 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         // user1 allocates in first epoch
         _allocateLQTY(user1, 10e18, 0);
-        (uint256 totalLQTYAllocated1,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 totalLQTYAllocated1,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocated1, 10e18);
 
         // warp to the end of the epoch
         vm.warp(block.timestamp + (EPOCH_VOTING_CUTOFF - 1));
 
-        (uint256 totalLQTYAllocated2,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 totalLQTYAllocated2,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(totalLQTYAllocated2, 10e18);
     }
 
@@ -587,7 +587,7 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         // user votes on bribeInitiative
         _allocateLQTY(user1, 1e18, 0);
-        (uint256 lqtyAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 lqtyAllocated,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(lqtyAllocated, 1e18, "lqty doesn't immediately get allocated");
     }
 
@@ -615,8 +615,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         // deposit bribe for Epoch + 2
         _depositBribe(1e18, 1e18, governance.epoch() + 1);
 
-        (uint256 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated, 5e17, "total allocation");
         assertEq(userLQTYAllocated, 5e17, "user allocation");
 
@@ -635,8 +635,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
         // decrease user allocation for the initiative
         _resetAllocation(user1);
 
-        (userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
-        (totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (userLQTYAllocated,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (totalLQTYAllocated,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
         assertEq(userLQTYAllocated, 0, "total allocation");
         assertEq(totalLQTYAllocated, 0, "user allocation");
     }
@@ -667,8 +667,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         _allocateLQTY(user1, 1e18, 0);
 
-        (uint256 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated, 1e18);
         assertEq(userLQTYAllocated, 1e18);
 
@@ -698,8 +698,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         _allocateLQTY(user1, 1e18, 0);
 
-        (uint256 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated, 1e18);
         assertEq(userLQTYAllocated, 1e18);
 
@@ -729,8 +729,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         _allocateLQTY(user1, 1e18, 0);
 
-        (uint256 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated, 1e18);
         assertEq(userLQTYAllocated, 1e18);
 
@@ -761,8 +761,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         _allocateLQTY(user1, 1e18, 0);
 
-        (uint256 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated, 1e18);
         assertEq(userLQTYAllocated, 1e18);
 
@@ -790,8 +790,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         _tryAllocateNothing(user1);
 
-        (uint256 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated, 0);
         assertEq(userLQTYAllocated, 0);
 
@@ -824,8 +824,8 @@ contract BribeInitiativeTest is Test, MockStakingV1Deployer {
 
         _tryAllocateNothing(user1);
 
-        (uint256 totalLQTYAllocated,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
-        (uint256 userLQTYAllocated,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
+        (uint256 totalLQTYAllocated,,,) = bribeInitiative.totalLQTYAllocatedByEpoch(governance.epoch());
+        (uint256 userLQTYAllocated,,,) = bribeInitiative.lqtyAllocatedByUserAtEpoch(user1, governance.epoch());
         assertEq(totalLQTYAllocated, 0);
         assertEq(userLQTYAllocated, 0);
 
