@@ -47,6 +47,8 @@ interface IBribeInitiative {
     /// @param _epoch Epoch at which the LQTY was allocated
     /// @return totalLQTYAllocated Total LQTY allocated
     /// @return offset Voting power offset
+    /// @return prev Previous epoch at which the total LQTY allocation was updated
+    /// @return next Next epoch at which the total LQTY allocation was updated
     function totalLQTYAllocatedByEpoch(uint256 _epoch)
         external
         view
@@ -57,6 +59,8 @@ interface IBribeInitiative {
     /// @param _epoch Epoch at which the LQTY was allocated by the user
     /// @return lqtyAllocated LQTY allocated by the user
     /// @return offset Voting power offset
+    /// @return prev Previous epoch at which the user updated the LQTY allocation for this initiative
+    /// @return next Next epoch at which the user updated the LQTY allocation for this initiative
     function lqtyAllocatedByUserAtEpoch(address _user, uint256 _epoch)
         external
         view
