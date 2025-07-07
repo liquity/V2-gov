@@ -221,7 +221,9 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
                     }
 
                     // Find previous total allocation epoch
-                    l = 0; p = 0; n = 0;
+                    l = 0;
+                    p = 0;
+                    n = 0;
                     uint256 totalPrevAllocation = epochPermutation[i] + 1;
                     while (p == 0 && n == 0 && totalPrevAllocation > 0) {
                         totalPrevAllocation--;
