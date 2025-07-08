@@ -52,15 +52,26 @@ contract BribeInitiative is IInitiative, IBribeInitiative {
     }
 
     /// @inheritdoc IBribeInitiative
-    function totalLQTYAllocatedByEpoch(uint256 _epoch) external view returns (uint256, uint256) {
-        return (totalLQTYAllocationByEpoch.items[_epoch].lqty, totalLQTYAllocationByEpoch.items[_epoch].offset);
+    function totalLQTYAllocatedByEpoch(uint256 _epoch) external view returns (uint256, uint256, uint256, uint256) {
+        return (
+            totalLQTYAllocationByEpoch.items[_epoch].lqty,
+            totalLQTYAllocationByEpoch.items[_epoch].offset,
+            totalLQTYAllocationByEpoch.items[_epoch].prev,
+            totalLQTYAllocationByEpoch.items[_epoch].next
+        );
     }
 
     /// @inheritdoc IBribeInitiative
-    function lqtyAllocatedByUserAtEpoch(address _user, uint256 _epoch) external view returns (uint256, uint256) {
+    function lqtyAllocatedByUserAtEpoch(address _user, uint256 _epoch)
+        external
+        view
+        returns (uint256, uint256, uint256, uint256)
+    {
         return (
             lqtyAllocationByUserAtEpoch[_user].items[_epoch].lqty,
-            lqtyAllocationByUserAtEpoch[_user].items[_epoch].offset
+            lqtyAllocationByUserAtEpoch[_user].items[_epoch].offset,
+            lqtyAllocationByUserAtEpoch[_user].items[_epoch].prev,
+            lqtyAllocationByUserAtEpoch[_user].items[_epoch].next
         );
     }
 

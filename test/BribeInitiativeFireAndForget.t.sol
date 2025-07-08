@@ -68,7 +68,6 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
     mapping(uint256 epoch => uint256) brybAtEpoch;
     mapping(uint256 epoch => uint256) voteAtEpoch; // number of LQTY allocated by "voter"
     mapping(uint256 epoch => uint256) toteAtEpoch; // number of LQTY allocated in total ("voter" + "other")
-    mapping(uint256 epoch => IBribeInitiative.ClaimData) claimDataAtEpoch;
     IBribeInitiative.ClaimData[] claimData;
 
     function setUp() external {
@@ -135,6 +134,7 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
         uint256 startingEpoch = governance.epoch();
         uint256 lastEpoch = startingEpoch;
 
+        // Generate bribes
         for (uint256 i = startingEpoch; i < startingEpoch + MAX_NUM_EPOCHS; ++i) {
             boldAtEpoch[i] = random.generate(MAX_BRIBE);
             brybAtEpoch[i] = random.generate(MAX_BRIBE);
@@ -146,6 +146,7 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
             bribeInitiative.depositBribe(uint128(boldAtEpoch[i]), uint128(brybAtEpoch[i]), i);
         }
 
+        // Vote and claim for initiative
         for (;;) {
             vm.warp(block.timestamp + random.generate(2 * MEAN_TIME_BETWEEN_VOTES));
             uint256 epoch = governance.epoch();
@@ -153,10 +154,6 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
             for (uint256 i = lastEpoch; i < epoch; ++i) {
                 voteAtEpoch[i] = latestVote[voter].amount;
                 toteAtEpoch[i] = latestVote[voter].amount + latestVote[other].amount;
-                claimDataAtEpoch[i].epoch = i;
-                claimDataAtEpoch[i].prevLQTYAllocationEpoch = latestVote[voter].epoch;
-                claimDataAtEpoch[i].prevTotalLQTYAllocationEpoch =
-                    uint256(Math.max(latestVote[voter].epoch, latestVote[other].epoch));
 
                 console.log(
                     string.concat(
@@ -200,6 +197,7 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
         uint256 expectedBold = 0;
         uint256 expectedBryb = 0;
 
+        // Claim bribes
         while (start < epochPermutation.length) {
             uint256 end = Math.min(start + random.generate(MAX_CLAIMS_PER_CALL), epochPermutation.length);
 
@@ -208,7 +206,35 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
                     voteAtEpoch[epochPermutation[i]] > 0
                         && (boldAtEpoch[epochPermutation[i]] > 0 || brybAtEpoch[epochPermutation[i]] > 0)
                 ) {
-                    claimData.push(claimDataAtEpoch[epochPermutation[i]]);
+                    IBribeInitiative.ClaimData memory claimDataAtEpoch;
+                    claimDataAtEpoch.epoch = epochPermutation[i];
+                    //console.log("epoch", epochPermutation[i]);
+
+                    // Find previous user allocation epoch
+                    uint256 l; // LQTY in the sorted list
+                    uint256 p; // prev in the sorted list
+                    uint256 n; // next in the sorted list
+                    uint256 userPrevAllocation = epochPermutation[i] + 1;
+                    while (l == 0 && p == 0 && n == 0 && userPrevAllocation > 0) {
+                        userPrevAllocation--;
+                        (l,, p, n) = bribeInitiative.lqtyAllocatedByUserAtEpoch(voter, userPrevAllocation);
+                    }
+
+                    // Find previous total allocation epoch
+                    l = 0;
+                    p = 0;
+                    n = 0;
+                    uint256 totalPrevAllocation = epochPermutation[i] + 1;
+                    while (p == 0 && n == 0 && totalPrevAllocation > 0) {
+                        totalPrevAllocation--;
+                        (l,, p, n) = bribeInitiative.totalLQTYAllocatedByEpoch(totalPrevAllocation);
+                    }
+                    //console.log("userPrevAllocation", userPrevAllocation);
+                    //console.log("totalPrevAllocation", totalPrevAllocation);
+                    claimDataAtEpoch.prevLQTYAllocationEpoch = userPrevAllocation;
+                    claimDataAtEpoch.prevTotalLQTYAllocationEpoch = totalPrevAllocation;
+
+                    claimData.push(claimDataAtEpoch);
                     expectedBold += boldAtEpoch[epochPermutation[i]] * voteAtEpoch[epochPermutation[i]]
                         / toteAtEpoch[epochPermutation[i]];
                     expectedBryb += brybAtEpoch[epochPermutation[i]] * voteAtEpoch[epochPermutation[i]]

@@ -21,7 +21,7 @@ abstract contract SynchProperties is BeforeAfter {
                     governance.lqtyAllocatedByUserToInitiative(users[j], deployedInitiatives[i]);
 
                 // Grab epoch from initiative
-                (uint256 lqtyAllocatedByUserAtEpoch, uint256 allocOffset) =
+                (uint256 lqtyAllocatedByUserAtEpoch, uint256 allocOffset,,) =
                     IBribeInitiative(deployedInitiatives[i]).lqtyAllocatedByUserAtEpoch(users[j], epoch);
 
                 // Check that votes match

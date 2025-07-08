@@ -92,7 +92,7 @@ abstract contract BribeInitiativeTargets is Test, BaseTargetFunctions, Propertie
             // NOTE: This is not a full check, but a sufficient check for some cases
             /// Specifically we may have to look at the user last epoch
             /// And see if we need to port over that balance from then
-            (uint256 lqtyAllocated,) = initiative.lqtyAllocatedByUserAtEpoch(user, epoch);
+            (uint256 lqtyAllocated,,,) = initiative.lqtyAllocatedByUserAtEpoch(user, epoch);
             bool claimedBribe = initiative.claimedBribeAtEpoch(user, epoch);
             if (initiative.getMostRecentTotalEpoch() != prevTotalAllocationEpoch) {
                 return; // We are in a edge case
