@@ -168,23 +168,57 @@ contract ForkedBalancerGaugeRewardsTest is Test {
         }
     }
 
-    /// @dev Fuzz test that shows that given a total = amt + dust, the dust is lost permanently
-    function test_noDustGriefFuzz(uint128 amt, uint128 dust) public {
-        uint256 total = uint256(amt) + uint256(dust);
+    /// @dev Fuzz test that shows that given a total = amount + dust, dust stays in the contract
+    function test_noDustGriefFuzz(uint256 amount, uint128 dust) public {
+        amount = bound(amount, balancerGaugeRewards.duration() * 1000, uint256(type(uint128).max));
+        uint256 total = uint256(amount) + uint256(dust);
+
         deal(address(lusd), address(governance), total);
 
         // Pretend a Proposal has passed
         vm.startPrank(address(governance));
         // Dust amount
-        lusd.transfer(address(balancerGaugeRewards), amt);
+        lusd.transfer(address(balancerGaugeRewards), amount);
         // Rest
         lusd.transfer(address(balancerGaugeRewards), dust);
 
+        uint256 remainder = balancerGaugeRewards.remainder();
         assertEq(lusd.balanceOf(address(balancerGaugeRewards)), total);
-        balancerGaugeRewards.onClaimForInitiative(0, amt);
+        balancerGaugeRewards.onClaimForInitiative(0, amount);
+
+        assertEq(remainder, 0, "Remainder should be zero after deposit");
         assertEq(
             lusd.balanceOf(address(balancerGaugeRewards)),
-            balancerGaugeRewards.remainder() + dust
+            dust
         );
+        assertEq(
+            lusd.balanceOf(address(gauge)),
+            amount
+        );
+
+        // Second claim
+        balancerGaugeRewards.onClaimForInitiative(0, dust);
+        remainder = balancerGaugeRewards.remainder();
+        if (dust >= balancerGaugeRewards.duration() * 1000) {
+            assertEq(remainder, 0, "Remainder should be zero after deposit");
+            assertEq(
+                lusd.balanceOf(address(balancerGaugeRewards)),
+                0
+            );
+            assertEq(
+                lusd.balanceOf(address(gauge)),
+                total
+            );
+        } else {
+            assertEq(remainder, dust, "Remainder should be zero after deposit");
+            assertEq(
+                lusd.balanceOf(address(balancerGaugeRewards)),
+                dust
+            );
+            assertEq(
+                lusd.balanceOf(address(gauge)),
+                amount
+            );
+        }
     }
 }
