@@ -5,7 +5,7 @@ import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
 
 import {BribeInitiative} from "./BribeInitiative.sol";
 
-contract CurveV2GaugeRewards is BribeInitiative {
+contract BalancerGaugeRewards is BribeInitiative {
     ILiquidityGauge public immutable gauge;
     uint256 public immutable duration;
 
@@ -43,7 +43,7 @@ contract CurveV2GaugeRewards is BribeInitiative {
         }
 
         bold.approve(address(gauge), total);
-        gauge.deposit_reward_token(address(bold), total, duration);
+        gauge.deposit_reward_token(address(bold), total);
 
         emit DepositIntoGauge(total);
     }
