@@ -22,8 +22,8 @@ contract BalancerGaugeRewards is BribeInitiative {
 
     /// @notice Governance transfers Bold, and we deposit it into the gauge
     /// @dev Doing this allows anyone to trigger the claim
-    function onClaimForInitiative(uint256, uint256 _bold) external override onlyGovernance {
-        _depositIntoGauge(_bold);
+    function onClaimForInitiative(uint256, uint256 boldAmount) external override onlyGovernance {
+        _depositIntoGauge(boldAmount);
     }
 
     function _depositIntoGauge(uint256 amount) internal {
