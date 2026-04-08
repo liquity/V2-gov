@@ -10,7 +10,7 @@ import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 
 import {Governance} from "../src/Governance.sol";
-import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
+import {BalancerGaugeRewards} from "../src/BalancerGaugeRewards.sol";
 
 import {MockERC20Tester} from "../test/mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "../test/mocks/MockStakingV1.sol";
@@ -38,13 +38,12 @@ contract DeploySepoliaScript is Script, MockStakingV1Deployer {
     uint32 private constant EPOCH_DURATION = 604800;
     uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
-    // CurveV2GaugeRewards Constants
+    // BalancerGaugeRewards Constants
     uint256 private constant DURATION = 7 days;
 
     // Contracts
     Governance private governance;
     address[] private initialInitiatives;
-    CurveV2GaugeRewards private curveV2GaugeRewards;
     ICurveStableswapNG private curvePool;
     ILiquidityGauge private gauge;
 
@@ -87,39 +86,6 @@ contract DeploySepoliaScript is Script, MockStakingV1Deployer {
             deployer,
             initialInitiatives
         );
-    }
-
-    function deployCurveV2GaugeRewards(uint256 _nonce) private {
-        address[] memory _coins = new address[](2);
-        _coins[0] = address(bold);
-        _coins[1] = address(usdc);
-        uint8[] memory _asset_types = new uint8[](2);
-        _asset_types[0] = 0;
-        _asset_types[1] = 0;
-        bytes4[] memory _method_ids = new bytes4[](2);
-        _method_ids[0] = 0x0;
-        _method_ids[1] = 0x0;
-        address[] memory _oracles = new address[](2);
-        _oracles[0] = address(0x0);
-        _oracles[1] = address(0x0);
-
-        curvePool = ICurveStableswapNG(
-            curveFactory.deploy_plain_pool(
-                "BOLD-USDC", "BOLDUSDC", _coins, 200, 1000000, 50000000000, 866, 0, _asset_types, _method_ids, _oracles
-            )
-        );
-
-        gauge = ILiquidityGauge(curveFactory.deploy_gauge(address(curvePool)));
-
-        curveV2GaugeRewards = new CurveV2GaugeRewards(
-            address(vm.computeCreateAddress(address(this), _nonce)),
-            address(bold),
-            address(lqty),
-            address(gauge),
-            DURATION
-        );
-
-        initialInitiatives.push(address(curveV2GaugeRewards));
     }
 
     function run() public {

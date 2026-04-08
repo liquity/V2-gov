@@ -6,22 +6,44 @@ import {Test} from "forge-std/Test.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
-import {ICurveStableswapFactoryNG} from "../src/interfaces/ICurveStableswapFactoryNG.sol";
-import {ICurveStableswapNG} from "../src/interfaces/ICurveStableswapNG.sol";
 import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
+import {
+    ILiquidityGaugeFactory
+} from "./../src/interfaces/ILiquidityGaugeFactory.sol";
+import {IBasicAuthorizer} from "./../src/interfaces/IBasicAuthorizer.sol";
+import {IAuthorizerAdaptor} from "./../src/interfaces/IAuthorizerAdaptor.sol";
 
-import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
+import {BalancerGaugeRewards} from "../src/BalancerGaugeRewards.sol";
 import {Governance} from "../src/Governance.sol";
 
 contract ForkedBalancerGaugeRewardsTest is Test {
-    IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
-    IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
-    IERC20 private constant usdc = IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-    address private constant stakingV1 = address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
-    address private constant user = address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
-    address private constant lusdHolder = address(0xcA7f01403C4989d2b1A9335A2F09dD973709957c);
-    ICurveStableswapFactoryNG private constant curveFactory =
-        ICurveStableswapFactoryNG(address(0x6A8cbed756804B16E05E741eDaBd5cB544AE21bf));
+    IERC20 private constant lqty =
+        IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
+    IERC20 private constant lusd =
+        IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
+    IERC20 private constant usdc =
+        IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    address private constant stakingV1 =
+        address(0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d);
+    address private constant user =
+        address(0xF977814e90dA44bFA03b6295A0616a897441aceC);
+    address private constant lusdHolder =
+        address(0x6f71fc3925605F06672409c71844eaD4B700Af5F);
+    ILiquidityGaugeFactory private constant gaugeFactory =
+        ILiquidityGaugeFactory(
+            address(0xf1665E19bc105BE4EDD3739F88315cC699cc5b65)
+        );
+    IERC20 private constant balancerPool =
+        IERC20(address(0xc334299aEf610Fc79da129A920317B2BDBe2557E));
+    address private constant DAO =
+        address(0x10A19e7eE7d7F8a52822f6817de8ea18204F2e4f);
+    IBasicAuthorizer private constant authorizer =
+        IBasicAuthorizer(address(0xA331D84eC860Bf466b4CdCcFb4aC09a1B43F3aE6));
+    IAuthorizerAdaptor private constant authorizerAdaptorEntrypoint =
+        IAuthorizerAdaptor(address(0xf5dECDB1f3d1ee384908Fbe16D2F0348AE43a9eA));
+
+    bytes32 private constant ADD_REWARDS_ACTION_ID =
+        0x3bf29175652a3f0fac5abb715d0b7fe2e7b597e2e2eff555dac6b21a20a7c83e;
 
     uint128 private constant REGISTRATION_FEE = 1e18;
     uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
@@ -35,12 +57,11 @@ contract ForkedBalancerGaugeRewardsTest is Test {
 
     Governance private governance;
     address[] private initialInitiatives;
-    ICurveStableswapNG private curvePool;
     ILiquidityGauge private gauge;
-    CurveV2GaugeRewards private curveV2GaugeRewards;
+    BalancerGaugeRewards private balancerGaugeRewards;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 24836000);
 
         IGovernance.Configuration memory config = IGovernance.Configuration({
             registrationFee: REGISTRATION_FEE,
@@ -56,7 +77,13 @@ contract ForkedBalancerGaugeRewardsTest is Test {
         });
 
         governance = new Governance(
-            address(lqty), address(lusd), stakingV1, address(lusd), config, address(this), initialInitiatives
+            address(lqty),
+            address(lusd),
+            stakingV1,
+            address(lusd),
+            config,
+            address(this),
+            initialInitiatives
         );
 
         address[] memory _coins = new address[](2);
@@ -72,15 +99,12 @@ contract ForkedBalancerGaugeRewardsTest is Test {
         _oracles[0] = address(0x0);
         _oracles[1] = address(0x0);
 
-        curvePool = ICurveStableswapNG(
-            curveFactory.deploy_plain_pool(
-                "BOLD-USDC", "BOLDUSDC", _coins, 200, 1000000, 50000000000, 866, 0, _asset_types, _method_ids, _oracles
-            )
+        // Relative weight cap of 10%.
+        gauge = ILiquidityGauge(
+            gaugeFactory.create(address(balancerPool), 10e16)
         );
 
-        gauge = ILiquidityGauge(curveFactory.deploy_gauge(address(curvePool)));
-
-        curveV2GaugeRewards = new CurveV2GaugeRewards(
+        balancerGaugeRewards = new BalancerGaugeRewards(
             // address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
             address(governance),
             address(lusd),
@@ -89,24 +113,20 @@ contract ForkedBalancerGaugeRewardsTest is Test {
             604800
         );
 
-        initialInitiatives.push(address(curveV2GaugeRewards));
+        initialInitiatives.push(address(balancerGaugeRewards));
         governance.registerInitialInitiatives(initialInitiatives);
 
-        vm.startPrank(curveFactory.admin());
-        gauge.add_reward(address(lusd), address(curveV2GaugeRewards));
-        vm.stopPrank();
-
-        vm.startPrank(lusdHolder);
-
-        lusd.approve(address(curvePool), type(uint256).max);
-        usdc.approve(address(curvePool), type(uint256).max);
-
-        uint256[] memory _amounts = new uint256[](2);
-        _amounts[0] = 3000e18;
-        _amounts[1] = 3000e6;
-
-        curvePool.add_liquidity(_amounts, 5998200000000000000000);
-
+        vm.startPrank(DAO);
+        authorizer.grantRole(ADD_REWARDS_ACTION_ID, DAO);
+        // call gauge.add_reward(address(lusd), address(balancerGaugeRewards));
+        authorizerAdaptorEntrypoint.performAction(
+            address(gauge),
+            abi.encodeWithSelector(
+                ILiquidityGauge.add_reward.selector,
+                address(lusd),
+                address(balancerGaugeRewards)
+            )
+        );
         vm.stopPrank();
     }
 
@@ -116,25 +136,36 @@ contract ForkedBalancerGaugeRewardsTest is Test {
 
         // Pretend a Proposal has passed
         vm.startPrank(address(governance));
-        lusd.transfer(address(curveV2GaugeRewards), amt);
+        lusd.transfer(address(balancerGaugeRewards), amt);
 
-        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), amt);
-        curveV2GaugeRewards.onClaimForInitiative(0, amt);
-        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), curveV2GaugeRewards.remainder());
-    }
+        assertEq(lusd.balanceOf(address(balancerGaugeRewards)), amt);
+        balancerGaugeRewards.onClaimForInitiative(0, amt);
 
-    /// @dev If the amount rounds down below 1 per second it reverts
-    function test_claimAndDepositIntoGaugeGrief() public {
-        uint256 amt = 604800 - 1;
-        deal(address(lusd), address(governance), amt);
+        uint256 remainder = balancerGaugeRewards.remainder();
 
-        // Pretend a Proposal has passed
-        vm.startPrank(address(governance));
-        lusd.transfer(address(curveV2GaugeRewards), amt);
-
-        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), amt);
-        curveV2GaugeRewards.onClaimForInitiative(0, amt);
-        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), curveV2GaugeRewards.remainder());
+        if (remainder > 0) {
+            assertEq(
+                lusd.balanceOf(address(balancerGaugeRewards)),
+                remainder,
+                "Remainder does not match balancer gauge rewards balance"
+            );
+            assertEq(
+                lusd.balanceOf(address(gauge)),
+                0,
+                "Gauge balance is not zero"
+            );
+        } else {
+            assertEq(
+                lusd.balanceOf(address(balancerGaugeRewards)),
+                0,
+                "Balancer gauge rewards balance is not zero"
+            );
+            assertEq(
+                lusd.balanceOf(address(gauge)),
+                amt,
+                "Gauge balance does not match amount transferred"
+            );
+        }
     }
 
     /// @dev Fuzz test that shows that given a total = amt + dust, the dust is lost permanently
@@ -145,12 +176,15 @@ contract ForkedBalancerGaugeRewardsTest is Test {
         // Pretend a Proposal has passed
         vm.startPrank(address(governance));
         // Dust amount
-        lusd.transfer(address(curveV2GaugeRewards), amt);
+        lusd.transfer(address(balancerGaugeRewards), amt);
         // Rest
-        lusd.transfer(address(curveV2GaugeRewards), dust);
+        lusd.transfer(address(balancerGaugeRewards), dust);
 
-        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), total);
-        curveV2GaugeRewards.onClaimForInitiative(0, amt);
-        assertEq(lusd.balanceOf(address(curveV2GaugeRewards)), curveV2GaugeRewards.remainder() + dust);
+        assertEq(lusd.balanceOf(address(balancerGaugeRewards)), total);
+        balancerGaugeRewards.onClaimForInitiative(0, amt);
+        assertEq(
+            lusd.balanceOf(address(balancerGaugeRewards)),
+            balancerGaugeRewards.remainder() + dust
+        );
     }
 }
