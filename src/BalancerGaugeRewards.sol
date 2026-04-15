@@ -18,8 +18,6 @@ contract BalancerGaugeRewards is BribeInitiative {
         duration = _duration;
     }
 
-    uint256 public remainder;
-
     /// @notice Governance transfers Bold, and we deposit it into the gauge
     /// @dev Doing this allows anyone to trigger the claim
     function onClaimForInitiative(uint256, uint256 boldAmount) external override onlyGovernance {
@@ -27,24 +25,14 @@ contract BalancerGaugeRewards is BribeInitiative {
     }
 
     function _depositIntoGauge(uint256 amount) internal {
-        uint256 total = amount + remainder;
-
-        // For small donations queue them into the contract
-        if (total < duration * 1000) {
-            remainder += amount;
-            return;
-        }
-
-        remainder = 0;
-
         uint256 available = bold.balanceOf(address(this));
-        if (available < total) {
-            total = available; // Cap due to rounding error causing a bit more bold being given away
+        if (available < amount) {
+            amount = available; // Cap due to rounding error causing a bit more bold being given away
         }
 
-        bold.approve(address(gauge), total);
-        gauge.deposit_reward_token(address(bold), total);
+        bold.approve(address(gauge), amount);
+        gauge.deposit_reward_token(address(bold), amount);
 
-        emit DepositIntoGauge(total);
+        emit DepositIntoGauge(amount);
     }
 }

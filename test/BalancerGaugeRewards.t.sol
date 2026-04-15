@@ -130,95 +130,71 @@ contract ForkedBalancerGaugeRewardsTest is Test {
         vm.stopPrank();
     }
 
-    function test_claimAndDepositIntoGaugeFuzz(uint128 amt) public {
-        deal(address(lusd), address(governance), amt);
-        vm.assume(amt > 604800);
+    function test_claimAndDepositIntoGaugeFuzz(uint256 amount) public {
+        amount = bound(amount, 1, lusd.balanceOf(lusdHolder));
+        deal(address(lusd), address(governance), amount);
 
         // Pretend a Proposal has passed
         vm.startPrank(address(governance));
-        lusd.transfer(address(balancerGaugeRewards), amt);
-
-        assertEq(lusd.balanceOf(address(balancerGaugeRewards)), amt);
-        balancerGaugeRewards.onClaimForInitiative(0, amt);
-
-        uint256 remainder = balancerGaugeRewards.remainder();
-
-        if (remainder > 0) {
-            assertEq(
-                lusd.balanceOf(address(balancerGaugeRewards)),
-                remainder,
-                "Remainder does not match balancer gauge rewards balance"
-            );
-            assertEq(
-                lusd.balanceOf(address(gauge)),
-                0,
-                "Gauge balance is not zero"
-            );
-        } else {
-            assertEq(
-                lusd.balanceOf(address(balancerGaugeRewards)),
-                0,
-                "Balancer gauge rewards balance is not zero"
-            );
-            assertEq(
-                lusd.balanceOf(address(gauge)),
-                amt,
-                "Gauge balance does not match amount transferred"
-            );
-        }
-    }
-
-    /// @dev Fuzz test that shows that given a total = amount + dust, dust stays in the contract
-    function test_noDustGriefFuzz(uint256 amount, uint128 dust) public {
-        amount = bound(amount, balancerGaugeRewards.duration() * 1000, uint256(type(uint128).max));
-        uint256 total = uint256(amount) + uint256(dust);
-
-        deal(address(lusd), address(governance), total);
-
-        // Pretend a Proposal has passed
-        vm.startPrank(address(governance));
-        // Dust amount
         lusd.transfer(address(balancerGaugeRewards), amount);
-        // Rest
-        lusd.transfer(address(balancerGaugeRewards), dust);
 
-        uint256 remainder = balancerGaugeRewards.remainder();
-        assertEq(lusd.balanceOf(address(balancerGaugeRewards)), total);
+        assertEq(lusd.balanceOf(address(balancerGaugeRewards)), amount);
         balancerGaugeRewards.onClaimForInitiative(0, amount);
-
-        assertEq(remainder, 0, "Remainder should be zero after deposit");
         assertEq(
             lusd.balanceOf(address(balancerGaugeRewards)),
-            dust
+            0,
+            "Balancer gauge rewards balance is not zero"
         );
         assertEq(
             lusd.balanceOf(address(gauge)),
-            amount
+            amount,
+            "Gauge balance does not match amount transferred"
         );
+    }
 
-        // Second claim
-        balancerGaugeRewards.onClaimForInitiative(0, dust);
-        remainder = balancerGaugeRewards.remainder();
-        if (dust >= balancerGaugeRewards.duration() * 1000) {
-            assertEq(remainder, 0, "Remainder should be zero after deposit");
-            assertEq(
-                lusd.balanceOf(address(balancerGaugeRewards)),
-                0
-            );
-            assertEq(
-                lusd.balanceOf(address(gauge)),
-                total
-            );
-        } else {
-            assertEq(remainder, dust, "Remainder should be zero after deposit");
-            assertEq(
-                lusd.balanceOf(address(balancerGaugeRewards)),
-                dust
-            );
-            assertEq(
-                lusd.balanceOf(address(gauge)),
-                amount
-            );
-        }
+    function test_claimAndDepositIntoGaugeFuzzAboveContractBalance(uint256 contractBalance, uint256 extra) public {
+        contractBalance = bound(contractBalance, 1, lusd.balanceOf(lusdHolder));
+        extra = bound(extra, 1e18, 100e18);
+        deal(address(lusd), address(governance), contractBalance);
+
+        // Pretend a Proposal has passed
+        vm.startPrank(address(governance));
+        lusd.transfer(address(balancerGaugeRewards), contractBalance);
+
+        assertEq(lusd.balanceOf(address(balancerGaugeRewards)), contractBalance);
+        balancerGaugeRewards.onClaimForInitiative(0, contractBalance + extra);
+        assertEq(
+            lusd.balanceOf(address(balancerGaugeRewards)),
+            0,
+            "Balancer gauge rewards balance is not zero"
+        );
+        assertEq(
+            lusd.balanceOf(address(gauge)),
+            contractBalance,
+            "Gauge balance does not match amount transferred"
+        );
+    }
+
+    function test_claimAndDepositIntoGaugeFuzzBelowContractBalance(uint256 contractBalance, uint256 amount) public {
+        contractBalance = bound(contractBalance, 1, lusd.balanceOf(lusdHolder));
+        amount = bound(amount, 0, contractBalance - 1);
+        deal(address(lusd), address(governance), contractBalance);
+
+        // Pretend a Proposal has passed
+        vm.startPrank(address(governance));
+        lusd.transfer(address(balancerGaugeRewards), contractBalance);
+
+        assertEq(lusd.balanceOf(address(balancerGaugeRewards)), contractBalance);
+        balancerGaugeRewards.onClaimForInitiative(0, amount);
+        assertEq(
+            lusd.balanceOf(address(balancerGaugeRewards)),
+            contractBalance - amount,
+            "Balancer gauge rewards balance is not zero"
+        );
+        assertEq(
+            lusd.balanceOf(address(gauge)),
+            amount,
+            "Gauge balance does not match amount transferred"
+        );
     }
 }
