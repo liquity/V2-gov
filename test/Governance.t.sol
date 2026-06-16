@@ -1059,8 +1059,12 @@ abstract contract GovernanceTest is Test {
         governance.depositLQTY(1e18);
 
         IGovernance.UserState memory user2State;
-        (user2State.unallocatedLQTY, user2State.unallocatedOffset, user2State.allocatedLQTY, user2State.allocatedOffset)
-        = governance.userStates(user2);
+        (
+            user2State.unallocatedLQTY,
+            user2State.unallocatedOffset,
+            user2State.allocatedLQTY,
+            user2State.allocatedOffset
+        ) = governance.userStates(user2);
         assertEq(user2State.allocatedLQTY, 0);
         assertEq(user2State.allocatedOffset, 0);
         assertEq(

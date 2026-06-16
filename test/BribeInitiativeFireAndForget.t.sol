@@ -236,9 +236,9 @@ contract BribeInitiativeFireAndForgetTest is MockStakingV1Deployer {
 
                     claimData.push(claimDataAtEpoch);
                     expectedBold += boldAtEpoch[epochPermutation[i]] * voteAtEpoch[epochPermutation[i]]
-                        / toteAtEpoch[epochPermutation[i]];
+                    / toteAtEpoch[epochPermutation[i]];
                     expectedBryb += brybAtEpoch[epochPermutation[i]] * voteAtEpoch[epochPermutation[i]]
-                        / toteAtEpoch[epochPermutation[i]];
+                    / toteAtEpoch[epochPermutation[i]];
                 }
             }
 

@@ -98,7 +98,7 @@ contract UniV4MerklE2ETests is Test {
         // Gain some voting power
         vm.warp(block.timestamp + 30 days);
 
-        ( /*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/ ,, uint256 claimableAmount) =
+        (/*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/,, uint256 claimableAmount) =
             governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
 
         uniV4MerklRewardsInitiative.claimForInitiative();
@@ -143,7 +143,7 @@ contract UniV4MerklE2ETests is Test {
         // Gain some voting power
         vm.warp(block.timestamp + 30 days);
 
-        ( /*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/ ,, uint256 claimableAmount) =
+        (/*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/,, uint256 claimableAmount) =
             governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
 
         uniV4MerklRewardsInitiative.claimForInitiative();
@@ -198,7 +198,7 @@ contract UniV4MerklE2ETests is Test {
         // Gain some voting power
         vm.warp(block.timestamp + 30 days);
 
-        ( /*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/ ,, uint256 claimableAmount) =
+        (/*Governance.InitiativeStatus status, uint256 lastClaimEpoch*/,, uint256 claimableAmount) =
             governance.getInitiativeState(address(uniV4MerklRewardsInitiative));
 
         uint256 epochEnd = EPOCH_START + (governance.epoch() - 1) * EPOCH_DURATION;

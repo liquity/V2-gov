@@ -62,15 +62,17 @@ contract UserProxy is IUserProxy {
     ) external onlyStakingV2 returns (uint256 lusdReceived, uint256 lusdSent, uint256 ethReceived, uint256 ethSent) {
         require(_lqtyFrom == _permitParams.owner, "UserProxy: owner-not-sender");
 
-        try IERC20Permit(address(lqty)).permit(
-            _permitParams.owner,
-            _permitParams.spender,
-            _permitParams.value,
-            _permitParams.deadline,
-            _permitParams.v,
-            _permitParams.r,
-            _permitParams.s
-        ) {} catch {}
+        try IERC20Permit(address(lqty))
+            .permit(
+                _permitParams.owner,
+                _permitParams.spender,
+                _permitParams.value,
+                _permitParams.deadline,
+                _permitParams.v,
+                _permitParams.r,
+                _permitParams.s
+            ) {}
+            catch {}
 
         return stake(_amount, _lqtyFrom, _doSendRewards, _recipient);
     }

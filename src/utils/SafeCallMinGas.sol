@@ -25,16 +25,15 @@ function safeCallWithMinGas(address _target, uint256 _gas, uint256 _value, bytes
     // we call via assembly to avoid memcopying a very large returndata
     // returned by a malicious contract
     assembly {
-        success :=
-            call(
-                _gas, // gas
-                _target, // recipient
-                _value, // ether value
-                add(_calldata, 0x20), // inloc
-                mload(_calldata), // inlen
-                0, // outloc
-                0 // outlen
-            )
+        success := call(
+            _gas, // gas
+            _target, // recipient
+            _value, // ether value
+            add(_calldata, 0x20), // inloc
+            mload(_calldata), // inlen
+            0, // outloc
+            0 // outlen
+        )
 
         // Ignore all return values
     }

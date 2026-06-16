@@ -464,7 +464,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
         if (
             (_initiativeState.lastEpochClaim + UNREGISTRATION_AFTER_EPOCHS < currentEpoch - 1)
                 || _votesForInitiativeSnapshot.vetos > _votesForInitiativeSnapshot.votes
-                    && _votesForInitiativeSnapshot.vetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
+                && _votesForInitiativeSnapshot.vetos > votingTheshold * UNREGISTRATION_THRESHOLD_FACTOR / WAD
         ) {
             return (InitiativeStatus.UNREGISTERABLE, lastEpochClaim, 0);
         }
@@ -527,10 +527,7 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
     /// @dev Resets an initiative and return the previous votes
     /// NOTE: Technically we don't need vetos
     /// NOTE: Technically we want to populate the `ResetInitiativeData` only when `secondsWithinEpoch() > EPOCH_VOTING_CUTOFF`
-    function _resetInitiatives(address[] calldata _initiativesToReset)
-        internal
-        returns (ResetInitiativeData[] memory)
-    {
+    function _resetInitiatives(address[] calldata _initiativesToReset) internal returns (ResetInitiativeData[] memory) {
         ResetInitiativeData[] memory cachedData = new ResetInitiativeData[](_initiativesToReset.length);
 
         int256[] memory deltaLQTYVotes = new int256[](_initiativesToReset.length);
@@ -822,7 +819,9 @@ contract Governance is MultiDelegateCall, UserProxyFactory, ReentrancyGuard, Own
                         IInitiative.onAfterAllocateLQTY,
                         (vars.currentEpoch, msg.sender, vars.userState, vars.allocation, vars.initiativeState)
                     )
-                ) ? HookStatus.Succeeded : HookStatus.Failed;
+                )
+                    ? HookStatus.Succeeded
+                    : HookStatus.Failed;
             } else {
                 hookStatus = HookStatus.NotCalled;
             }

@@ -360,7 +360,6 @@ interface IGovernance {
         UNREGISTERABLE,
         /// Can be unregistered
         DISABLED // It was already Unregistered
-
     }
 
     function getInitiativeState(address _initiative)
