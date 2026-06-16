@@ -13,63 +13,34 @@ import {IVotium} from "../src/interfaces/IVotium.sol";
 import {VotiumInitiative} from "../src/VotiumInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 
-contract ForkedVotiumInitiativeTest is Test {
+contract ForkedVotiumInitiativeDeployedTest is Test {
     IERC20 private constant lqty = IERC20(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D);
     IERC20 private constant bold = IERC20(0x6440f144b7e50D6a8439336510312d2F54beB01D);
     address private constant stakingV1 = 0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d;
     //address private constant boldHolder = 0xabF2A7d999d7eBF2A0e29F267E6Bc93198818a96;
+    address constant GOVERNANCE_WHALE = 0xF30da4E4e7e20Dbf5fBE9adCD8699075D62C60A4;
     address public constant votium = 0x63942E31E98f1833A234077f47880A66136a2D1e;
-    address private constant gauge = 0x07a01471fA544D9C6531B631E6A96A79a9AD05E9;
+    //address private constant gauge = 0x07a01471fA544D9C6531B631E6A96A79a9AD05E9;
+    Governance private constant governance = Governance(0x807DEf5E7d057DF05C796F4bc75C3Fe82Bd6EeE1);
+    VotiumInitiative private constant votiumInitiative = VotiumInitiative(0xB5d64a1afe7eaDcc79b99BdfB932d406aAe66aAA);
 
-    uint128 private constant REGISTRATION_FEE = 1e18;
-    uint128 private constant REGISTRATION_THRESHOLD_FACTOR = 0.01e18;
-    uint128 private constant UNREGISTRATION_THRESHOLD_FACTOR = 4e18;
-    uint16 private constant UNREGISTRATION_AFTER_EPOCHS = 4;
-    uint128 private constant VOTING_THRESHOLD_FACTOR = 0.04e18;
-    uint256 private constant MIN_CLAIM = 500e18;
-    uint256 private constant MIN_ACCRUAL = 1000e18;
     uint32 private constant EPOCH_DURATION = 604800;
-    uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
     uint256 private constant DEPOSIT_THRESHOLD = EPOCH_DURATION * 1000;
     uint256 private constant VOTIUM_FEE = 0.02 ether; // 2%
     uint256 private constant DECIMAL_PRECISION = 1e18;
 
-    Governance private governance;
-    address[] private initialInitiatives;
-    VotiumInitiative private votiumInitiative;
-
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 25260251);
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 25331012);
 
-        IGovernance.Configuration memory config = IGovernance.Configuration({
-            registrationFee: REGISTRATION_FEE,
-            registrationThresholdFactor: REGISTRATION_THRESHOLD_FACTOR,
-            unregistrationThresholdFactor: UNREGISTRATION_THRESHOLD_FACTOR,
-            unregistrationAfterEpochs: UNREGISTRATION_AFTER_EPOCHS,
-            votingThresholdFactor: VOTING_THRESHOLD_FACTOR,
-            minClaim: MIN_CLAIM,
-            minAccrual: MIN_ACCRUAL,
-            epochStart: uint32(block.timestamp),
-            epochDuration: EPOCH_DURATION,
-            epochVotingCutoff: EPOCH_VOTING_CUTOFF
-        });
+        uint256 REGISTRATION_FEE = governance.REGISTRATION_FEE();
 
-        governance = new Governance(
-            address(lqty), address(bold), stakingV1, address(bold), config, address(this), initialInitiatives
-        );
+        deal(address(bold), GOVERNANCE_WHALE, REGISTRATION_FEE);
+        vm.startPrank(GOVERNANCE_WHALE);
+        bold.approve(address(governance), REGISTRATION_FEE);
+        governance.registerInitiative(address(votiumInitiative));
+        vm.stopPrank();
 
-        votiumInitiative = new VotiumInitiative(
-            // address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
-            address(governance),
-            address(bold),
-            address(lqty),
-            address(votium),
-            gauge,
-            EPOCH_DURATION
-        );
-
-        initialInitiatives.push(address(votiumInitiative));
-        governance.registerInitialInitiatives(initialInitiatives);
+        vm.warp(block.timestamp + 1 weeks);
     }
 
     function test_claimAndDepositIntoGaugeFuzz(uint128 amt) public {
