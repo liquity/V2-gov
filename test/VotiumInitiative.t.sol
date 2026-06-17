@@ -134,4 +134,48 @@ contract ForkedVotiumInitiativeTest is Test {
     function getNetAmount(uint256 _amount) internal pure returns (uint256) {
         return (DECIMAL_PRECISION - VOTIUM_FEE) * _amount / DECIMAL_PRECISION;
     }
+
+    function test_Counterexample_BribeInsolvency() external {
+        uint256 lqtyStake = 1_000 ether;
+        uint256 boldIncentive = 1_000 ether; // to Governance
+        uint256 boldBribe = 1_000 ether;
+
+        deal(address(lqty), address(this), lqtyStake);
+        deal(address(bold), address(this), boldIncentive + boldBribe);
+
+        // Stake LQTY
+        lqty.approve(governance.deriveUserProxyAddress(address(this)), lqtyStake);
+        governance.depositLQTY(lqtyStake);
+
+        // Enter next epoch to unlock voting
+        skip(1 weeks);
+
+        // Vote on VotiumInitiative
+        address[] memory initiatives = new address[](1);
+        int256[] memory votes = new int256[](1);
+        initiatives[0] = address(votiumInitiative);
+        votes[0] = int256(lqtyStake);
+        governance.allocateLQTY(new address[](0), initiatives, votes, new int256[](1));
+
+        // Simulate interest being sent to Governance
+        bold.transfer(address(governance), boldIncentive);
+
+        // Also deposit some BOLD as bribes
+        bold.approve(address(votiumInitiative), boldBribe);
+        votiumInitiative.depositBribe({_boldAmount: boldBribe, _bribeTokenAmount: 0, _epoch: governance.epoch()});
+
+        // Enter next epoch
+        skip(1 weeks);
+
+        // Claim on behalf of VotiumInitiative
+        governance.claimForInitiative(address(votiumInitiative));
+
+        // Attempt to claim bribes
+        VotiumInitiative.ClaimData[] memory claimData = new VotiumInitiative.ClaimData[](1);
+        claimData[0].epoch = governance.epoch() - 1;
+        claimData[0].prevLQTYAllocationEpoch = claimData[0].epoch;
+        claimData[0].prevTotalLQTYAllocationEpoch = claimData[0].epoch;
+        votiumInitiative.claimBribes(claimData);
+        // [FAIL: ERC20: transfer amount exceeds balance]
+    }
 }
