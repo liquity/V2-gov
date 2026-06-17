@@ -22,7 +22,7 @@ contract ForkedVotiumInitiativeDeployedTest is Test {
     address public constant votium = 0x63942E31E98f1833A234077f47880A66136a2D1e;
     //address private constant gauge = 0x07a01471fA544D9C6531B631E6A96A79a9AD05E9;
     Governance private constant governance = Governance(0x807DEf5E7d057DF05C796F4bc75C3Fe82Bd6EeE1);
-    VotiumInitiative private constant votiumInitiative = VotiumInitiative(0xB5d64a1afe7eaDcc79b99BdfB932d406aAe66aAA);
+    VotiumInitiative private constant votiumInitiative = VotiumInitiative(0x69eFEc83296c711db4A403B1Ee281E87f99590d6);
 
     uint32 private constant EPOCH_DURATION = 604800;
     uint256 private constant DEPOSIT_THRESHOLD = EPOCH_DURATION * 1000;
@@ -30,7 +30,7 @@ contract ForkedVotiumInitiativeDeployedTest is Test {
     uint256 private constant DECIMAL_PRECISION = 1e18;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 25331012);
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 25336275);
 
         uint256 REGISTRATION_FEE = governance.REGISTRATION_FEE();
 
@@ -72,7 +72,7 @@ contract ForkedVotiumInitiativeDeployedTest is Test {
         assertEq(bold.balanceOf(address(votium)), 0);
     }
 
-    /// @dev Fuzz test that shows that given a total = amt + dust, the dust is not lost
+    /// @dev Fuzz test that shows that given a total = amt + dust, the dust is lost permanently
     function test_noDustGriefFuzz(uint128 amt, uint128 dust) public {
         uint256 total = uint256(amt) + uint256(dust);
         deal(address(bold), address(governance), total);
@@ -86,20 +86,8 @@ contract ForkedVotiumInitiativeDeployedTest is Test {
 
         assertEq(bold.balanceOf(address(votiumInitiative)), total);
         votiumInitiative.onClaimForInitiative(0, amt);
-        if (total >= DEPOSIT_THRESHOLD) {
-            assertEq(bold.balanceOf(address(votiumInitiative)), 0);
-            assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(total), 1);
-        } else {
-            assertEq(bold.balanceOf(address(votiumInitiative)), total);
-            // Next week it can be claimed
-            vm.warp(block.timestamp + 1 weeks);
-            uint256 remainderAmount = DEPOSIT_THRESHOLD - total;
-            deal(address(bold), address(governance), remainderAmount);
-            bold.transfer(address(votiumInitiative), remainderAmount);
-            votiumInitiative.onClaimForInitiative(0, remainderAmount);
-            assertEq(bold.balanceOf(address(votiumInitiative)), 0);
-            assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(total + remainderAmount), 1);
-        }
+
+        assertEq(bold.balanceOf(address(votiumInitiative)), votiumInitiative.remainder() + dust);
     }
 
     function getNetAmount(uint256 _amount) internal pure returns (uint256) {

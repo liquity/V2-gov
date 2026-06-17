@@ -101,7 +101,7 @@ contract ForkedVotiumInitiativeTest is Test {
         assertEq(bold.balanceOf(address(votium)), 0);
     }
 
-    /// @dev Fuzz test that shows that given a total = amt + dust, the dust is not lost
+    /// @dev Fuzz test that shows that given a total = amt + dust, the dust is lost permanently
     function test_noDustGriefFuzz(uint128 amt, uint128 dust) public {
         uint256 total = uint256(amt) + uint256(dust);
         deal(address(bold), address(governance), total);
@@ -115,24 +115,7 @@ contract ForkedVotiumInitiativeTest is Test {
 
         assertEq(bold.balanceOf(address(votiumInitiative)), total);
         votiumInitiative.onClaimForInitiative(0, amt);
-        if (total >= DEPOSIT_THRESHOLD) {
-            assertEq(bold.balanceOf(address(votiumInitiative)), 0);
-            assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(total), 1);
-        } else {
-            assertEq(bold.balanceOf(address(votiumInitiative)), total);
-            // Next week it can be claimed
-            vm.warp(block.timestamp + 1 weeks);
-            uint256 remainderAmount = DEPOSIT_THRESHOLD - total;
-            deal(address(bold), address(governance), remainderAmount);
-            bold.transfer(address(votiumInitiative), remainderAmount);
-            votiumInitiative.onClaimForInitiative(0, remainderAmount);
-            assertEq(bold.balanceOf(address(votiumInitiative)), 0);
-            assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(total + remainderAmount), 1);
-        }
-    }
-
-    function getNetAmount(uint256 _amount) internal pure returns (uint256) {
-        return (DECIMAL_PRECISION - VOTIUM_FEE) * _amount / DECIMAL_PRECISION;
+        assertEq(bold.balanceOf(address(votiumInitiative)), votiumInitiative.remainder() + dust);
     }
 
     function test_Counterexample_BribeInsolvency() external {
@@ -177,5 +160,9 @@ contract ForkedVotiumInitiativeTest is Test {
         claimData[0].prevTotalLQTYAllocationEpoch = claimData[0].epoch;
         votiumInitiative.claimBribes(claimData);
         // [FAIL: ERC20: transfer amount exceeds balance]
+    }
+
+    function getNetAmount(uint256 _amount) internal pure returns (uint256) {
+        return (DECIMAL_PRECISION - VOTIUM_FEE) * _amount / DECIMAL_PRECISION;
     }
 }

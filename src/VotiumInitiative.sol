@@ -10,6 +10,8 @@ contract VotiumInitiative is BribeInitiative {
     address public immutable gauge;
     uint256 public immutable duration;
 
+    uint256 public remainder;
+
     event DepositIntoVotium(uint256 amount);
 
     constructor(
@@ -25,20 +27,26 @@ contract VotiumInitiative is BribeInitiative {
         duration = _duration;
     }
 
-    uint256 public remainder;
-
     /// @notice Governance transfers Bold, and we deposit it into the gauge
     /// @dev Doing this allows anyone to trigger the claim
-    function onClaimForInitiative(uint256, uint256) external override onlyGovernance {
-        _depositIntoVotium();
+    function onClaimForInitiative(uint256, uint256 _bold) external override onlyGovernance {
+        _depositIntoVotium(_bold);
     }
 
-    function _depositIntoVotium() internal {
-        uint256 total = bold.balanceOf(address(this));
+    function _depositIntoVotium(uint256 _amount) internal {
+        uint256 total = _amount + remainder;
 
         // For small donations queue them into the contract
         if (total < duration * 1000) {
+            remainder += _amount;
             return;
+        }
+
+        remainder = 0;
+
+        uint256 available = bold.balanceOf(address(this));
+        if (available < total) {
+            total = available; // Cap due to rounding error causing a bit more bold being given away
         }
 
         bold.approve(address(votium), total);
