@@ -8,8 +8,9 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 
-import {BribeInitiative} from "../src/BribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
+
+import {MockInitiative} from "./mocks/MockInitiative.sol";
 
 contract ForkedE2ETests is Test {
     IERC20 private constant lqty = IERC20(address(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D));
@@ -57,9 +58,9 @@ contract ForkedE2ETests is Test {
             address(lqty), address(lusd), stakingV1, address(lusd), config, address(this), new address[](0)
         );
 
-        baseInitiative1 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
-        baseInitiative2 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
-        baseInitiative3 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
+        baseInitiative1 = address(new MockInitiative(address(governance)));
+        baseInitiative2 = address(new MockInitiative(address(governance)));
+        baseInitiative3 = address(new MockInitiative(address(governance)));
 
         initialInitiatives.push(baseInitiative1);
         initialInitiatives.push(baseInitiative2);
