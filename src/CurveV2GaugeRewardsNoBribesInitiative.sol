@@ -55,9 +55,8 @@ contract CurveV2GaugeRewardsNoBribesInitiative is IInitiative {
 
     // Wrapper to avoid gas limitation
     function claimForInitiative() external {
-        uint256 claimableAmount = governance.claimForInitiative(address(this));
+        governance.claimForInitiative(address(this));
         uint256 amount = bold.balanceOf(address(this));
-        assert(amount >= claimableAmount);
         require(amount > 0, "CurveV2GaugeRewardsNoBribesInitiative: no funds for campaign");
 
         // For small donations queue them into the contract
