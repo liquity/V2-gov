@@ -86,6 +86,7 @@ contract ForkedCurveV2GaugeRewardsNoBribesInitiativeTest is Test {
 
         assertEq(bold.balanceOf(address(curveV2GaugeRewardsNoBribes)), amt);
         uint256 gaugeBalanceBefore = bold.balanceOf(address(gauge));
+
         curveV2GaugeRewardsNoBribes.claimForInitiative();
         assertEq(bold.balanceOf(address(curveV2GaugeRewardsNoBribes)), 0);
         assertEq(bold.balanceOf(address(gauge)) - gaugeBalanceBefore, amt);
@@ -138,5 +139,25 @@ contract ForkedCurveV2GaugeRewardsNoBribesInitiativeTest is Test {
             assertEq(bold.balanceOf(address(curveV2GaugeRewardsNoBribes)), 0);
             assertApproxEqAbs(bold.balanceOf(address(gauge)) - gaugeBalanceBefore, total + remainderAmount, 1);
         }
+    }
+
+    function test_claimFrontrun(uint128 amt) public {
+        deal(address(bold), address(governance), amt);
+        vm.assume(amt > DEPOSIT_THRESHOLD);
+
+        // Pretend a Proposal has passed
+        vm.prank(address(governance));
+        bold.transfer(address(curveV2GaugeRewardsNoBribes), amt);
+
+        assertEq(bold.balanceOf(address(curveV2GaugeRewardsNoBribes)), amt);
+        uint256 gaugeBalanceBefore = bold.balanceOf(address(gauge));
+
+        // Someone frontruns the call to governance
+        governance.claimForInitiative(address(this));
+
+        // Now we use the wrapper
+        curveV2GaugeRewardsNoBribes.claimForInitiative();
+        assertEq(bold.balanceOf(address(curveV2GaugeRewardsNoBribes)), 0);
+        assertEq(bold.balanceOf(address(gauge)) - gaugeBalanceBefore, amt);
     }
 }

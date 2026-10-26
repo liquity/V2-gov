@@ -132,6 +132,25 @@ contract ForkedVotiumNoBribesInitiativeTest is Test {
         }
     }
 
+    function test_claimFrontrun(uint128 amt) public {
+        deal(address(bold), address(governance), amt);
+        vm.assume(amt > DEPOSIT_THRESHOLD);
+
+        // Pretend a Proposal has passed
+        vm.prank(address(governance));
+        bold.transfer(address(votiumNoBribesInitiative), amt);
+
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), amt);
+
+        // Someone frontruns the call to governance
+        governance.claimForInitiative(address(this));
+
+        // Now we use the wrapper
+        votiumNoBribesInitiative.claimForInitiative();
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), 0);
+        assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(amt), 1);
+    }
+
     function getNetAmount(uint256 _amount) internal pure returns (uint256) {
         return (DECIMAL_PRECISION - VOTIUM_FEE) * _amount / DECIMAL_PRECISION;
     }
