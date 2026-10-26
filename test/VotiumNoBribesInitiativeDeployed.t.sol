@@ -10,10 +10,10 @@ import {ICurveStableswapFactoryNG} from "../src/interfaces/ICurveStableswapFacto
 import {ICurveStableswapNG} from "../src/interfaces/ICurveStableswapNG.sol";
 import {IVotium} from "../src/interfaces/IVotium.sol";
 
-import {VotiumInitiative} from "../src/VotiumInitiative.sol";
+import {VotiumNoBribesInitiative} from "../src/VotiumNoBribesInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 
-contract ForkedVotiumInitiativeDeployedTest is Test {
+contract ForkedVotiumNoBribesInitiativeDeployedTest is Test {
     IERC20 private constant lqty = IERC20(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D);
     IERC20 private constant bold = IERC20(0x6440f144b7e50D6a8439336510312d2F54beB01D);
     address private constant stakingV1 = 0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d;
@@ -22,7 +22,7 @@ contract ForkedVotiumInitiativeDeployedTest is Test {
     address public constant votium = 0x63942E31E98f1833A234077f47880A66136a2D1e;
     //address private constant gauge = 0x07a01471fA544D9C6531B631E6A96A79a9AD05E9;
     Governance private constant governance = Governance(0x807DEf5E7d057DF05C796F4bc75C3Fe82Bd6EeE1);
-    VotiumInitiative private constant votiumInitiative = VotiumInitiative(0x69eFEc83296c711db4A403B1Ee281E87f99590d6);
+    VotiumNoBribesInitiative private constant votiumNoBribesInitiative = VotiumNoBribesInitiative(address(0)); // TODO
 
     uint32 private constant EPOCH_DURATION = 604800;
     uint256 private constant DEPOSIT_THRESHOLD = EPOCH_DURATION * 1000;
@@ -37,7 +37,7 @@ contract ForkedVotiumInitiativeDeployedTest is Test {
         deal(address(bold), GOVERNANCE_WHALE, REGISTRATION_FEE);
         vm.startPrank(GOVERNANCE_WHALE);
         bold.approve(address(governance), REGISTRATION_FEE);
-        governance.registerInitiative(address(votiumInitiative));
+        governance.registerInitiative(address(votiumNoBribesInitiative));
         vm.stopPrank();
 
         vm.warp(block.timestamp + 1 weeks);
@@ -49,11 +49,11 @@ contract ForkedVotiumInitiativeDeployedTest is Test {
 
         // Pretend a Proposal has passed
         vm.startPrank(address(governance));
-        bold.transfer(address(votiumInitiative), amt);
+        bold.transfer(address(votiumNoBribesInitiative), amt);
 
-        assertEq(bold.balanceOf(address(votiumInitiative)), amt);
-        votiumInitiative.onClaimForInitiative(0, amt);
-        assertEq(bold.balanceOf(address(votiumInitiative)), 0);
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), amt);
+        votiumNoBribesInitiative.claimForInitiative();
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), 0);
         assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(amt), 1);
     }
 
@@ -64,30 +64,44 @@ contract ForkedVotiumInitiativeDeployedTest is Test {
 
         // Pretend a Proposal has passed
         vm.startPrank(address(governance));
-        bold.transfer(address(votiumInitiative), amt);
+        bold.transfer(address(votiumNoBribesInitiative), amt);
 
-        assertEq(bold.balanceOf(address(votiumInitiative)), amt);
-        votiumInitiative.onClaimForInitiative(0, amt);
-        assertEq(bold.balanceOf(address(votiumInitiative)), amt);
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), amt);
+        votiumNoBribesInitiative.claimForInitiative();
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), amt);
         assertEq(bold.balanceOf(address(votium)), 0);
     }
 
-    /// @dev Fuzz test that shows that given a total = amt + dust, the dust is lost permanently
+    /// @dev Fuzz test that shows that given a total = amt + dust, the dust is not lost
     function test_noDustGriefFuzz(uint128 amt, uint128 dust) public {
         uint256 total = uint256(amt) + uint256(dust);
         deal(address(bold), address(governance), total);
 
         // Pretend a Proposal has passed
-        vm.startPrank(address(governance));
         // Dust amount
-        bold.transfer(address(votiumInitiative), amt);
+        vm.prank(address(governance));
+        bold.transfer(address(votiumNoBribesInitiative), amt);
         // Rest
-        bold.transfer(address(votiumInitiative), dust);
+        vm.prank(address(governance));
+        bold.transfer(address(votiumNoBribesInitiative), dust);
 
-        assertEq(bold.balanceOf(address(votiumInitiative)), total);
-        votiumInitiative.onClaimForInitiative(0, amt);
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), total);
+        votiumNoBribesInitiative.claimForInitiative();
 
-        assertEq(bold.balanceOf(address(votiumInitiative)), votiumInitiative.remainder() + dust);
+        if (total >= DEPOSIT_THRESHOLD) {
+            assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), 0);
+            assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(total), 1);
+        } else {
+            assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), total);
+            // Next week it can be claimed
+            vm.warp(block.timestamp + 1 weeks);
+            uint256 remainderAmount = DEPOSIT_THRESHOLD - total;
+            deal(address(bold), address(governance), remainderAmount);
+            bold.transfer(address(votiumNoBribesInitiative), remainderAmount);
+            votiumNoBribesInitiative.claimForInitiative();
+            assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), 0);
+            assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(total + remainderAmount), 1);
+        }
     }
 
     function getNetAmount(uint256 _amount) internal pure returns (uint256) {

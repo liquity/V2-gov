@@ -13,7 +13,6 @@ import {ILUSD} from "../src/interfaces/ILUSD.sol";
 import {ILQTY} from "../src/interfaces/ILQTY.sol";
 import {ILQTYStaking} from "../src/interfaces/ILQTYStaking.sol";
 
-import {BribeInitiative} from "../src/BribeInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 import {UserProxy} from "../src/UserProxy.sol";
 
@@ -104,9 +103,9 @@ abstract contract GovernanceTest is Test {
             address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), new address[](0)
         );
 
-        baseInitiative1 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
-        baseInitiative2 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
-        baseInitiative3 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
+        baseInitiative1 = address(new MockInitiative(address(governance)));
+        baseInitiative2 = address(new MockInitiative(address(governance)));
+        baseInitiative3 = address(new MockInitiative(address(governance)));
 
         initialInitiatives.push(baseInitiative1);
         initialInitiatives.push(baseInitiative2);
@@ -516,8 +515,8 @@ abstract contract GovernanceTest is Test {
             address(lqty), address(lusd), address(stakingV1), address(lusd), config, address(this), new address[](0)
         );
 
-        baseInitiative1 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
-        baseInitiative2 = address(new BribeInitiative(address(governance), address(lusd), address(lqty)));
+        baseInitiative1 = address(new MockInitiative(address(governance)));
+        baseInitiative2 = address(new MockInitiative(address(governance)));
 
         address[] memory initiatives = new address[](1);
         initiatives[0] = baseInitiative1;
@@ -2529,7 +2528,7 @@ abstract contract GovernanceTest is Test {
     // One might think that this can be done repeatedly in an attempt to manipulate unallocated voting power into
     // negative range, thus being able to allocate negative voting power to an initiative (if done very close to the
     // end of the present epoch), which would be bad as it would result in insolvency in initiatives that distribute
-    // rewards in proportion to voting power allocated by voters (such as `BribeInitiative`).
+    // rewards in proportion to voting power allocated by voters.
     //
     // However, we find that this manipulation stops being effective once unallocated voting power reaches zero. Having
     // zero unallocated voting power means:

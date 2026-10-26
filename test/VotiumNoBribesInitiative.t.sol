@@ -10,11 +10,12 @@ import {ICurveStableswapFactoryNG} from "../src/interfaces/ICurveStableswapFacto
 import {ICurveStableswapNG} from "../src/interfaces/ICurveStableswapNG.sol";
 import {IVotium} from "../src/interfaces/IVotium.sol";
 
-import {VotiumInitiative} from "../src/VotiumInitiative.sol";
+import {VotiumNoBribesInitiative} from "../src/VotiumNoBribesInitiative.sol";
 import {Governance} from "../src/Governance.sol";
 
-contract ForkedVotiumInitiativeTest is Test {
+contract ForkedVotiumNoBribesInitiativeTest is Test {
     IERC20 private constant lqty = IERC20(0x6DEA81C8171D0bA574754EF6F8b412F2Ed88c54D);
+    IERC20 private constant lusd = IERC20(address(0x5f98805A4E8be255a32880FDeC7F6728C6568bA0));
     IERC20 private constant bold = IERC20(0x6440f144b7e50D6a8439336510312d2F54beB01D);
     address private constant stakingV1 = 0x4f9Fbb3f1E99B56e0Fe2892e623Ed36A76Fc605d;
     //address private constant boldHolder = 0xabF2A7d999d7eBF2A0e29F267E6Bc93198818a96;
@@ -36,7 +37,7 @@ contract ForkedVotiumInitiativeTest is Test {
 
     Governance private governance;
     address[] private initialInitiatives;
-    VotiumInitiative private votiumInitiative;
+    VotiumNoBribesInitiative private votiumNoBribesInitiative;
 
     function setUp() public {
         vm.createSelectFork(vm.rpcUrl("mainnet"), 25260251);
@@ -55,20 +56,19 @@ contract ForkedVotiumInitiativeTest is Test {
         });
 
         governance = new Governance(
-            address(lqty), address(bold), stakingV1, address(bold), config, address(this), initialInitiatives
+            address(lqty), address(lusd), stakingV1, address(bold), config, address(this), initialInitiatives
         );
 
-        votiumInitiative = new VotiumInitiative(
+        votiumNoBribesInitiative = new VotiumNoBribesInitiative(
             // address(vm.computeCreateAddress(address(this), vm.getNonce(address(this)) + 1)),
             address(governance),
             address(bold),
-            address(lqty),
             address(votium),
             gauge,
             EPOCH_DURATION
         );
 
-        initialInitiatives.push(address(votiumInitiative));
+        initialInitiatives.push(address(votiumNoBribesInitiative));
         governance.registerInitialInitiatives(initialInitiatives);
     }
 
@@ -77,89 +77,78 @@ contract ForkedVotiumInitiativeTest is Test {
         vm.assume(amt > DEPOSIT_THRESHOLD);
 
         // Pretend a Proposal has passed
-        vm.startPrank(address(governance));
-        bold.transfer(address(votiumInitiative), amt);
+        vm.prank(address(governance));
+        bold.transfer(address(votiumNoBribesInitiative), amt);
 
-        assertEq(bold.balanceOf(address(votiumInitiative)), amt);
-        votiumInitiative.onClaimForInitiative(0, amt);
-        assertEq(bold.balanceOf(address(votiumInitiative)), 0);
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), amt);
+        votiumNoBribesInitiative.claimForInitiative();
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), 0);
         assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(amt), 1);
     }
 
-    /// @dev If the amount rounds down below 1 per second it reverts
     function test_claimAndDepositIntoGaugeGrief() public {
         uint256 amt = DEPOSIT_THRESHOLD - 1;
         deal(address(bold), address(governance), amt);
 
         // Pretend a Proposal has passed
-        vm.startPrank(address(governance));
-        bold.transfer(address(votiumInitiative), amt);
+        vm.prank(address(governance));
+        bold.transfer(address(votiumNoBribesInitiative), amt);
 
-        assertEq(bold.balanceOf(address(votiumInitiative)), amt);
-        votiumInitiative.onClaimForInitiative(0, amt);
-        assertEq(bold.balanceOf(address(votiumInitiative)), amt);
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), amt);
+        votiumNoBribesInitiative.claimForInitiative();
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), amt);
         assertEq(bold.balanceOf(address(votium)), 0);
     }
 
-    /// @dev Fuzz test that shows that given a total = amt + dust, the dust is lost permanently
+    /// @dev Fuzz test that shows that given a total = amt + dust, the dust is not lost
     function test_noDustGriefFuzz(uint128 amt, uint128 dust) public {
         uint256 total = uint256(amt) + uint256(dust);
         deal(address(bold), address(governance), total);
 
         // Pretend a Proposal has passed
-        vm.startPrank(address(governance));
         // Dust amount
-        bold.transfer(address(votiumInitiative), amt);
+        vm.prank(address(governance));
+        bold.transfer(address(votiumNoBribesInitiative), amt);
         // Rest
-        bold.transfer(address(votiumInitiative), dust);
+        vm.prank(address(governance));
+        bold.transfer(address(votiumNoBribesInitiative), dust);
 
-        assertEq(bold.balanceOf(address(votiumInitiative)), total);
-        votiumInitiative.onClaimForInitiative(0, amt);
-        assertEq(bold.balanceOf(address(votiumInitiative)), votiumInitiative.remainder() + dust);
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), total);
+        votiumNoBribesInitiative.claimForInitiative();
+        if (total >= DEPOSIT_THRESHOLD) {
+            assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), 0);
+            assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(total), 1);
+        } else {
+            assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), total);
+            // Next week it can be claimed
+            vm.warp(block.timestamp + 1 weeks);
+            uint256 remainderAmount = DEPOSIT_THRESHOLD - total;
+            deal(address(bold), address(governance), remainderAmount);
+            vm.prank(address(governance));
+            bold.transfer(address(votiumNoBribesInitiative), remainderAmount);
+            votiumNoBribesInitiative.claimForInitiative();
+            assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), 0);
+            assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(total + remainderAmount), 1);
+        }
     }
 
-    function test_Counterexample_BribeInsolvency() external {
-        uint256 lqtyStake = 1_000 ether;
-        uint256 boldIncentive = 1_000 ether; // to Governance
-        uint256 boldBribe = 1_000 ether;
+    function test_claimFrontrun(uint128 amt) public {
+        deal(address(bold), address(governance), amt);
+        vm.assume(amt > DEPOSIT_THRESHOLD);
 
-        deal(address(lqty), address(this), lqtyStake);
-        deal(address(bold), address(this), boldIncentive + boldBribe);
+        // Pretend a Proposal has passed
+        vm.prank(address(governance));
+        bold.transfer(address(votiumNoBribesInitiative), amt);
 
-        // Stake LQTY
-        lqty.approve(governance.deriveUserProxyAddress(address(this)), lqtyStake);
-        governance.depositLQTY(lqtyStake);
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), amt);
 
-        // Enter next epoch to unlock voting
-        skip(1 weeks);
+        // Someone frontruns the call to governance
+        governance.claimForInitiative(address(this));
 
-        // Vote on VotiumInitiative
-        address[] memory initiatives = new address[](1);
-        int256[] memory votes = new int256[](1);
-        initiatives[0] = address(votiumInitiative);
-        votes[0] = int256(lqtyStake);
-        governance.allocateLQTY(new address[](0), initiatives, votes, new int256[](1));
-
-        // Simulate interest being sent to Governance
-        bold.transfer(address(governance), boldIncentive);
-
-        // Also deposit some BOLD as bribes
-        bold.approve(address(votiumInitiative), boldBribe);
-        votiumInitiative.depositBribe({_boldAmount: boldBribe, _bribeTokenAmount: 0, _epoch: governance.epoch()});
-
-        // Enter next epoch
-        skip(1 weeks);
-
-        // Claim on behalf of VotiumInitiative
-        governance.claimForInitiative(address(votiumInitiative));
-
-        // Attempt to claim bribes
-        VotiumInitiative.ClaimData[] memory claimData = new VotiumInitiative.ClaimData[](1);
-        claimData[0].epoch = governance.epoch() - 1;
-        claimData[0].prevLQTYAllocationEpoch = claimData[0].epoch;
-        claimData[0].prevTotalLQTYAllocationEpoch = claimData[0].epoch;
-        votiumInitiative.claimBribes(claimData);
-        // [FAIL: ERC20: transfer amount exceeds balance]
+        // Now we use the wrapper
+        votiumNoBribesInitiative.claimForInitiative();
+        assertEq(bold.balanceOf(address(votiumNoBribesInitiative)), 0);
+        assertApproxEqAbs(bold.balanceOf(address(votium)), getNetAmount(amt), 1);
     }
 
     function getNetAmount(uint256 _amount) internal pure returns (uint256) {
