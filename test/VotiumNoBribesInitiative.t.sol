@@ -31,7 +31,7 @@ contract ForkedVotiumNoBribesInitiativeTest is Test {
     uint256 private constant MIN_ACCRUAL = 1000e18;
     uint32 private constant EPOCH_DURATION = 604800;
     uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
-    uint256 private constant DEPOSIT_THRESHOLD = EPOCH_DURATION * 1000;
+    uint256 private constant DEPOSIT_THRESHOLD = 1 ether;
     uint256 private constant VOTIUM_FEE = 0.02 ether; // 2%
     uint256 private constant DECIMAL_PRECISION = 1e18;
 
@@ -65,7 +65,7 @@ contract ForkedVotiumNoBribesInitiativeTest is Test {
             address(bold),
             address(votium),
             gauge,
-            EPOCH_DURATION
+            DEPOSIT_THRESHOLD
         );
 
         initialInitiatives.push(address(votiumNoBribesInitiative));

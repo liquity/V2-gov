@@ -11,7 +11,7 @@ contract DeployVotiumNoBribesInitiative is Script {
     address constant BOLD_TOKEN_ADDRESS = 0x6440f144b7e50D6a8439336510312d2F54beB01D;
     address constant VOTIUM_ADDRESS = 0x63942E31E98f1833A234077f47880A66136a2D1e;
     address constant GAUGE_ADDRESS = 0x07a01471fA544D9C6531B631E6A96A79a9AD05E9;
-    uint32 constant EPOCH_DURATION = 604800;
+    uint256 private constant DEPOSIT_THRESHOLD = 1 ether;
 
     address deployer;
 
@@ -31,7 +31,7 @@ contract DeployVotiumNoBribesInitiative is Script {
         console2.log("Chain Id: ", block.chainid);
 
         VotiumNoBribesInitiative votiumNoBribesInitiative = new VotiumNoBribesInitiative(
-            GOVERNANCE_ADDRESS, BOLD_TOKEN_ADDRESS, VOTIUM_ADDRESS, GAUGE_ADDRESS, EPOCH_DURATION
+            GOVERNANCE_ADDRESS, BOLD_TOKEN_ADDRESS, VOTIUM_ADDRESS, GAUGE_ADDRESS, DEPOSIT_THRESHOLD
         );
 
         console2.log("Deployed VotiumNoBribesInitiative: ", address(votiumNoBribesInitiative));

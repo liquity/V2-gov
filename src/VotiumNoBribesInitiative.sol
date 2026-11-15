@@ -13,23 +13,23 @@ contract VotiumNoBribesInitiative is IInitiative {
 
     IVotium public immutable votium;
     address public immutable gauge;
-    uint256 public immutable duration;
+    uint256 public immutable minDeposit;
 
     event DepositIntoVotium(uint256 amount);
 
-    constructor(address _governance, address _bold, address _votium, address _gauge, uint256 _duration) {
+    constructor(address _governance, address _bold, address _votium, address _gauge, uint256 _minDeposit) {
         require(_governance != address(0), "Governance must be set");
         require(_bold != address(0), "Bold token must be set");
         require(_votium != address(0), "Votium must be set");
         require(_gauge != address(0), "Gauge must be set");
-        require(_duration > 0, "Duration must be set");
+        require(_minDeposit > 0, "MinDeposit must be set");
 
         governance = IGovernance(_governance);
         bold = IERC20(_bold);
 
         votium = IVotium(_votium);
         gauge = _gauge;
-        duration = _duration;
+        minDeposit = _minDeposit;
     }
 
     modifier onlyGovernance() {
@@ -63,7 +63,7 @@ contract VotiumNoBribesInitiative is IInitiative {
         require(amount > 0, "VotiumNoBribesInitiative: no funds for campaign");
 
         // For small donations queue them into the contract
-        if (amount < duration * 1000) {
+        if (amount < minDeposit) {
             return;
         }
 

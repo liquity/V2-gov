@@ -25,7 +25,7 @@ contract ForkedVotiumNoBribesInitiativeDeployedTest is Test {
     VotiumNoBribesInitiative private constant votiumNoBribesInitiative = VotiumNoBribesInitiative(address(0)); // TODO
 
     uint32 private constant EPOCH_DURATION = 604800;
-    uint256 private constant DEPOSIT_THRESHOLD = EPOCH_DURATION * 1000;
+    uint256 private constant DEPOSIT_THRESHOLD = 1 ether;
     uint256 private constant VOTIUM_FEE = 0.02 ether; // 2%
     uint256 private constant DECIMAL_PRECISION = 1e18;
 
