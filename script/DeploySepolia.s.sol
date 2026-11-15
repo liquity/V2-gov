@@ -10,7 +10,7 @@ import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 
 import {Governance} from "../src/Governance.sol";
-import {CurveV2GaugeRewards} from "../src/CurveV2GaugeRewards.sol";
+import {CurveV2GaugeRewardsNoBribesInitiative} from "../src/CurveV2GaugeRewardsNoBribesInitiative.sol";
 
 import {MockERC20Tester} from "../test/mocks/MockERC20Tester.sol";
 import {MockStakingV1} from "../test/mocks/MockStakingV1.sol";
@@ -38,13 +38,13 @@ contract DeploySepoliaScript is Script, MockStakingV1Deployer {
     uint32 private constant EPOCH_DURATION = 604800;
     uint32 private constant EPOCH_VOTING_CUTOFF = 518400;
 
-    // CurveV2GaugeRewards Constants
+    // CurveV2GaugeRewardsNoBribesInitiative Constants
     uint256 private constant DURATION = 7 days;
 
     // Contracts
     Governance private governance;
     address[] private initialInitiatives;
-    CurveV2GaugeRewards private curveV2GaugeRewards;
+    CurveV2GaugeRewardsNoBribesInitiative private curveV2GaugeRewardsNoBribes;
     ICurveStableswapNG private curvePool;
     ILiquidityGauge private gauge;
 
@@ -89,7 +89,7 @@ contract DeploySepoliaScript is Script, MockStakingV1Deployer {
         );
     }
 
-    function deployCurveV2GaugeRewards(uint256 _nonce) private {
+    function deployCurveV2GaugeRewardsNoBribesInitiative(uint256 _nonce) private {
         address[] memory _coins = new address[](2);
         _coins[0] = address(bold);
         _coins[1] = address(usdc);
@@ -111,15 +111,11 @@ contract DeploySepoliaScript is Script, MockStakingV1Deployer {
 
         gauge = ILiquidityGauge(curveFactory.deploy_gauge(address(curvePool)));
 
-        curveV2GaugeRewards = new CurveV2GaugeRewards(
-            address(vm.computeCreateAddress(address(this), _nonce)),
-            address(bold),
-            address(lqty),
-            address(gauge),
-            DURATION
+        curveV2GaugeRewardsNoBribes = new CurveV2GaugeRewardsNoBribesInitiative(
+            address(vm.computeCreateAddress(address(this), _nonce)), address(bold), address(gauge), DURATION
         );
 
-        initialInitiatives.push(address(curveV2GaugeRewards));
+        initialInitiatives.push(address(curveV2GaugeRewardsNoBribes));
     }
 
     function run() public {
