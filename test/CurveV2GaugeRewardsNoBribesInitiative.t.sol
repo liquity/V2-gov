@@ -8,7 +8,7 @@ import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import {IGovernance} from "../src/interfaces/IGovernance.sol";
 import {ICurveStableswapFactoryNG} from "../src/interfaces/ICurveStableswapFactoryNG.sol";
 import {ICurveStableswapNG} from "../src/interfaces/ICurveStableswapNG.sol";
-import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
+import {ILiquidityGauge} from "../src/interfaces/ILiquidityGauge.sol";
 
 import {CurveV2GaugeRewardsNoBribesInitiative} from "../src/CurveV2GaugeRewardsNoBribesInitiative.sol";
 import {Governance} from "../src/Governance.sol";

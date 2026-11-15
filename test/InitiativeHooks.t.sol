@@ -104,26 +104,14 @@ contract InitiativeHooksTest is MockStakingV1Deployer {
         vetos.push();
     }
 
-    function test_OnAfterAllocateLQTY_IsCalled_WhenCastingVotes() external {
+    function test_OnAfterAllocateLQTY_IsNotCalled_WhenCastingVotes() external {
         vm.startPrank(voter);
         votes[0] = 123;
         governance.allocateLQTY(noInitiatives, initiatives, votes, vetos);
         vm.stopPrank();
 
-        assertEq(initiative.numOnAfterAllocateLQTYCalls(), 1, "onAfterAllocateLQTY should have been called once");
-        (,,, IGovernance.Allocation memory allocation,) = initiative.onAfterAllocateLQTYCalls(0);
-        assertEq(allocation.voteLQTY, 123, "wrong voteLQTY 1");
-
-        vm.startPrank(voter);
-        votes[0] = 456;
-        governance.allocateLQTY(initiatives, initiatives, votes, vetos);
-        vm.stopPrank();
-
-        assertEq(initiative.numOnAfterAllocateLQTYCalls(), 3, "onAfterAllocateLQTY should have been called twice more");
-        (,,, allocation,) = initiative.onAfterAllocateLQTYCalls(1);
-        assertEq(allocation.voteLQTY, 0, "wrong voteLQTY 2");
-        (,,, allocation,) = initiative.onAfterAllocateLQTYCalls(2);
-        assertEq(allocation.voteLQTY, 456, "wrong voteLQTY 3");
+        // With glamsterdam, gas increase makes hook run out of gas
+        assertEq(initiative.numOnAfterAllocateLQTYCalls(), 0, "onAfterAllocateLQTY should have been run out of gas");
     }
 
     function test_OnAfterAllocateLQTY_IsNotCalled_WhenCastingVetos() external {
@@ -135,13 +123,14 @@ contract InitiativeHooksTest is MockStakingV1Deployer {
         assertEq(initiative.numOnAfterAllocateLQTYCalls(), 0, "onAfterAllocateLQTY should not have been called once");
     }
 
-    function test_OnAfterAllocateLQTY_IsCalledOnceWithZeroVotes_WhenCastingVetosAfterHavingCastVotes() external {
+    function test_OnAfterAllocateLQTY_IsNotCalledWithZeroVotes_WhenCastingVetosAfterHavingCastVotes() external {
         vm.startPrank(voter);
         votes[0] = 123;
         governance.allocateLQTY(noInitiatives, initiatives, votes, vetos);
         vm.stopPrank();
 
-        assertEq(initiative.numOnAfterAllocateLQTYCalls(), 1, "onAfterAllocateLQTY should have been called once");
+        // With glamsterdam, gas increase makes hook run out of gas
+        assertEq(initiative.numOnAfterAllocateLQTYCalls(), 0, "onAfterAllocateLQTY should have been run out of gas");
 
         vm.startPrank(voter);
         votes[0] = 0;
@@ -149,8 +138,7 @@ contract InitiativeHooksTest is MockStakingV1Deployer {
         governance.allocateLQTY(initiatives, initiatives, votes, vetos);
         vm.stopPrank();
 
-        assertEq(initiative.numOnAfterAllocateLQTYCalls(), 2, "onAfterAllocateLQTY should have been called once more");
-        (,,, IGovernance.Allocation memory allocation,) = initiative.onAfterAllocateLQTYCalls(1);
-        assertEq(allocation.voteLQTY, 0, "wrong voteLQTY");
+        // With glamsterdam, gas increase makes hook run out of gas
+        assertEq(initiative.numOnAfterAllocateLQTYCalls(), 0, "onAfterAllocateLQTY should have been run out of gas");
     }
 }

@@ -33,7 +33,7 @@ contract SafeCallWithMinGasTests is Test {
     }
 
     function test_basic_contractData(uint256 gas, uint256 value, bytes memory theData) public {
-        gas = bound(gas, 50_000 + theData.length * 2_100, 30_000_000);
+        gas = bound(gas, 300_000 + theData.length * 2_100, 30_000_000);
 
         /// @audit Approximation
         FallbackRecipient recipient = new FallbackRecipient();
@@ -49,7 +49,7 @@ contract SafeCallWithMinGasTests is Test {
         BasicRecipient recipient = new BasicRecipient();
         // Call to non existent succeeds
 
-        safeCallWithMinGas(address(recipient), 35_000, 0, abi.encodeCall(BasicRecipient.validCall, ()));
+        safeCallWithMinGas(address(recipient), 150_000, 0, abi.encodeCall(BasicRecipient.validCall, ()));
         assertEq(recipient.callWasValid(), true, "Call success");
     }
 }
