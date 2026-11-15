@@ -288,7 +288,7 @@ contract MockedGovernanceAttacksTest is GovernanceAttacksTest, MockStakingV1Depl
 
 contract ForkedGovernanceAttacksTest is GovernanceAttacksTest {
     function setUp() public override {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 26260000);
 
         lqty = ILQTY(MAINNET_LQTY);
         lusd = ILUSD(MAINNET_LUSD);

@@ -38,7 +38,7 @@ contract ForkedE2ETests is Test {
     address private baseInitiative1;
 
     function setUp() public {
-        vm.createSelectFork(vm.rpcUrl("mainnet"), 20430000);
+        vm.createSelectFork(vm.rpcUrl("mainnet"), 26260000);
 
         IGovernance.Configuration memory config = IGovernance.Configuration({
             registrationFee: REGISTRATION_FEE,
