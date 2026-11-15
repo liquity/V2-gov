@@ -5,7 +5,7 @@ import {IERC20} from "openzeppelin/contracts/interfaces/IERC20.sol";
 
 import {IGovernance} from "./interfaces/IGovernance.sol";
 import {IInitiative} from "./interfaces/IInitiative.sol";
-import {ILiquidityGauge} from "./../src/interfaces/ILiquidityGauge.sol";
+import {ILiquidityGauge} from "./interfaces/ILiquidityGauge.sol";
 
 contract CurveV2GaugeRewardsNoBribesInitiative is IInitiative {
     IGovernance public immutable governance;
@@ -49,11 +49,12 @@ contract CurveV2GaugeRewardsNoBribesInitiative is IInitiative {
         IGovernance.InitiativeState calldata
     ) external override onlyGovernance {}
 
-    /// @notice Governance transfers Bold, and we deposit it into the gauge
-    /// @dev Doing this allows anyone to trigger the claim
+    /// @dev no-op to avoid running out of gas. Wrapper `claimForInitiative` used instead
     function onClaimForInitiative(uint256, uint256) external override onlyGovernance {}
 
-    // Wrapper to avoid gas limitation
+    /// @notice Governance transfers Bold, and we deposit it into the gauge
+    /// @dev Doing this allows anyone to trigger the claim
+    /// @dev Wrapper to avoid gas limitation
     function claimForInitiative() external {
         governance.claimForInitiative(address(this));
         uint256 amount = bold.balanceOf(address(this));

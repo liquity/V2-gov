@@ -52,11 +52,12 @@ contract VotiumNoBribesInitiative is IInitiative {
         IGovernance.InitiativeState calldata
     ) external override onlyGovernance {}
 
-    /// @notice Governance transfers Bold, and we deposit it into the gauge
-    /// @dev Doing this allows anyone to trigger the claim
+    /// @dev no-op to avoid running out of gas. Wrapper `claimForInitiative` used instead
     function onClaimForInitiative(uint256, uint256) external override onlyGovernance {}
 
-    // Wrapper to avoid gas limitation
+    /// @notice Governance transfers Bold, and we deposit it into the gauge
+    /// @dev Doing this allows anyone to trigger the claim
+    /// @dev Wrapper to avoid gas limitation
     function claimForInitiative() external {
         governance.claimForInitiative(address(this));
         uint256 amount = bold.balanceOf(address(this));
